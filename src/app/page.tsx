@@ -1,65 +1,119 @@
-import Image from "next/image";
+import { Suspense } from "react";
+import { getEventsWithFileCounts } from "@/lib/civicclerk";
+import { MonthPicker } from "@/components/MonthPicker";
+import { MeetingList } from "@/components/MeetingList";
 
-export default function Home() {
+interface PageProps {
+  searchParams: Promise<{ year?: string; month?: string }>;
+}
+
+function getDateRange(year: number, month: number) {
+  const startDate = `${year}-${month.toString().padStart(2, "0")}-01`;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextYear = month === 12 ? year + 1 : year;
+  const endDate = `${nextYear}-${nextMonth.toString().padStart(2, "0")}-01`;
+  return { startDate, endDate };
+}
+
+function LoadingState() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="space-y-4">
+      {[...Array(5)].map((_, i) => (
+        <div
+          key={i}
+          className="bg-white border border-gray-200 rounded-lg p-4 animate-pulse"
+        >
+          <div className="h-4 bg-gray-200 rounded w-1/4 mb-2" />
+          <div className="h-5 bg-gray-200 rounded w-3/4 mb-2" />
+          <div className="h-4 bg-gray-200 rounded w-1/2" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ErrorState({ error }: { error: string }) {
+  const isTokenError = error.includes("Token expired") || error.includes("CIVICCLERK_TOKEN");
+
+  return (
+    <div className="rounded-lg border border-red-200 bg-red-50 p-6">
+      <div className="flex items-start gap-3">
+        <svg
+          className="w-6 h-6 text-red-600 flex-shrink-0"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          />
+        </svg>
+        <div>
+          <h3 className="font-medium text-red-800">
+            {isTokenError ? "Authentication Error" : "Failed to Load Meetings"}
+          </h3>
+          <p className="text-sm text-red-700 mt-1">{error}</p>
+          {isTokenError && (
+            <p className="text-sm text-red-600 mt-2">
+              Update your CIVICCLERK_TOKEN environment variable with a fresh
+              token from the CivicClerk portal.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+async function MeetingsContent({
+  year,
+  month,
+}: {
+  year: number;
+  month: number;
+}) {
+  try {
+    const { startDate, endDate } = getDateRange(year, month);
+    const events = await getEventsWithFileCounts(startDate, endDate);
+    return <MeetingList events={events} />;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return <ErrorState error={message} />;
+  }
+}
+
+export default async function Home({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const now = new Date();
+  const year = params.year ? parseInt(params.year) : now.getFullYear();
+  const month = params.month ? parseInt(params.month) : now.getMonth() + 1;
+
+  return (
+    <main className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">
+            Santa Fe City Meetings
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-gray-500 mt-1">
+            Public meeting calendar and documents
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+        {/* Month picker */}
+        <Suspense fallback={null}>
+          <MonthPicker currentYear={year} currentMonth={month} />
+        </Suspense>
+
+        {/* Meeting list */}
+        <Suspense fallback={<LoadingState />}>
+          <MeetingsContent year={year} month={month} />
+        </Suspense>
+      </div>
+    </main>
   );
 }
