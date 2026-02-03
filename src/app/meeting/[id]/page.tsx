@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import {
   getEventById,
   getEventFiles,
-  getFileDownloadUrl,
+  getMeetingDetails,
   formatEventDate,
   formatEventTime,
   CivicFile,
@@ -14,9 +14,9 @@ interface PageProps {
 }
 
 function FileIcon({ fileType }: { fileType: string }) {
-  const isPdf = fileType.toLowerCase().includes("pdf");
-  const isVideo = fileType.toLowerCase().includes("video") || fileType.toLowerCase().includes("mp4");
-  const isDoc = fileType.toLowerCase().includes("doc") || fileType.toLowerCase().includes("word");
+  const type = fileType.toLowerCase();
+  const isPdf = type.includes("agenda") || type.includes("minutes") || type.includes("packet");
+  const isVideo = type.includes("video");
 
   if (isPdf) {
     return (
@@ -35,14 +35,6 @@ function FileIcon({ fileType }: { fileType: string }) {
     );
   }
 
-  if (isDoc) {
-    return (
-      <svg className="w-8 h-8 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z" />
-      </svg>
-    );
-  }
-
   return (
     <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -50,41 +42,48 @@ function FileIcon({ fileType }: { fileType: string }) {
   );
 }
 
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+function getFileTypeBadgeColor(type: string): string {
+  const t = type.toLowerCase();
+  if (t.includes("agenda") && t.includes("packet")) return "bg-blue-100 text-blue-700";
+  if (t.includes("agenda")) return "bg-green-100 text-green-700";
+  if (t.includes("minutes")) return "bg-purple-100 text-purple-700";
+  if (t.includes("video")) return "bg-red-100 text-red-700";
+  return "bg-gray-100 text-gray-700";
 }
 
-function FileCard({ file, token }: { file: CivicFile; token: string }) {
-  const downloadUrl = getFileDownloadUrl(file.id);
-  const isPdf = file.fileType.toLowerCase().includes("pdf");
+function FileCard({ file }: { file: CivicFile }) {
+  // Use the URL directly from the API response, or construct it
+  const viewUrl = file.url || `/api/file/${file.fileId}`;
+  const downloadUrl = `/api/file/${file.fileId}?download=true`;
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
       <div className="flex items-start gap-4">
-        <FileIcon fileType={file.fileType} />
+        <FileIcon fileType={file.type} />
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-gray-900 truncate">{file.name}</h3>
-          <p className="text-sm text-gray-500 truncate">{file.fileName}</p>
-          <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
-            <span>{formatFileSize(file.fileSize)}</span>
-            <span>{file.fileType}</span>
+          <h3 className="font-medium text-gray-900">{file.name}</h3>
+          <div className="flex items-center gap-2 mt-2">
+            <span className={`px-2 py-0.5 text-xs font-medium rounded ${getFileTypeBadgeColor(file.type)}`}>
+              {file.type}
+            </span>
+            {file.publishOn && (
+              <span className="text-xs text-gray-400">
+                Published {new Date(file.publishOn).toLocaleDateString()}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex flex-col gap-2">
-          {isPdf && (
-            <a
-              href={`/api/file/${file.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-            >
-              View
-            </a>
-          )}
           <a
-            href={`/api/file/${file.id}?download=true`}
+            href={viewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+          >
+            View
+          </a>
+          <a
+            href={downloadUrl}
             className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
           >
             Download
@@ -103,16 +102,23 @@ export default async function MeetingPage({ params }: PageProps) {
     notFound();
   }
 
-  const [event, files] = await Promise.all([
-    getEventById(eventId),
-    getEventFiles(eventId),
-  ]);
+  const event = await getEventById(eventId);
 
   if (!event) {
     notFound();
   }
 
-  const token = process.env.CIVICCLERK_TOKEN || "";
+  // Get files via the meeting/agenda endpoint
+  let files: CivicFile[] = [];
+  if (event.agendaId) {
+    const meeting = await getMeetingDetails(event.agendaId);
+    files = meeting?.publishedFiles || [];
+  }
+
+  // Build location string
+  const location = [event.venueName, event.venueAddress, event.venueCity]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -131,10 +137,10 @@ export default async function MeetingPage({ params }: PageProps) {
         {/* Meeting header */}
         <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
           <p className="text-sm font-medium text-indigo-600 mb-2">
-            {event.bodyName}
+            {event.categoryName || event.agendaName}
           </p>
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
-            {event.title}
+            {event.eventName}
           </h1>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -146,37 +152,32 @@ export default async function MeetingPage({ params }: PageProps) {
               <span className="text-gray-500">Time:</span>{" "}
               <span className="text-gray-900">{formatEventTime(event.startDateTime)}</span>
             </div>
-            {event.location && (
+            {location && (
               <div className="sm:col-span-2">
                 <span className="text-gray-500">Location:</span>{" "}
-                <span className="text-gray-900">{event.location}</span>
+                <span className="text-gray-900">{location}</span>
               </div>
             )}
           </div>
 
           {/* Status badges */}
           <div className="flex gap-2 mt-4">
-            {event.hasAgenda && (
+            {event.agendaId && (
               <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded">
                 Has Agenda
               </span>
             )}
-            {event.hasMinutes && (
-              <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700 rounded">
-                Has Minutes
-              </span>
-            )}
-            {event.hasVideo && (
-              <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded">
-                Has Video
+            {event.isPublished === "Published" && (
+              <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                Published
               </span>
             )}
           </div>
 
-          {event.description && (
+          {event.eventDescription && (
             <div className="mt-4 pt-4 border-t border-gray-100">
               <p className="text-gray-600 text-sm whitespace-pre-wrap">
-                {event.description}
+                {event.eventDescription}
               </p>
             </div>
           )}
@@ -208,7 +209,7 @@ export default async function MeetingPage({ params }: PageProps) {
           ) : (
             <div className="space-y-3">
               {files.map((file) => (
-                <FileCard key={file.id} file={file} token={token} />
+                <FileCard key={file.fileId} file={file} />
               ))}
             </div>
           )}

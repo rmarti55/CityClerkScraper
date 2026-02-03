@@ -1,46 +1,57 @@
 const API_BASE = "https://santafenm.api.civicclerk.com/v1";
 
-// Types based on CivicClerk API response structure
+// Types based on actual CivicClerk API response structure
 export interface CivicEvent {
   id: number;
-  title: string;
-  bodyId: number;
-  bodyName: string;
+  eventName: string;
+  eventDescription: string;
+  eventDate: string;
   startDateTime: string;
-  endDateTime: string | null;
-  location: string | null;
-  description: string | null;
-  status: string;
-  hasAgenda: boolean;
-  hasMinutes: boolean;
-  hasVideo: boolean;
+  agendaId: number | null;
+  agendaName: string;
+  categoryName: string;
+  isPublished: string;
+  // Location fields from venue
+  venueName?: string;
+  venueAddress?: string;
+  venueCity?: string;
+  venueState?: string;
+  venueZip?: string;
+  // Computed fields
   fileCount?: number;
 }
 
 export interface CivicFile {
-  id: number;
+  fileId: number;
   name: string;
-  fileName: string;
-  fileType: string;
-  fileSize: number;
-  description: string | null;
-  publishedDate: string;
-  eventId: number;
+  type: string; // "Agenda", "Agenda Packet", "Minutes", etc.
+  url: string;
+  publishOn: string;
+  fileType: number;
 }
 
-export interface EventsResponse {
+export interface MeetingDetails {
+  id: number;
+  agendaPacketIsPublish: boolean;
+  agendaIsPublish: boolean;
+  publishedFiles: CivicFile[];
+  items: MeetingItem[];
+}
+
+export interface MeetingItem {
+  id: number;
+  agendaObjectItemName: string;
+  agendaObjectItemOutlineNumber: string;
+  agendaObjectItemDescription: string | null;
+}
+
+interface EventsResponse {
   "@odata.context": string;
   "@odata.count"?: number;
   value: CivicEvent[];
 }
 
-export interface FilesResponse {
-  "@odata.context": string;
-  value: CivicFile[];
-}
-
 function getHeaders(): HeadersInit {
-  // API is publicly accessible - no token required
   return {
     Accept: "application/json",
   };
@@ -58,7 +69,7 @@ export async function getEvents(
 
   const response = await fetch(url, {
     headers: getHeaders(),
-    next: { revalidate: 300 }, // Cache for 5 minutes
+    next: { revalidate: 300 },
   });
 
   if (!response.ok) {
@@ -73,7 +84,7 @@ export async function getEvents(
  * Fetch a single event by ID
  */
 export async function getEventById(id: number): Promise<CivicEvent | null> {
-  const url = `${API_BASE}/Events(${id})`;
+  const url = `${API_BASE}/Events/${id}`;
 
   const response = await fetch(url, {
     headers: getHeaders(),
@@ -91,10 +102,10 @@ export async function getEventById(id: number): Promise<CivicEvent | null> {
 }
 
 /**
- * Fetch files/attachments for an event
+ * Fetch meeting details (includes files) by agenda ID
  */
-export async function getEventFiles(eventId: number): Promise<CivicFile[]> {
-  const url = `${API_BASE}/Events(${eventId})/Files`;
+export async function getMeetingDetails(agendaId: number): Promise<MeetingDetails | null> {
+  const url = `${API_BASE}/Meetings/${agendaId}`;
 
   const response = await fetch(url, {
     headers: getHeaders(),
@@ -102,32 +113,59 @@ export async function getEventFiles(eventId: number): Promise<CivicFile[]> {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch event files: ${response.status}`);
+    if (response.status === 404) {
+      return null;
+    }
+    throw new Error(`Failed to fetch meeting: ${response.status}`);
   }
 
-  const data: FilesResponse = await response.json();
-  return data.value;
+  return response.json();
 }
 
 /**
- * Get the download URL for a file
+ * Fetch files for an event (via its agendaId)
+ */
+export async function getEventFiles(eventId: number): Promise<CivicFile[]> {
+  // First get the event to find its agendaId
+  const event = await getEventById(eventId);
+  if (!event || !event.agendaId) {
+    return [];
+  }
+
+  // Then get meeting details which contain the files
+  const meeting = await getMeetingDetails(event.agendaId);
+  if (!meeting) {
+    return [];
+  }
+
+  return meeting.publishedFiles || [];
+}
+
+/**
+ * Get the download URL for a file (for streaming/viewing)
  */
 export function getFileDownloadUrl(fileId: number): string {
-  return `${API_BASE}/Files(${fileId})/$value`;
+  return `${API_BASE}/Meetings/GetMeetingFileStream(fileId=${fileId},plainText=false)`;
 }
 
 /**
- * Get events with file counts for a month (more efficient than fetching files for each)
+ * Get the direct file URL (alternative endpoint)
+ */
+export function getFileUrl(fileId: number): string {
+  return `${API_BASE}/Meetings/GetMeetingFile(fileId=${fileId},plainText=false)`;
+}
+
+/**
+ * Get events with file counts for a month
  */
 export async function getEventsWithFileCounts(
   startDate: string,
   endDate: string
 ): Promise<CivicEvent[]> {
-  // First get all events
   const events = await getEvents(startDate, endDate);
 
-  // Fetch file counts in parallel (batch of 10 at a time to avoid rate limiting)
-  const batchSize = 10;
+  // Fetch file counts in parallel (batch of 5 to be safe)
+  const batchSize = 5;
   const eventsWithCounts: CivicEvent[] = [];
 
   for (let i = 0; i < events.length; i += batchSize) {
@@ -135,8 +173,12 @@ export async function getEventsWithFileCounts(
     const batchResults = await Promise.all(
       batch.map(async (event) => {
         try {
-          const files = await getEventFiles(event.id);
-          return { ...event, fileCount: files.length };
+          if (!event.agendaId) {
+            return { ...event, fileCount: 0 };
+          }
+          const meeting = await getMeetingDetails(event.agendaId);
+          const fileCount = meeting?.publishedFiles?.length || 0;
+          return { ...event, fileCount };
         } catch {
           return { ...event, fileCount: 0 };
         }

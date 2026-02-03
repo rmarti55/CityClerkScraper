@@ -6,7 +6,8 @@ interface MeetingCardProps {
 }
 
 export function MeetingCard({ event }: MeetingCardProps) {
-  const hasContent = event.hasAgenda || event.hasMinutes || event.hasVideo || (event.fileCount && event.fileCount > 0);
+  const hasFiles = event.fileCount && event.fileCount > 0;
+  const hasAgenda = event.agendaId !== null;
 
   return (
     <Link
@@ -15,14 +16,14 @@ export function MeetingCard({ event }: MeetingCardProps) {
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          {/* Body name */}
+          {/* Category/Body name */}
           <p className="text-sm font-medium text-indigo-600 mb-1">
-            {event.bodyName}
+            {event.categoryName || event.agendaName}
           </p>
 
           {/* Title */}
           <h3 className="font-semibold text-gray-900 truncate">
-            {event.title}
+            {event.eventName}
           </h3>
 
           {/* Date and time */}
@@ -32,9 +33,9 @@ export function MeetingCard({ event }: MeetingCardProps) {
           </p>
 
           {/* Location */}
-          {event.location && (
+          {event.venueName && (
             <p className="text-sm text-gray-400 mt-1 truncate">
-              {event.location}
+              {event.venueName}
             </p>
           )}
         </div>
@@ -42,7 +43,7 @@ export function MeetingCard({ event }: MeetingCardProps) {
         {/* Status badges */}
         <div className="flex flex-col items-end gap-2">
           {/* File count badge */}
-          {event.fileCount !== undefined && event.fileCount > 0 && (
+          {hasFiles && (
             <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
               <svg
                 className="w-3 h-3"
@@ -61,27 +62,15 @@ export function MeetingCard({ event }: MeetingCardProps) {
             </span>
           )}
 
-          {/* Content indicators */}
-          <div className="flex gap-1">
-            {event.hasAgenda && (
-              <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded">
-                Agenda
-              </span>
-            )}
-            {event.hasMinutes && (
-              <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 rounded">
-                Minutes
-              </span>
-            )}
-            {event.hasVideo && (
-              <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded">
-                Video
-              </span>
-            )}
-          </div>
+          {/* Has agenda indicator */}
+          {hasAgenda && (
+            <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded">
+              Has Agenda
+            </span>
+          )}
 
-          {/* Empty indicator */}
-          {!hasContent && (
+          {/* No content indicator */}
+          {!hasFiles && !hasAgenda && (
             <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-500 rounded">
               No files
             </span>
