@@ -12,31 +12,17 @@ export async function GET(
     return NextResponse.json({ error: "Invalid file ID" }, { status: 400 });
   }
 
-  const token = process.env.CIVICCLERK_TOKEN;
-  if (!token) {
-    return NextResponse.json(
-      { error: "CIVICCLERK_TOKEN not configured" },
-      { status: 500 }
-    );
-  }
-
   const downloadUrl = getFileDownloadUrl(fileId);
   const isDownload = request.nextUrl.searchParams.get("download") === "true";
 
   try {
     const response = await fetch(downloadUrl, {
       headers: {
-        Authorization: `Bearer ${token}`,
+        Accept: "*/*",
       },
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        return NextResponse.json(
-          { error: "Token expired - please refresh" },
-          { status: 401 }
-        );
-      }
       return NextResponse.json(
         { error: `Failed to fetch file: ${response.status}` },
         { status: response.status }

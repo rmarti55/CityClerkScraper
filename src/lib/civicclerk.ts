@@ -40,12 +40,8 @@ export interface FilesResponse {
 }
 
 function getHeaders(): HeadersInit {
-  const token = process.env.CIVICCLERK_TOKEN;
-  if (!token) {
-    throw new Error("CIVICCLERK_TOKEN environment variable is not set");
-  }
+  // API is publicly accessible - no token required
   return {
-    Authorization: `Bearer ${token}`,
     Accept: "application/json",
   };
 }
@@ -66,9 +62,6 @@ export async function getEvents(
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
-      throw new Error("Token expired - please refresh your CivicClerk token");
-    }
     throw new Error(`Failed to fetch events: ${response.status}`);
   }
 
@@ -91,9 +84,6 @@ export async function getEventById(id: number): Promise<CivicEvent | null> {
     if (response.status === 404) {
       return null;
     }
-    if (response.status === 401) {
-      throw new Error("Token expired - please refresh your CivicClerk token");
-    }
     throw new Error(`Failed to fetch event: ${response.status}`);
   }
 
@@ -112,9 +102,6 @@ export async function getEventFiles(eventId: number): Promise<CivicFile[]> {
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
-      throw new Error("Token expired - please refresh your CivicClerk token");
-    }
     throw new Error(`Failed to fetch event files: ${response.status}`);
   }
 
