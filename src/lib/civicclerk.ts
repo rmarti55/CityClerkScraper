@@ -58,26 +58,41 @@ function getHeaders(): HeadersInit {
 }
 
 /**
- * Fetch events for a given date range
+ * Fetch events for a given date range (handles pagination to get ALL events)
+ * Note: CivicClerk API has a hard limit of 15 results per page
  */
 export async function getEvents(
   startDate: string,
   endDate: string
 ): Promise<CivicEvent[]> {
   const filter = `startDateTime ge ${startDate} and startDateTime lt ${endDate}`;
-  const url = `${API_BASE}/Events?$filter=${encodeURIComponent(filter)}&$orderby=startDateTime asc&$count=true`;
+  const allEvents: CivicEvent[] = [];
+  let skip = 0;
 
-  const response = await fetch(url, {
-    headers: getHeaders(),
-    next: { revalidate: 300 },
-  });
+  while (true) {
+    const url = `${API_BASE}/Events?$filter=${encodeURIComponent(filter)}&$orderby=startDateTime asc&$count=true&$skip=${skip}`;
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch events: ${response.status}`);
+    const response = await fetch(url, {
+      headers: getHeaders(),
+      next: { revalidate: 300 },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch events: ${response.status}`);
+    }
+
+    const data: EventsResponse = await response.json();
+    
+    // No more results - we've fetched everything
+    if (data.value.length === 0) {
+      break;
+    }
+
+    allEvents.push(...data.value);
+    skip += data.value.length;
   }
 
-  const data: EventsResponse = await response.json();
-  return data.value;
+  return allEvents;
 }
 
 /**
