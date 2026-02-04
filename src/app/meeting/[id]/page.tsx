@@ -52,8 +52,8 @@ function getFileTypeBadgeColor(type: string): string {
 }
 
 function FileCard({ file }: { file: CivicFile }) {
-  // Use the URL directly from the API response, or construct it
-  const viewUrl = file.url || `/api/file/${file.fileId}`;
+  // Always use the API proxy route to properly serve the file
+  const viewUrl = `/api/file/${file.fileId}`;
   const downloadUrl = `/api/file/${file.fileId}?download=true`;
 
   return (
