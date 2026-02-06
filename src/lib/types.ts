@@ -17,6 +17,7 @@ export interface CivicEvent {
   venueZip?: string;
   // Computed fields
   fileCount?: number;
+  fileNames?: string; // Concatenated file names for search
 }
 
 export interface CivicFile {

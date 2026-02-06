@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { CivicEvent } from "@/lib/types";
-import { useSearch } from "@/hooks/useSearch";
+import { useGlobalSearch } from "@/hooks/useGlobalSearch";
 import { SearchBar } from "./SearchBar";
-import { SearchResults } from "./SearchResults";
+import { GlobalSearchResults } from "./GlobalSearchResults";
 import { MeetingList } from "./MeetingList";
 
 interface SearchableContentProps {
@@ -13,9 +13,18 @@ interface SearchableContentProps {
 
 export function SearchableContent({ events }: SearchableContentProps) {
   const [query, setQuery] = useState("");
-  const { results, isSearching, debouncedQuery } = useSearch(events, query);
+  const {
+    results,
+    total,
+    page,
+    totalPages,
+    isLoading,
+    error,
+    setPage,
+    debouncedQuery,
+  } = useGlobalSearch(query);
 
-  const isShowingResults = debouncedQuery.trim().length > 0;
+  const isShowingResults = debouncedQuery.trim().length >= 2;
 
   return (
     <div>
@@ -24,13 +33,22 @@ export function SearchableContent({ events }: SearchableContentProps) {
         <SearchBar
           value={query}
           onChange={setQuery}
-          isSearching={isSearching}
+          isSearching={isLoading}
         />
       </div>
 
       {/* Conditional content: search results or meeting list */}
       {isShowingResults ? (
-        <SearchResults results={results} query={debouncedQuery} />
+        <GlobalSearchResults
+          results={results}
+          query={debouncedQuery}
+          total={total}
+          page={page}
+          totalPages={totalPages}
+          isLoading={isLoading}
+          error={error}
+          onPageChange={setPage}
+        />
       ) : (
         <MeetingList events={events} />
       )}

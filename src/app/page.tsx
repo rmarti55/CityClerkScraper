@@ -18,8 +18,6 @@ function getDateRange(year: number, month: number) {
 }
 
 function ErrorState({ error }: { error: string }) {
-  const isTokenError = error.includes("Token expired") || error.includes("CIVICCLERK_TOKEN");
-
   return (
     <div className="rounded-lg border border-red-200 bg-red-50 p-6">
       <div className="flex items-start gap-3">
@@ -37,16 +35,8 @@ function ErrorState({ error }: { error: string }) {
           />
         </svg>
         <div>
-          <h3 className="font-medium text-red-800">
-            {isTokenError ? "Authentication Error" : "Failed to Load Meetings"}
-          </h3>
+          <h3 className="font-medium text-red-800">Failed to Load Meetings</h3>
           <p className="text-sm text-red-700 mt-1">{error}</p>
-          {isTokenError && (
-            <p className="text-sm text-red-600 mt-2">
-              Update your CIVICCLERK_TOKEN environment variable with a fresh
-              token from the CivicClerk portal.
-            </p>
-          )}
         </div>
       </div>
     </div>

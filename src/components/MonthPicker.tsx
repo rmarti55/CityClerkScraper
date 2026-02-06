@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const MONTHS = [
@@ -57,6 +58,23 @@ export function MonthPicker({ currentYear, currentMonth }: MonthPickerProps) {
     const now = new Date();
     navigateToMonth(now.getFullYear(), now.getMonth() + 1);
   };
+
+  // Prefetch prev/next month so navigation feels faster
+  useEffect(() => {
+    const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+    const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+    const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+    const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+    const params = new URLSearchParams(searchParams.toString());
+    const buildUrl = (y: number, m: number) => {
+      const p = new URLSearchParams(params);
+      p.set("year", y.toString());
+      p.set("month", m.toString());
+      return `/?${p.toString()}`;
+    };
+    router.prefetch(buildUrl(prevYear, prevMonth));
+    router.prefetch(buildUrl(nextYear, nextMonth));
+  }, [currentYear, currentMonth, searchParams, router]);
 
   return (
     <div className="flex items-center justify-between gap-4 mb-6">

@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "backfill": "tsx scripts/backfill-events.ts",
+    "backfill:probe": "tsx scripts/backfill-events.ts --probe"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
@@ -26,6 +28,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
+    "tsx": "^4.19.2",
     "typescript": "^5"
   }
 }

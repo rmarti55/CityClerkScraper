@@ -42,11 +42,24 @@ function getHeaders(): HeadersInit {
 }
 
 /**
+ * True if the requested date range is entirely in the past (end of range before today).
+ * For past ranges we prefer DB whenever we have any cached data (no API refetch).
+ */
+function isRangeInPast(endDate: string): boolean {
+  const end = new Date(endDate);
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  return end < startOfToday;
+}
+
+/**
  * Check if cached data is still fresh based on event date
  * Uses age-based caching: older events have longer cache duration
  */
-function isCacheFresh(cachedAt: Date | null, eventDate: Date): boolean {
+function isCacheFresh(cachedAt: Date | null, eventDate: Date, hasFileNames?: boolean): boolean {
   if (!cachedAt) return false;
+  // If fileNames is missing, cache is incomplete and needs refresh
+  if (hasFileNames === false) return false;
   const cacheDuration = getCacheDuration(eventDate);
   if (cacheDuration === Infinity) return true; // Permanent cache for old events
   return Date.now() - cachedAt.getTime() < cacheDuration;
@@ -110,6 +123,7 @@ function mapCachedEvent(e: typeof events.$inferSelect): CivicEvent {
     venueState: e.venueState || undefined,
     venueZip: e.venueZip || undefined,
     fileCount: e.fileCount || 0,
+    fileNames: e.fileNames || undefined,
   };
 }
 
@@ -133,10 +147,15 @@ export async function getEvents(
       )
       .orderBy(events.startDateTime);
 
-    // Check if ALL cached events are fresh based on their individual dates
     if (cachedEvents.length > 0) {
-      const allFresh = cachedEvents.every(e => isCacheFresh(e.cachedAt, e.startDateTime));
-      
+      const hasAllFileNames = cachedEvents.every(e => e.fileNames !== null);
+      // For past ranges, serve from DB only if we have complete data (including fileNames)
+      if (isRangeInPast(endDate) && hasAllFileNames) {
+        console.log(`Serving ${cachedEvents.length} cached events for past range`);
+        return cachedEvents.map(mapCachedEvent);
+      }
+      // For current/future ranges, require all cached events to be fresh
+      const allFresh = cachedEvents.every(e => isCacheFresh(e.cachedAt, e.startDateTime, e.fileNames !== null));
       if (allFresh) {
         return cachedEvents.map(mapCachedEvent);
       }
@@ -172,7 +191,7 @@ export async function getEventById(id: number): Promise<CivicEvent | null> {
     
     if (cached.length > 0) {
       cachedEvent = cached[0];
-      if (isCacheFresh(cachedEvent.cachedAt, cachedEvent.startDateTime)) {
+      if (isCacheFresh(cachedEvent.cachedAt, cachedEvent.startDateTime, cachedEvent.fileNames !== null)) {
         return mapCachedEvent(cachedEvent);
       }
     }
@@ -358,10 +377,15 @@ export async function getEventsWithFileCounts(
       )
       .orderBy(events.startDateTime);
 
-    // Check if ALL cached events are fresh based on their individual dates
     if (cachedEvents.length > 0) {
-      const allFresh = cachedEvents.every(e => isCacheFresh(e.cachedAt, e.startDateTime));
-      
+      const hasAllFileNames = cachedEvents.every(e => e.fileNames !== null);
+      // For past ranges, serve from DB only if we have complete data (including fileNames)
+      if (isRangeInPast(endDate) && hasAllFileNames) {
+        console.log(`Serving ${cachedEvents.length} cached events for past range`);
+        return cachedEvents.map(mapCachedEvent);
+      }
+      // For current/future ranges, require all cached events to be fresh
+      const allFresh = cachedEvents.every(e => isCacheFresh(e.cachedAt, e.startDateTime, e.fileNames !== null));
       if (allFresh) {
         return cachedEvents.map(mapCachedEvent);
       }
@@ -394,13 +418,14 @@ export async function getEventsWithFileCounts(
       batch.map(async (event) => {
         try {
           if (!event.agendaId) {
-            return { ...event, fileCount: 0 };
+            return { ...event, fileCount: 0, fileNames: '' };
           }
           const meeting = await getMeetingDetails(event.agendaId);
           const fileCount = meeting?.publishedFiles?.length || 0;
-          return { ...event, fileCount };
+          const fileNames = meeting?.publishedFiles?.map(f => f.name).join(' ') || '';
+          return { ...event, fileCount, fileNames };
         } catch {
-          return { ...event, fileCount: 0 };
+          return { ...event, fileCount: 0, fileNames: '' };
         }
       })
     );
@@ -427,6 +452,7 @@ export async function getEventsWithFileCounts(
           venueState: e.venueState,
           venueZip: e.venueZip,
           fileCount: e.fileCount || 0,
+          fileNames: e.fileNames || '',
           cachedAt: new Date(),
         })))
         .onConflictDoUpdate({
@@ -438,6 +464,7 @@ export async function getEventsWithFileCounts(
             agendaName: events.agendaName,
             categoryName: events.categoryName,
             fileCount: events.fileCount,
+            fileNames: events.fileNames,
             cachedAt: new Date(),
           },
         });
@@ -449,5 +476,230 @@ export async function getEventsWithFileCounts(
   return eventsWithCounts;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export interface BackfillResult {
+  eventsCount: number;
+  meetingsCalls: number;
+}
+
+/**
+ * Backfill a date range from the API into the database (no cache check).
+ * Fetches events, then meeting details in batches with throttle, then upserts events and files.
+ * Use for one-time historical backfill (e.g. last 5 years).
+ */
+export async function backfillDateRange(
+  startDate: string,
+  endDate: string,
+  options?: { throttleMs?: number }
+): Promise<BackfillResult> {
+  const throttleMs = options?.throttleMs ?? 150;
+  const batchSize = 5;
+
+  const fetchedEvents = await fetchEventsFromAPI(startDate, endDate);
+  const eventsWithCounts: CivicEvent[] = [];
+  const filesToUpsert: { eventId: number; file: CivicFile }[] = [];
+
+  for (let i = 0; i < fetchedEvents.length; i += batchSize) {
+    const batch = fetchedEvents.slice(i, i + batchSize);
+    const batchResults = await Promise.all(
+      batch.map(async (event) => {
+        try {
+          if (!event.agendaId) {
+            return { ...event, fileCount: 0, fileNames: '' };
+          }
+          const meeting = await getMeetingDetails(event.agendaId);
+          const fileCount = meeting?.publishedFiles?.length || 0;
+          const fileNames = meeting?.publishedFiles?.map((f) => f.name).join(' ') || '';
+          if (meeting?.publishedFiles?.length) {
+            filesToUpsert.push(
+              ...meeting.publishedFiles.map((f) => ({ eventId: event.id, file: f }))
+            );
+          }
+          return { ...event, fileCount, fileNames };
+        } catch {
+          return { ...event, fileCount: 0, fileNames: '' };
+        }
+      })
+    );
+    eventsWithCounts.push(...batchResults);
+    if (i + batchSize < fetchedEvents.length) {
+      await sleep(throttleMs);
+    }
+  }
+
+  const meetingsCalls = eventsWithCounts.filter((e) => e.agendaId).length;
+
+  if (eventsWithCounts.length > 0) {
+    await db
+      .insert(events)
+      .values(
+        eventsWithCounts.map((e) => ({
+          id: e.id,
+          eventName: e.eventName,
+          eventDescription: e.eventDescription,
+          eventDate: e.eventDate,
+          startDateTime: new Date(e.startDateTime),
+          agendaId: e.agendaId,
+          agendaName: e.agendaName,
+          categoryName: e.categoryName,
+          isPublished: e.isPublished,
+          venueName: e.venueName,
+          venueAddress: e.venueAddress,
+          venueCity: e.venueCity,
+          venueState: e.venueState,
+          venueZip: e.venueZip,
+          fileCount: e.fileCount || 0,
+          fileNames: e.fileNames || '',
+          cachedAt: new Date(),
+        }))
+      )
+      .onConflictDoUpdate({
+        target: events.id,
+        set: {
+          eventName: events.eventName,
+          eventDescription: events.eventDescription,
+          agendaId: events.agendaId,
+          agendaName: events.agendaName,
+          categoryName: events.categoryName,
+          fileCount: events.fileCount,
+          fileNames: events.fileNames,
+          cachedAt: new Date(),
+        },
+      });
+  }
+
+  if (filesToUpsert.length > 0) {
+    const fileRows = filesToUpsert.map(({ eventId, file: f }) => ({
+      id: f.fileId,
+      eventId,
+      name: f.name,
+      type: f.type,
+      url: f.url,
+      publishOn: f.publishOn,
+      fileType: f.fileType,
+      cachedAt: new Date(),
+    }));
+    for (let i = 0; i < fileRows.length; i += 100) {
+      const chunk = fileRows.slice(i, i + 100);
+      await db
+        .insert(files)
+        .values(chunk)
+        .onConflictDoUpdate({
+          target: files.id,
+          set: {
+            name: files.name,
+            type: files.type,
+            url: files.url,
+            cachedAt: new Date(),
+          },
+        });
+    }
+  }
+
+  return { eventsCount: eventsWithCounts.length, meetingsCalls };
+}
+
 // Re-export format helpers for backward compatibility
 export { formatEventDate, formatEventTime } from './utils';
+
+/**
+ * Search events across all time periods with pagination
+ * Returns future events first (ascending), then past events (descending)
+ */
+export async function searchEvents(
+  query: string,
+  page: number = 1,
+  limit: number = 20
+): Promise<{ events: CivicEvent[]; total: number }> {
+  const offset = (page - 1) * limit;
+  const searchPattern = `%${query}%`;
+  const now = new Date();
+
+  try {
+    // Use raw SQL for the complex ordering and ILIKE search
+    const { neon } = await import('@neondatabase/serverless');
+    const sql = neon(process.env.DATABASE_URL!);
+
+    // Count total matching events
+    const countResult = await sql`
+      SELECT COUNT(*) as total
+      FROM events
+      WHERE 
+        event_name ILIKE ${searchPattern}
+        OR category_name ILIKE ${searchPattern}
+        OR agenda_name ILIKE ${searchPattern}
+        OR event_description ILIKE ${searchPattern}
+        OR venue_name ILIKE ${searchPattern}
+    `;
+    const total = parseInt(countResult[0]?.total || '0', 10);
+
+    // Fetch paginated results with custom ordering:
+    // Future events first (ascending by date), then past events (descending by date)
+    const results = await sql`
+      SELECT 
+        id,
+        event_name,
+        event_description,
+        event_date,
+        start_date_time,
+        agenda_id,
+        agenda_name,
+        category_name,
+        is_published,
+        venue_name,
+        venue_address,
+        venue_city,
+        venue_state,
+        venue_zip,
+        file_count
+      FROM events
+      WHERE 
+        event_name ILIKE ${searchPattern}
+        OR category_name ILIKE ${searchPattern}
+        OR agenda_name ILIKE ${searchPattern}
+        OR event_description ILIKE ${searchPattern}
+        OR venue_name ILIKE ${searchPattern}
+      ORDER BY 
+        CASE WHEN start_date_time >= ${now} THEN 0 ELSE 1 END,
+        CASE WHEN start_date_time >= ${now} THEN start_date_time END ASC,
+        CASE WHEN start_date_time < ${now} THEN start_date_time END DESC
+      LIMIT ${limit}
+      OFFSET ${offset}
+    `;
+
+    // Map database results to CivicEvent format
+    // Note: Neon returns timestamps as strings, so we need to handle both cases
+    const events: CivicEvent[] = results.map((row: Record<string, unknown>) => {
+      const startDateTime = row.start_date_time;
+      const isoDateTime = startDateTime instanceof Date 
+        ? startDateTime.toISOString() 
+        : String(startDateTime);
+      
+      return {
+        id: row.id as number,
+        eventName: row.event_name as string,
+        eventDescription: (row.event_description as string) || '',
+        eventDate: row.event_date as string,
+        startDateTime: isoDateTime,
+        agendaId: row.agenda_id as number | null,
+        agendaName: (row.agenda_name as string) || '',
+        categoryName: (row.category_name as string) || '',
+        isPublished: (row.is_published as string) || '',
+        venueName: (row.venue_name as string) || undefined,
+        venueAddress: (row.venue_address as string) || undefined,
+        venueCity: (row.venue_city as string) || undefined,
+        venueState: (row.venue_state as string) || undefined,
+        venueZip: (row.venue_zip as string) || undefined,
+        fileCount: (row.file_count as number) || 0,
+      };
+    });
+
+    return { events, total };
+  } catch (error) {
+    console.error('Search query failed:', error);
+    throw new Error('Failed to search events');
+  }
+}
