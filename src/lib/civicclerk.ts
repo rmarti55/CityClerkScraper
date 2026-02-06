@@ -1,54 +1,32 @@
 import { db, events, files } from './db';
 import { eq, gte, lt, and } from 'drizzle-orm';
 
+// Re-export types for backward compatibility
+export type { CivicEvent, CivicFile, MeetingDetails, MeetingItem } from './types';
+import type { CivicEvent, CivicFile, MeetingDetails } from './types';
+
 const API_BASE = "https://santafenm.api.civicclerk.com/v1";
 
-// Cache duration in milliseconds (1 hour)
-const CACHE_DURATION_MS = 60 * 60 * 1000;
+// Cache duration constants
+const ONE_HOUR_MS = 60 * 60 * 1000;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-// Types based on actual CivicClerk API response structure
-export interface CivicEvent {
-  id: number;
-  eventName: string;
-  eventDescription: string;
-  eventDate: string;
-  startDateTime: string;
-  agendaId: number | null;
-  agendaName: string;
-  categoryName: string;
-  isPublished: string;
-  // Location fields from venue
-  venueName?: string;
-  venueAddress?: string;
-  venueCity?: string;
-  venueState?: string;
-  venueZip?: string;
-  // Computed fields
-  fileCount?: number;
-}
-
-export interface CivicFile {
-  fileId: number;
-  name: string;
-  type: string; // "Agenda", "Agenda Packet", "Minutes", etc.
-  url: string;
-  publishOn: string;
-  fileType: number;
-}
-
-export interface MeetingDetails {
-  id: number;
-  agendaPacketIsPublish: boolean;
-  agendaIsPublish: boolean;
-  publishedFiles: CivicFile[];
-  items: MeetingItem[];
-}
-
-export interface MeetingItem {
-  id: number;
-  agendaObjectItemName: string;
-  agendaObjectItemOutlineNumber: string;
-  agendaObjectItemDescription: string | null;
+/**
+ * Get cache duration based on event age
+ * - Events > 30 days old: permanent (historical records don't change)
+ * - Events 7-30 days old: 24 hours (minutes might still be added)
+ * - Events < 7 days old or future: 1 hour (agenda updates possible)
+ */
+function getCacheDuration(eventDate: Date): number {
+  const ageInDays = (Date.now() - eventDate.getTime()) / ONE_DAY_MS;
+  
+  if (ageInDays > 30) {
+    return Infinity; // Permanent - historical record
+  } else if (ageInDays > 7) {
+    return ONE_DAY_MS; // 24 hours - minutes might still be added
+  } else {
+    return ONE_HOUR_MS; // 1 hour - recent/upcoming, agenda updates possible
+  }
 }
 
 interface EventsResponse {
@@ -64,11 +42,14 @@ function getHeaders(): HeadersInit {
 }
 
 /**
- * Check if cached data is still fresh
+ * Check if cached data is still fresh based on event date
+ * Uses age-based caching: older events have longer cache duration
  */
-function isCacheFresh(cachedAt: Date | null): boolean {
+function isCacheFresh(cachedAt: Date | null, eventDate: Date): boolean {
   if (!cachedAt) return false;
-  return Date.now() - cachedAt.getTime() < CACHE_DURATION_MS;
+  const cacheDuration = getCacheDuration(eventDate);
+  if (cacheDuration === Infinity) return true; // Permanent cache for old events
+  return Date.now() - cachedAt.getTime() < cacheDuration;
 }
 
 /**
@@ -110,102 +91,121 @@ async function fetchEventsFromAPI(
 }
 
 /**
+ * Helper to map cached event to CivicEvent format
+ */
+function mapCachedEvent(e: typeof events.$inferSelect): CivicEvent {
+  return {
+    id: e.id,
+    eventName: e.eventName,
+    eventDescription: e.eventDescription || '',
+    eventDate: e.eventDate,
+    startDateTime: e.startDateTime.toISOString(),
+    agendaId: e.agendaId,
+    agendaName: e.agendaName || '',
+    categoryName: e.categoryName || '',
+    isPublished: e.isPublished || '',
+    venueName: e.venueName || undefined,
+    venueAddress: e.venueAddress || undefined,
+    venueCity: e.venueCity || undefined,
+    venueState: e.venueState || undefined,
+    venueZip: e.venueZip || undefined,
+    fileCount: e.fileCount || 0,
+  };
+}
+
+/**
  * Fetch events for a given date range (with database caching)
  */
 export async function getEvents(
   startDate: string,
   endDate: string
 ): Promise<CivicEvent[]> {
+  let cachedEvents: (typeof events.$inferSelect)[] = [];
+  
   try {
-    // Check cache first
-    const cacheThreshold = new Date(Date.now() - CACHE_DURATION_MS);
-    const cached = await db.select().from(events)
+    // Check cache first - fetch all cached events for the date range
+    cachedEvents = await db.select().from(events)
       .where(
         and(
           gte(events.startDateTime, new Date(startDate)),
-          lt(events.startDateTime, new Date(endDate)),
-          gte(events.cachedAt, cacheThreshold)
+          lt(events.startDateTime, new Date(endDate))
         )
       )
       .orderBy(events.startDateTime);
 
-    if (cached.length > 0) {
-      // Return cached data, mapping to CivicEvent format
-      return cached.map(e => ({
-        id: e.id,
-        eventName: e.eventName,
-        eventDescription: e.eventDescription || '',
-        eventDate: e.eventDate,
-        startDateTime: e.startDateTime.toISOString(),
-        agendaId: e.agendaId,
-        agendaName: e.agendaName || '',
-        categoryName: e.categoryName || '',
-        isPublished: e.isPublished || '',
-        venueName: e.venueName || undefined,
-        venueAddress: e.venueAddress || undefined,
-        venueCity: e.venueCity || undefined,
-        venueState: e.venueState || undefined,
-        venueZip: e.venueZip || undefined,
-        fileCount: e.fileCount || 0,
-      }));
+    // Check if ALL cached events are fresh based on their individual dates
+    if (cachedEvents.length > 0) {
+      const allFresh = cachedEvents.every(e => isCacheFresh(e.cachedAt, e.startDateTime));
+      
+      if (allFresh) {
+        return cachedEvents.map(mapCachedEvent);
+      }
     }
   } catch (error) {
     // If database is not available, fall back to API
     console.warn('Database cache unavailable, fetching from API:', error);
   }
 
-  // Fetch fresh data from API
-  return fetchEventsFromAPI(startDate, endDate);
+  // Try to fetch fresh data from API
+  try {
+    return await fetchEventsFromAPI(startDate, endDate);
+  } catch (apiError) {
+    // API failed - fall back to stale cache if available
+    console.warn('API unavailable, falling back to stale cache:', apiError);
+    if (cachedEvents.length > 0) {
+      console.log(`Serving ${cachedEvents.length} stale cached events`);
+      return cachedEvents.map(mapCachedEvent);
+    }
+    throw apiError; // No cache available, re-throw
+  }
 }
 
 /**
  * Fetch a single event by ID
  */
 export async function getEventById(id: number): Promise<CivicEvent | null> {
+  let cachedEvent: (typeof events.$inferSelect) | null = null;
+  
   try {
     // Check cache first
     const cached = await db.select().from(events).where(eq(events.id, id)).limit(1);
     
-    if (cached.length > 0 && isCacheFresh(cached[0].cachedAt)) {
-      const e = cached[0];
-      return {
-        id: e.id,
-        eventName: e.eventName,
-        eventDescription: e.eventDescription || '',
-        eventDate: e.eventDate,
-        startDateTime: e.startDateTime.toISOString(),
-        agendaId: e.agendaId,
-        agendaName: e.agendaName || '',
-        categoryName: e.categoryName || '',
-        isPublished: e.isPublished || '',
-        venueName: e.venueName || undefined,
-        venueAddress: e.venueAddress || undefined,
-        venueCity: e.venueCity || undefined,
-        venueState: e.venueState || undefined,
-        venueZip: e.venueZip || undefined,
-        fileCount: e.fileCount || 0,
-      };
+    if (cached.length > 0) {
+      cachedEvent = cached[0];
+      if (isCacheFresh(cachedEvent.cachedAt, cachedEvent.startDateTime)) {
+        return mapCachedEvent(cachedEvent);
+      }
     }
   } catch (error) {
     console.warn('Database cache unavailable:', error);
   }
 
-  // Fetch from API
-  const url = `${API_BASE}/Events/${id}`;
+  // Try to fetch from API
+  try {
+    const url = `${API_BASE}/Events/${id}`;
 
-  const response = await fetch(url, {
-    headers: getHeaders(),
-    next: { revalidate: 300 },
-  });
+    const response = await fetch(url, {
+      headers: getHeaders(),
+      next: { revalidate: 300 },
+    });
 
-  if (!response.ok) {
-    if (response.status === 404) {
-      return null;
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error(`Failed to fetch event: ${response.status}`);
     }
-    throw new Error(`Failed to fetch event: ${response.status}`);
-  }
 
-  return response.json();
+    return response.json();
+  } catch (apiError) {
+    // API failed - fall back to stale cache if available
+    console.warn('API unavailable, falling back to stale cache:', apiError);
+    if (cachedEvent) {
+      console.log(`Serving stale cached event ${id}`);
+      return mapCachedEvent(cachedEvent);
+    }
+    throw apiError; // No cache available, re-throw
+  }
 }
 
 /**
@@ -230,70 +230,98 @@ export async function getMeetingDetails(agendaId: number): Promise<MeetingDetail
 }
 
 /**
+ * Helper to map cached file to CivicFile format
+ */
+function mapCachedFile(f: typeof files.$inferSelect): CivicFile {
+  return {
+    fileId: f.id,
+    name: f.name,
+    type: f.type,
+    url: f.url,
+    publishOn: f.publishOn || '',
+    fileType: f.fileType || 0,
+  };
+}
+
+/**
  * Fetch files for an event (via its agendaId)
  */
 export async function getEventFiles(eventId: number): Promise<CivicFile[]> {
+  let cachedFilesList: (typeof files.$inferSelect)[] = [];
+  
   try {
-    // Check file cache first
-    const cached = await db.select().from(files).where(eq(files.eventId, eventId));
+    // Check file cache first - also get the event to determine cache freshness
+    const [cachedFiles, cachedEvent] = await Promise.all([
+      db.select().from(files).where(eq(files.eventId, eventId)),
+      db.select().from(events).where(eq(events.id, eventId)).limit(1)
+    ]);
     
-    if (cached.length > 0 && isCacheFresh(cached[0].cachedAt)) {
-      return cached.map(f => ({
-        fileId: f.id,
-        name: f.name,
-        type: f.type,
-        url: f.url,
-        publishOn: f.publishOn || '',
-        fileType: f.fileType || 0,
-      }));
+    cachedFilesList = cachedFiles;
+    
+    if (cachedFiles.length > 0 && cachedEvent.length > 0) {
+      // Use the event's date to determine if file cache is fresh
+      if (isCacheFresh(cachedFiles[0].cachedAt, cachedEvent[0].startDateTime)) {
+        return cachedFiles.map(mapCachedFile);
+      }
     }
   } catch (error) {
     console.warn('Database cache unavailable:', error);
   }
 
-  // First get the event to find its agendaId
-  const event = await getEventById(eventId);
-  if (!event || !event.agendaId) {
-    return [];
-  }
-
-  // Then get meeting details which contain the files
-  const meeting = await getMeetingDetails(event.agendaId);
-  if (!meeting) {
-    return [];
-  }
-
-  const publishedFiles = meeting.publishedFiles || [];
-
-  // Cache the files
+  // Try to fetch from API
   try {
-    if (publishedFiles.length > 0) {
-      await db.insert(files)
-        .values(publishedFiles.map(f => ({
-          id: f.fileId,
-          eventId: eventId,
-          name: f.name,
-          type: f.type,
-          url: f.url,
-          publishOn: f.publishOn,
-          fileType: f.fileType,
-          cachedAt: new Date(),
-        })))
-        .onConflictDoUpdate({
-          target: files.id,
-          set: {
-            name: files.name,
-            type: files.type,
-            url: files.url,
-            cachedAt: new Date(),
-          },
-        });
+    // First get the event to find its agendaId
+    const event = await getEventById(eventId);
+    if (!event || !event.agendaId) {
+      return cachedFilesList.length > 0 ? cachedFilesList.map(mapCachedFile) : [];
     }
-  } catch (error) {
-    console.warn('Failed to cache files:', error);
-  }
 
-  return publishedFiles;
+    // Then get meeting details which contain the files
+    const meeting = await getMeetingDetails(event.agendaId);
+    if (!meeting) {
+      return cachedFilesList.length > 0 ? cachedFilesList.map(mapCachedFile) : [];
+    }
+
+    const publishedFiles = meeting.publishedFiles || [];
+
+    // Cache the files
+    try {
+      if (publishedFiles.length > 0) {
+        await db.insert(files)
+          .values(publishedFiles.map(f => ({
+            id: f.fileId,
+            eventId: eventId,
+            name: f.name,
+            type: f.type,
+            url: f.url,
+            publishOn: f.publishOn,
+            fileType: f.fileType,
+            cachedAt: new Date(),
+          })))
+          .onConflictDoUpdate({
+            target: files.id,
+            set: {
+              name: files.name,
+              type: files.type,
+              url: files.url,
+              cachedAt: new Date(),
+            },
+          });
+      }
+    } catch (cacheError) {
+      console.warn('Failed to cache files:', cacheError);
+    }
+
+    return publishedFiles;
+  } catch (apiError) {
+    // API failed - fall back to stale cache if available
+    console.warn('API unavailable for files, falling back to stale cache:', apiError);
+    if (cachedFilesList.length > 0) {
+      console.log(`Serving ${cachedFilesList.length} stale cached files for event ${eventId}`);
+      return cachedFilesList.map(mapCachedFile);
+    }
+    return []; // Return empty instead of throwing for files
+  }
 }
 
 /**
@@ -317,44 +345,44 @@ export async function getEventsWithFileCounts(
   startDate: string,
   endDate: string
 ): Promise<CivicEvent[]> {
+  let cachedEvents: (typeof events.$inferSelect)[] = [];
+  
   try {
-    // Check cache first - if we have fresh cached events with file counts, use them
-    const cacheThreshold = new Date(Date.now() - CACHE_DURATION_MS);
-    const cached = await db.select().from(events)
+    // Check cache first - fetch all cached events for the date range
+    cachedEvents = await db.select().from(events)
       .where(
         and(
           gte(events.startDateTime, new Date(startDate)),
-          lt(events.startDateTime, new Date(endDate)),
-          gte(events.cachedAt, cacheThreshold)
+          lt(events.startDateTime, new Date(endDate))
         )
       )
       .orderBy(events.startDateTime);
 
-    if (cached.length > 0) {
-      return cached.map(e => ({
-        id: e.id,
-        eventName: e.eventName,
-        eventDescription: e.eventDescription || '',
-        eventDate: e.eventDate,
-        startDateTime: e.startDateTime.toISOString(),
-        agendaId: e.agendaId,
-        agendaName: e.agendaName || '',
-        categoryName: e.categoryName || '',
-        isPublished: e.isPublished || '',
-        venueName: e.venueName || undefined,
-        venueAddress: e.venueAddress || undefined,
-        venueCity: e.venueCity || undefined,
-        venueState: e.venueState || undefined,
-        venueZip: e.venueZip || undefined,
-        fileCount: e.fileCount || 0,
-      }));
+    // Check if ALL cached events are fresh based on their individual dates
+    if (cachedEvents.length > 0) {
+      const allFresh = cachedEvents.every(e => isCacheFresh(e.cachedAt, e.startDateTime));
+      
+      if (allFresh) {
+        return cachedEvents.map(mapCachedEvent);
+      }
     }
   } catch (error) {
     console.warn('Database cache unavailable, fetching from API:', error);
   }
 
-  // Fetch fresh data from API
-  const fetchedEvents = await fetchEventsFromAPI(startDate, endDate);
+  // Try to fetch fresh data from API
+  let fetchedEvents: CivicEvent[];
+  try {
+    fetchedEvents = await fetchEventsFromAPI(startDate, endDate);
+  } catch (apiError) {
+    // API failed - fall back to stale cache if available
+    console.warn('API unavailable, falling back to stale cache:', apiError);
+    if (cachedEvents.length > 0) {
+      console.log(`Serving ${cachedEvents.length} stale cached events with file counts`);
+      return cachedEvents.map(mapCachedEvent);
+    }
+    throw apiError; // No cache available, re-throw
+  }
 
   // Fetch file counts in parallel (batch of 5 to be safe)
   const batchSize = 5;
@@ -421,27 +449,5 @@ export async function getEventsWithFileCounts(
   return eventsWithCounts;
 }
 
-/**
- * Helper to format date for display
- */
-export function formatEventDate(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-/**
- * Helper to format time for display
- */
-export function formatEventTime(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
+// Re-export format helpers for backward compatibility
+export { formatEventDate, formatEventTime } from './utils';

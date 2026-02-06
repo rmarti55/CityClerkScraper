@@ -1,4 +1,4 @@
-import { CivicEvent } from "@/lib/civicclerk";
+import { CivicEvent } from "@/lib/types";
 import { MeetingCard } from "./MeetingCard";
 
 interface MeetingListProps {

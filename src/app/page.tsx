@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import { getEventsWithFileCounts } from "@/lib/civicclerk";
 import { MonthPicker } from "@/components/MonthPicker";
-import { MeetingList } from "@/components/MeetingList";
+import { SearchableContent } from "@/components/SearchableContent";
+import { MonthPickerSkeleton } from "@/components/skeletons/MonthPickerSkeleton";
+import { MeetingListSkeleton } from "@/components/skeletons/MeetingCardSkeleton";
 
 interface PageProps {
   searchParams: Promise<{ year?: string; month?: string }>;
@@ -13,23 +15,6 @@ function getDateRange(year: number, month: number) {
   const nextYear = month === 12 ? year + 1 : year;
   const endDate = `${nextYear}-${nextMonth.toString().padStart(2, "0")}-01`;
   return { startDate, endDate };
-}
-
-function LoadingState() {
-  return (
-    <div className="space-y-4">
-      {[...Array(5)].map((_, i) => (
-        <div
-          key={i}
-          className="bg-white border border-gray-200 rounded-lg p-4 animate-pulse"
-        >
-          <div className="h-4 bg-gray-200 rounded w-1/4 mb-2" />
-          <div className="h-5 bg-gray-200 rounded w-3/4 mb-2" />
-          <div className="h-4 bg-gray-200 rounded w-1/2" />
-        </div>
-      ))}
-    </div>
-  );
 }
 
 function ErrorState({ error }: { error: string }) {
@@ -78,7 +63,7 @@ async function MeetingsContent({
   try {
     const { startDate, endDate } = getDateRange(year, month);
     const events = await getEventsWithFileCounts(startDate, endDate);
-    return <MeetingList events={events} />;
+    return <SearchableContent events={events} />;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return <ErrorState error={message} />;
@@ -105,12 +90,12 @@ export default async function Home({ searchParams }: PageProps) {
         </div>
 
         {/* Month picker */}
-        <Suspense fallback={null}>
+        <Suspense fallback={<MonthPickerSkeleton />}>
           <MonthPicker currentYear={year} currentMonth={month} />
         </Suspense>
 
         {/* Meeting list */}
-        <Suspense fallback={<LoadingState />}>
+        <Suspense fallback={<MeetingListSkeleton count={5} />}>
           <MeetingsContent year={year} month={month} />
         </Suspense>
       </div>

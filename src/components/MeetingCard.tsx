@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { CivicEvent, formatEventDate, formatEventTime } from "@/lib/civicclerk";
+import { CivicEvent } from "@/lib/types";
+import { formatEventDate, formatEventTime } from "@/lib/utils";
 
 interface MeetingCardProps {
   event: CivicEvent;
