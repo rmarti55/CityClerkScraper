@@ -435,39 +435,42 @@ export async function getEventsWithFileCounts(
   // Cache the events with file counts
   try {
     if (eventsWithCounts.length > 0) {
-      await db.insert(events)
-        .values(eventsWithCounts.map(e => ({
-          id: e.id,
-          eventName: e.eventName,
-          eventDescription: e.eventDescription,
-          eventDate: e.eventDate,
-          startDateTime: new Date(e.startDateTime),
-          agendaId: e.agendaId,
-          agendaName: e.agendaName,
-          categoryName: e.categoryName,
-          isPublished: e.isPublished,
-          venueName: e.venueName,
-          venueAddress: e.venueAddress,
-          venueCity: e.venueCity,
-          venueState: e.venueState,
-          venueZip: e.venueZip,
-          fileCount: e.fileCount || 0,
-          fileNames: e.fileNames || '',
-          cachedAt: new Date(),
-        })))
-        .onConflictDoUpdate({
-          target: events.id,
-          set: {
-            eventName: events.eventName,
-            eventDescription: events.eventDescription,
-            agendaId: events.agendaId,
-            agendaName: events.agendaName,
-            categoryName: events.categoryName,
-            fileCount: events.fileCount,
-            fileNames: events.fileNames,
+      // Upsert events one by one to ensure fileNames gets updated
+      for (const e of eventsWithCounts) {
+        await db.insert(events)
+          .values({
+            id: e.id,
+            eventName: e.eventName,
+            eventDescription: e.eventDescription,
+            eventDate: e.eventDate,
+            startDateTime: new Date(e.startDateTime),
+            agendaId: e.agendaId,
+            agendaName: e.agendaName,
+            categoryName: e.categoryName,
+            isPublished: e.isPublished,
+            venueName: e.venueName,
+            venueAddress: e.venueAddress,
+            venueCity: e.venueCity,
+            venueState: e.venueState,
+            venueZip: e.venueZip,
+            fileCount: e.fileCount || 0,
+            fileNames: e.fileNames || '',
             cachedAt: new Date(),
-          },
-        });
+          })
+          .onConflictDoUpdate({
+            target: events.id,
+            set: {
+              eventName: e.eventName,
+              eventDescription: e.eventDescription,
+              agendaId: e.agendaId,
+              agendaName: e.agendaName,
+              categoryName: e.categoryName,
+              fileCount: e.fileCount || 0,
+              fileNames: e.fileNames || '',
+              cachedAt: new Date(),
+            },
+          });
+      }
     }
   } catch (error) {
     console.warn('Failed to cache events:', error);
@@ -533,10 +536,12 @@ export async function backfillDateRange(
   const meetingsCalls = eventsWithCounts.filter((e) => e.agendaId).length;
 
   if (eventsWithCounts.length > 0) {
-    await db
-      .insert(events)
-      .values(
-        eventsWithCounts.map((e) => ({
+    // Upsert events one by one to ensure fileNames gets updated
+    // (Drizzle's onConflictDoUpdate with table refs keeps old values)
+    for (const e of eventsWithCounts) {
+      await db
+        .insert(events)
+        .values({
           id: e.id,
           eventName: e.eventName,
           eventDescription: e.eventDescription,
@@ -554,21 +559,21 @@ export async function backfillDateRange(
           fileCount: e.fileCount || 0,
           fileNames: e.fileNames || '',
           cachedAt: new Date(),
-        }))
-      )
-      .onConflictDoUpdate({
-        target: events.id,
-        set: {
-          eventName: events.eventName,
-          eventDescription: events.eventDescription,
-          agendaId: events.agendaId,
-          agendaName: events.agendaName,
-          categoryName: events.categoryName,
-          fileCount: events.fileCount,
-          fileNames: events.fileNames,
-          cachedAt: new Date(),
-        },
-      });
+        })
+        .onConflictDoUpdate({
+          target: events.id,
+          set: {
+            eventName: e.eventName,
+            eventDescription: e.eventDescription,
+            agendaId: e.agendaId,
+            agendaName: e.agendaName,
+            categoryName: e.categoryName,
+            fileCount: e.fileCount || 0,
+            fileNames: e.fileNames || '',
+            cachedAt: new Date(),
+          },
+        });
+    }
   }
 
   if (filesToUpsert.length > 0) {
