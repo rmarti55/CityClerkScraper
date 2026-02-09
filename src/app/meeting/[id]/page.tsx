@@ -11,6 +11,7 @@ import {
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ q?: string }>;
 }
 
 function FileIcon({ fileType }: { fileType: string }) {
@@ -94,8 +95,9 @@ function FileCard({ file }: { file: CivicFile }) {
   );
 }
 
-export default async function MeetingPage({ params }: PageProps) {
+export default async function MeetingPage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const { q: searchQuery } = await searchParams;
   const eventId = parseInt(id);
 
   if (isNaN(eventId)) {
@@ -120,12 +122,15 @@ export default async function MeetingPage({ params }: PageProps) {
     .filter(Boolean)
     .join(", ");
 
+  // Build back link with search query preserved
+  const backHref = searchQuery ? `/?q=${encodeURIComponent(searchQuery)}` : "/";
+
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Back link */}
         <Link
-          href="/"
+          href={backHref}
           className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -136,9 +141,6 @@ export default async function MeetingPage({ params }: PageProps) {
 
         {/* Meeting header */}
         <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-          <p className="text-sm font-medium text-indigo-600 mb-2">
-            {event.categoryName || event.agendaName}
-          </p>
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
             {event.eventName}
           </h1>

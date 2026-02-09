@@ -1,8 +1,13 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import { CivicEvent } from "@/lib/types";
 import { MeetingCard } from "./MeetingCard";
 
 interface MeetingListProps {
   events: CivicEvent[];
+  scrollToDate?: string | null;
+  onScrollComplete?: () => void;
 }
 
 // Group events by date
@@ -27,7 +32,45 @@ function formatDateHeader(dateString: string): string {
   });
 }
 
-export function MeetingList({ events }: MeetingListProps) {
+export function MeetingList({ events, scrollToDate, onScrollComplete }: MeetingListProps) {
+  const highlightedRef = useRef<string | null>(null);
+
+  // Scroll to target date (or nearest future date) when scrollToDate changes
+  useEffect(() => {
+    if (!scrollToDate || events.length === 0) return;
+
+    // Get all available dates sorted
+    const availableDates = Array.from(
+      new Set(events.map((e) => e.startDateTime.split("T")[0]))
+    ).sort();
+
+    // Find the target date: exact match, nearest future, or last available
+    let targetDate = availableDates.find((d) => d >= scrollToDate);
+    if (!targetDate) {
+      // No future dates, use the last available date
+      targetDate = availableDates[availableDates.length - 1];
+    }
+
+    const element = document.getElementById(`date-${targetDate}`);
+    if (element) {
+      // Scroll to the element with offset for header
+      const yOffset = -100;
+      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: "smooth" });
+
+      // Add highlight class
+      highlightedRef.current = targetDate;
+      element.classList.add("scroll-highlight");
+
+      // Remove highlight after animation
+      setTimeout(() => {
+        element.classList.remove("scroll-highlight");
+        highlightedRef.current = null;
+        onScrollComplete?.();
+      }, 2000);
+    }
+  }, [scrollToDate, events, onScrollComplete]);
+
   if (events.length === 0) {
     return (
       <div className="text-center py-12">
@@ -70,7 +113,7 @@ export function MeetingList({ events }: MeetingListProps) {
       {/* Grouped meetings */}
       <div className="space-y-8">
         {sortedDates.map((dateKey) => (
-          <div key={dateKey}>
+          <div key={dateKey} id={`date-${dateKey}`}>
             <h2 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wide">
               {formatDateHeader(dateKey)}
             </h2>

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEvents } from "@/context/EventsContext";
 
 const MONTHS = [
   "January",
@@ -18,20 +17,54 @@ const MONTHS = [
   "December",
 ];
 
-interface MonthPickerProps {
-  currentYear: number;
-  currentMonth: number;
-}
+export function MonthPicker() {
+  const { currentYear, currentMonth, setCurrentMonth, setScrollToDate } = useEvents();
 
-export function MonthPicker({ currentYear, currentMonth }: MonthPickerProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  const navigateToMonth = (year: number, month: number, scrollTo?: string) => {
+    setCurrentMonth(year, month);
+    if (scrollTo) {
+      setScrollToDate(scrollTo);
+    } else {
+      setScrollToDate(null);
+    }
+  };
 
-  const navigateToMonth = (year: number, month: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("year", year.toString());
-    params.set("month", month.toString());
-    router.push(`/?${params.toString()}`);
+  // Helper to scroll to a date element directly (for same-month navigation)
+  const scrollToDateElement = (dateStr: string) => {
+    // Find the target element or nearest future date
+    const allDateElements = document.querySelectorAll('[id^="date-"]');
+    let targetElement: Element | null = null;
+
+    const sortedElements = Array.from(allDateElements).sort((a, b) => {
+      const dateA = a.id.replace("date-", "");
+      const dateB = b.id.replace("date-", "");
+      return dateA.localeCompare(dateB);
+    });
+
+    for (const el of sortedElements) {
+      const elDate = el.id.replace("date-", "");
+      if (elDate >= dateStr) {
+        targetElement = el;
+        break;
+      }
+    }
+
+    // If no future date found, use the last one
+    if (!targetElement && sortedElements.length > 0) {
+      targetElement = sortedElements[sortedElements.length - 1];
+    }
+
+    if (targetElement) {
+      const yOffset = -100;
+      const y = targetElement.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: "smooth" });
+
+      // Add highlight animation
+      targetElement.classList.add("scroll-highlight");
+      setTimeout(() => {
+        targetElement?.classList.remove("scroll-highlight");
+      }, 2000);
+    }
   };
 
   const goToPrevMonth = () => {
@@ -56,25 +89,18 @@ export function MonthPicker({ currentYear, currentMonth }: MonthPickerProps) {
 
   const goToToday = () => {
     const now = new Date();
-    navigateToMonth(now.getFullYear(), now.getMonth() + 1);
-  };
+    const todayYear = now.getFullYear();
+    const todayMonth = now.getMonth() + 1;
+    const todayDate = now.toISOString().split("T")[0]; // "YYYY-MM-DD"
 
-  // Prefetch prev/next month so navigation feels faster
-  useEffect(() => {
-    const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-    const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
-    const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
-    const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
-    const params = new URLSearchParams(searchParams.toString());
-    const buildUrl = (y: number, m: number) => {
-      const p = new URLSearchParams(params);
-      p.set("year", y.toString());
-      p.set("month", m.toString());
-      return `/?${p.toString()}`;
-    };
-    router.prefetch(buildUrl(prevYear, prevMonth));
-    router.prefetch(buildUrl(nextYear, nextMonth));
-  }, [currentYear, currentMonth, searchParams, router]);
+    if (currentYear === todayYear && currentMonth === todayMonth) {
+      // Already on current month - just scroll to today's date
+      scrollToDateElement(todayDate);
+    } else {
+      // Navigate to current month with scroll param
+      navigateToMonth(todayYear, todayMonth, todayDate);
+    }
+  };
 
   return (
     <div className="flex items-center justify-between gap-4 mb-6">

@@ -48,18 +48,16 @@ function SearchResultCard({
   const now = new Date();
   const isFuture = eventDate >= now;
 
+  // Include search query in link so back navigation preserves search state
+  const meetingHref = `/meeting/${event.id}?q=${encodeURIComponent(query)}`;
+
   return (
     <Link
-      href={`/meeting/${event.id}`}
+      href={meetingHref}
       className="block bg-white border border-gray-200 rounded-lg p-4 hover:border-indigo-300 hover:shadow-md transition-all"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          {/* Category/Body name */}
-          <p className="text-sm font-medium text-indigo-600 mb-1">
-            {highlightMatch(event.categoryName || event.agendaName || "", query)}
-          </p>
-
           {/* Title */}
           <h3 className="font-semibold text-gray-900">
             {highlightMatch(event.eventName, query)}

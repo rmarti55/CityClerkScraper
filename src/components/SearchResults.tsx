@@ -51,15 +51,6 @@ function SearchResultCard({ result }: { result: SearchResult }) {
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          {/* Category/Body name */}
-          <p className="text-sm font-medium text-indigo-600 mb-1">
-            <HighlightedText
-              text={event.categoryName || event.agendaName || ""}
-              matches={matches}
-              fieldName="categoryName"
-            />
-          </p>
-
           {/* Title */}
           <h3 className="font-semibold text-gray-900">
             <HighlightedText

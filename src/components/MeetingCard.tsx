@@ -8,7 +8,8 @@ interface MeetingCardProps {
 
 export function MeetingCard({ event }: MeetingCardProps) {
   const hasFiles = event.fileCount && event.fileCount > 0;
-  const hasAgenda = event.agendaId !== null;
+  const hasAgenda = event.agendaId !== null && event.agendaId > 0;
+  const isFuture = new Date(event.startDateTime) > new Date();
 
   return (
     <Link
@@ -17,11 +18,6 @@ export function MeetingCard({ event }: MeetingCardProps) {
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          {/* Category/Body name */}
-          <p className="text-sm font-medium text-indigo-600 mb-1">
-            {event.categoryName || event.agendaName}
-          </p>
-
           {/* Title */}
           <h3 className="font-semibold text-gray-900 truncate">
             {event.eventName}
@@ -63,6 +59,13 @@ export function MeetingCard({ event }: MeetingCardProps) {
             </span>
           )}
 
+          {/* Upcoming indicator for future meetings */}
+          {isFuture && (
+            <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded">
+              Upcoming
+            </span>
+          )}
+
           {/* Has agenda indicator */}
           {hasAgenda && (
             <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded">
@@ -71,7 +74,7 @@ export function MeetingCard({ event }: MeetingCardProps) {
           )}
 
           {/* No content indicator */}
-          {!hasFiles && !hasAgenda && (
+          {!hasFiles && !hasAgenda && !isFuture && (
             <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-500 rounded">
               No files
             </span>
