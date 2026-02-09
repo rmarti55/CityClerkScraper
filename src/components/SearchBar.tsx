@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useState } from "react";
+import { useRef, useCallback, useState, useEffect } from "react";
 
 interface SearchBarProps {
   value: string;
@@ -30,20 +30,48 @@ export function SearchBar({
     inputRef.current?.focus();
   }, [onChange]);
 
+  const handleCancel = useCallback(() => {
+    onChange("");
+    setIsFocused(false);
+    inputRef.current?.blur();
+  }, [onChange]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Escape") {
-        handleClear();
-        setIsFocused(false);
-        inputRef.current?.blur();
+        handleCancel();
       }
     },
-    [handleClear]
+    [handleCancel]
   );
 
   const handleFocus = useCallback(() => {
     setIsFocused(true);
   }, []);
+
+  // Click outside handler - close dropdown when clicking outside
+  useEffect(() => {
+    if (!isFocused) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setIsFocused(false);
+        inputRef.current?.blur();
+      }
+    };
+
+    // Use mousedown/touchstart for immediate response
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isFocused]);
 
   const handleBlur = useCallback((e: React.FocusEvent) => {
     // Check if the new focus target is within our container
@@ -79,80 +107,81 @@ export function SearchBar({
     isFocused && recentSearches.length > 0 && value.trim().length < 2;
 
   return (
-    <div className="relative" ref={containerRef}>
-      {/* Search icon */}
-      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-        {isSearching ? (
-          <svg
-            className="w-5 h-5 text-gray-400 animate-spin"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
+    <div className="flex items-center gap-2" ref={containerRef}>
+      <div className="relative flex-1">
+        {/* Search icon */}
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+          {isSearching ? (
+            <svg
+              className="w-5 h-5 text-gray-400 animate-spin"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+          ) : (
+            <svg
+              className="w-5 h-5 text-gray-400"
+              fill="none"
               stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
-          </svg>
-        ) : (
-          <svg
-            className="w-5 h-5 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          )}
+        </div>
+
+        {/* Input */}
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          placeholder={placeholder}
+          className="block w-full pl-10 pr-10 py-3 text-gray-900 placeholder-gray-400 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
+        />
+
+        {/* Clear button - only show on desktop or when there's text */}
+        {value && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors z-10"
+            aria-label="Clear search"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
         )}
-      </div>
 
-      {/* Input */}
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={handleKeyDown}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        placeholder={placeholder}
-        className="block w-full pl-10 pr-10 py-3 text-gray-900 placeholder-gray-400 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
-      />
-
-      {/* Clear button */}
-      {value && (
-        <button
-          type="button"
-          onClick={handleClear}
-          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors z-10"
-          aria-label="Clear search"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-      )}
-
-      {/* Recent searches dropdown */}
-      {showDropdown && (
+        {/* Recent searches dropdown */}
+        {showDropdown && (
         <div 
           className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
           role="listbox"
@@ -224,6 +253,18 @@ export function SearchBar({
             ))}
           </ul>
         </div>
+        )}
+      </div>
+
+      {/* Cancel button - only visible on mobile when focused */}
+      {isFocused && (
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="text-indigo-600 text-sm font-medium whitespace-nowrap sm:hidden touch-manipulation"
+        >
+          Cancel
+        </button>
       )}
     </div>
   );

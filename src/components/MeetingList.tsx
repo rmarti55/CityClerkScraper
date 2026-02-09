@@ -102,12 +102,10 @@ export function MeetingList({ events, scrollToDate, onScrollComplete }: MeetingL
   return (
     <div>
       {/* Stats bar */}
-      <div className="flex items-center gap-4 mb-6 text-sm text-gray-500">
-        <span>{events.length} meetings</span>
-        <span className="text-gray-300">•</span>
-        <span>{withFiles} with attachments</span>
-        <span className="text-gray-300">•</span>
-        <span>{totalFiles} total files</span>
+      <div className="flex justify-between items-center mb-6 text-sm text-gray-500">
+        <span className="whitespace-nowrap">{events.length} meetings</span>
+        <span className="whitespace-nowrap">{withFiles} with attachments</span>
+        <span className="whitespace-nowrap">{totalFiles} total files</span>
       </div>
 
       {/* Grouped meetings */}
