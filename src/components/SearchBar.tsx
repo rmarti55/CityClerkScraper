@@ -5,6 +5,7 @@ import { useRef, useCallback, useState, useEffect } from "react";
 interface SearchBarProps {
   value: string;
   onChange: (value: string) => void;
+  onSubmit?: (query: string) => void;
   isSearching?: boolean;
   placeholder?: string;
   recentSearches?: string[];
@@ -15,6 +16,7 @@ interface SearchBarProps {
 export function SearchBar({
   value,
   onChange,
+  onSubmit,
   isSearching = false,
   placeholder = "Search meetings, agendas, minutes...",
   recentSearches = [],
@@ -40,9 +42,18 @@ export function SearchBar({
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Escape") {
         handleCancel();
+      } else if (e.key === "Enter") {
+        // Submit search and save to history
+        const trimmed = value.trim();
+        if (trimmed.length >= 2) {
+          onSubmit?.(trimmed);
+        }
+        // Blur input to dismiss keyboard on mobile
+        inputRef.current?.blur();
+        setIsFocused(false);
       }
     },
-    [handleCancel]
+    [handleCancel, value, onSubmit]
   );
 
   const handleFocus = useCallback(() => {
@@ -226,11 +237,11 @@ export function SearchBar({
                     {term}
                   </span>
                   
-                  {/* Remove button - always visible on mobile, hover on desktop */}
+                  {/* Remove button - always visible on touch devices, hover-reveal on desktop */}
                   <button
                     type="button"
                     onClick={(e) => handleRemoveRecentSearch(e, term)}
-                    className="p-1.5 sm:p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-200 transition-colors sm:opacity-0 group-hover:opacity-100 focus:opacity-100 touch-manipulation"
+                    className="p-1.5 text-gray-400 can-hover:hover:text-gray-600 rounded-full can-hover:hover:bg-gray-200 active:bg-gray-200 transition-colors can-hover:opacity-0 can-hover:group-hover:opacity-100 focus:opacity-100 touch-manipulation"
                     aria-label={`Remove "${term}" from recent searches`}
                     style={{ minWidth: "32px", minHeight: "32px" }}
                   >

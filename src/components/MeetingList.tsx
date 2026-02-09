@@ -101,8 +101,8 @@ export function MeetingList({ events, scrollToDate, onScrollComplete }: MeetingL
 
   return (
     <div>
-      {/* Stats bar */}
-      <div className="flex justify-between items-center mb-6 text-sm text-gray-500">
+      {/* Stats bar - wraps on mobile, inline on desktop */}
+      <div className="flex flex-wrap justify-center sm:justify-between items-center gap-x-4 gap-y-1 mb-6 text-sm text-gray-500">
         <span className="whitespace-nowrap">{events.length} meetings</span>
         <span className="whitespace-nowrap">{withFiles} with attachments</span>
         <span className="whitespace-nowrap">{totalFiles} total files</span>

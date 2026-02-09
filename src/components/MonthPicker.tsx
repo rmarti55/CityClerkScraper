@@ -109,10 +109,10 @@ export function MonthPicker({ hasActiveFilter = false }: MonthPickerProps) {
   return (
     <div className="flex items-center justify-between gap-2 sm:gap-4 mb-6">
       <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-        {/* Previous month */}
+        {/* Previous month - consistent touch target sizing */}
         <button
           onClick={goToPrevMonth}
-          className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
+          className="p-2 pointer-coarse:min-h-[44px] pointer-coarse:min-w-[44px] rounded-lg can-hover:hover:bg-gray-100 active:bg-gray-100 transition-colors flex-shrink-0 flex items-center justify-center"
           aria-label="Previous month"
         >
           <svg
@@ -135,7 +135,7 @@ export function MonthPicker({ hasActiveFilter = false }: MonthPickerProps) {
           <select
             value={currentMonth}
             onChange={(e) => navigateToMonth(currentYear, parseInt(e.target.value))}
-            className="text-base sm:text-lg font-semibold text-gray-900 bg-transparent border-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded px-1 sm:px-2 py-1"
+            className="text-base sm:text-lg font-semibold text-gray-900 bg-transparent border-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded px-1 sm:px-2 py-1 pointer-coarse:min-h-[44px]"
           >
             {MONTHS.map((month, index) => (
               <option key={month} value={index + 1}>
@@ -147,7 +147,7 @@ export function MonthPicker({ hasActiveFilter = false }: MonthPickerProps) {
           <select
             value={currentYear}
             onChange={(e) => navigateToMonth(parseInt(e.target.value), currentMonth)}
-            className="text-base sm:text-lg font-semibold text-gray-900 bg-transparent border-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded px-1 sm:px-2 py-1"
+            className="text-base sm:text-lg font-semibold text-gray-900 bg-transparent border-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded px-1 sm:px-2 py-1 pointer-coarse:min-h-[44px]"
           >
             {Array.from({ length: 10 }, (_, i) => currentYear - 5 + i).map(
               (year) => (
@@ -159,10 +159,10 @@ export function MonthPicker({ hasActiveFilter = false }: MonthPickerProps) {
           </select>
         </div>
 
-        {/* Next month */}
+        {/* Next month - consistent touch target sizing */}
         <button
           onClick={goToNextMonth}
-          className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
+          className="p-2 pointer-coarse:min-h-[44px] pointer-coarse:min-w-[44px] rounded-lg can-hover:hover:bg-gray-100 active:bg-gray-100 transition-colors flex-shrink-0 flex items-center justify-center"
           aria-label="Next month"
         >
           <svg
@@ -185,7 +185,7 @@ export function MonthPicker({ hasActiveFilter = false }: MonthPickerProps) {
       {!hasActiveFilter && (
         <button
           onClick={goToToday}
-          className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors whitespace-nowrap flex-shrink-0"
+          className="px-3 py-2 pointer-coarse:min-h-[44px] text-sm font-medium text-indigo-600 can-hover:hover:bg-indigo-50 active:bg-indigo-50 rounded-lg transition-colors whitespace-nowrap flex-shrink-0"
         >
           Today
         </button>

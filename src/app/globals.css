@@ -1,8 +1,27 @@
 @import "tailwindcss";
 
+/* =============================================================================
+   INTERACTION MEDIA VARIANTS
+   These detect device capabilities (touch, hover) rather than just screen size.
+   - pointer-coarse: touch/finger input (imprecise) - use for touch target sizing
+   - pointer-fine: mouse/stylus (precise)
+   - can-hover: device supports hover - use for hover-dependent interactions
+   - cannot-hover: touch-only devices - use to avoid sticky hover states
+   ============================================================================= */
+@custom-variant pointer-coarse (@media (pointer: coarse));
+@custom-variant pointer-fine (@media (pointer: fine));
+@custom-variant can-hover (@media (hover: hover));
+@custom-variant cannot-hover (@media (hover: none));
+@custom-variant any-pointer-coarse (@media (any-pointer: coarse));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  
+  /* Breakpoint values - keep in sync with src/lib/breakpoints.ts */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
 }
 
 @theme inline {

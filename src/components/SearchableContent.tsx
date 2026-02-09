@@ -5,11 +5,9 @@ import { useRouter, usePathname } from "next/navigation";
 import { CivicEvent } from "@/lib/types";
 import { useGlobalSearch } from "@/hooks/useGlobalSearch";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
-import { useCategoryFilter } from "@/hooks/useCategoryFilter";
 import { useEvents } from "@/context/EventsContext";
 import { SearchBar } from "./SearchBar";
 import { GlobalSearchResults } from "./GlobalSearchResults";
-import { CategoryFilterResults } from "./CategoryFilterResults";
 import { CategoryFilter } from "./CategoryFilter";
 import { MeetingList } from "./MeetingList";
 import { Category } from "@/hooks/useCategories";
@@ -46,29 +44,20 @@ export function SearchableContent({
   
   const { setScrollToDate } = useEvents();
   const { history, addSearch, removeSearch } = useSearchHistory();
+  
+  // Unified search hook that handles both search term and category filter
   const {
     results: searchResults,
     total: searchTotal,
-    isLoading: searchIsLoading,
+    isLoading,
     error: searchError,
     debouncedQuery,
-  } = useGlobalSearch(searchQuery);
+  } = useGlobalSearch(searchQuery, selectedCategory?.name);
 
-  const {
-    results: categoryResults,
-    total: categoryTotal,
-    page: categoryPage,
-    totalPages: categoryTotalPages,
-    isLoading: categoryIsLoading,
-    error: categoryError,
-    setPage: setCategoryPage,
-  } = useCategoryFilter(selectedCategory?.name || null);
-
-  const isShowingSearchResults = debouncedQuery.trim().length >= 2;
-  const isShowingCategoryResults = selectedCategory !== null && !isShowingSearchResults;
-
-  // Combined loading state
-  const isLoading = searchIsLoading || categoryIsLoading;
+  // Determine if we're showing filtered results (search, category, or both)
+  const hasSearchQuery = debouncedQuery.trim().length >= 2;
+  const hasCategory = selectedCategory !== null;
+  const isShowingFilteredResults = hasSearchQuery || hasCategory;
 
   // Track previous loading state to prevent infinite loop
   const prevIsLoadingRef = useRef(isLoading);
@@ -93,18 +82,13 @@ export function SearchableContent({
     router.replace(newUrl, { scroll: false });
   }, [debouncedQuery, pathname, router]);
 
-  // Save search to history when search completes successfully
-  const wasLoadingRef = useRef(false);
-  useEffect(() => {
-    // Detect when loading transitions from true to false (search completed)
-    if (wasLoadingRef.current && !searchIsLoading) {
-      // Save if we have a valid query and results
-      if (debouncedQuery.trim().length >= 2 && searchResults.length > 0) {
-        addSearch(debouncedQuery);
-      }
+  // Handle explicit search submission (Enter key)
+  const handleSearchSubmit = useCallback((query: string) => {
+    const trimmed = query.trim();
+    if (trimmed.length >= 2) {
+      addSearch(trimmed);
     }
-    wasLoadingRef.current = searchIsLoading;
-  }, [searchIsLoading, debouncedQuery, searchResults.length, addSearch]);
+  }, [addSearch]);
   
   // Check if viewing a month before data availability
   const isBeforeDataStart = year < DATA_START_YEAR || 
@@ -123,6 +107,7 @@ export function SearchableContent({
           <SearchBar
             value={searchQuery}
             onChange={onSearchQueryChange}
+            onSubmit={handleSearchSubmit}
             isSearching={isLoading}
             recentSearches={history}
             onSelectRecentSearch={onSearchQueryChange}
@@ -135,26 +120,15 @@ export function SearchableContent({
         />
       </div>
 
-      {/* Conditional content: search results, category results, or meeting list */}
-      {isShowingSearchResults ? (
+      {/* Conditional content: filtered results or meeting list */}
+      {isShowingFilteredResults ? (
         <GlobalSearchResults
           results={searchResults}
           query={debouncedQuery}
           total={searchTotal}
-          isLoading={searchIsLoading}
+          isLoading={isLoading}
           error={searchError}
-        />
-      ) : isShowingCategoryResults ? (
-        <CategoryFilterResults
-          results={categoryResults}
-          category={selectedCategory!}
-          total={categoryTotal}
-          page={categoryPage}
-          totalPages={categoryTotalPages}
-          isLoading={categoryIsLoading}
-          error={categoryError}
-          onPageChange={setCategoryPage}
-          onClearFilter={() => onSelectCategory(null)}
+          categoryName={selectedCategory?.name}
         />
       ) : events.length === 0 && isBeforeDataStart ? (
         <div className="text-center py-12">

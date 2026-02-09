@@ -623,11 +623,15 @@ export { formatEventDate, formatEventTime } from './utils';
  * Search events across all time periods
  * Returns results sorted by date descending (newest first)
  * Limited to 1000 results max to prevent runaway queries
+ * 
+ * @param query - Search term to match against event fields (optional if categoryName provided)
+ * @param categoryName - Optional category to filter results by
  */
 export async function searchEvents(
-  query: string
+  query: string,
+  categoryName?: string
 ): Promise<{ events: CivicEvent[]; total: number }> {
-  const searchPattern = `%${query}%`;
+  const searchPattern = query ? `%${query}%` : null;
   const maxResults = 1000;
 
   try {
@@ -635,47 +639,132 @@ export async function searchEvents(
     const { neon } = await import('@neondatabase/serverless');
     const sql = neon(process.env.DATABASE_URL!);
 
-    // Count total matching events
-    const countResult = await sql`
-      SELECT COUNT(*) as total
-      FROM events
-      WHERE 
-        event_name ILIKE ${searchPattern}
-        OR category_name ILIKE ${searchPattern}
-        OR agenda_name ILIKE ${searchPattern}
-        OR event_description ILIKE ${searchPattern}
-        OR venue_name ILIKE ${searchPattern}
-    `;
-    const total = parseInt(countResult[0]?.total || '0', 10);
+    // Build query based on whether we have search term, category, or both
+    let countResult;
+    let results;
 
-    // Fetch all results sorted by date descending (newest first)
-    const results = await sql`
-      SELECT 
-        id,
-        event_name,
-        event_description,
-        event_date,
-        start_date_time,
-        agenda_id,
-        agenda_name,
-        category_name,
-        is_published,
-        venue_name,
-        venue_address,
-        venue_city,
-        venue_state,
-        venue_zip,
-        file_count
-      FROM events
-      WHERE 
-        event_name ILIKE ${searchPattern}
-        OR category_name ILIKE ${searchPattern}
-        OR agenda_name ILIKE ${searchPattern}
-        OR event_description ILIKE ${searchPattern}
-        OR venue_name ILIKE ${searchPattern}
-      ORDER BY start_date_time DESC
-      LIMIT ${maxResults}
-    `;
+    if (searchPattern && categoryName) {
+      // Both search term AND category filter
+      countResult = await sql`
+        SELECT COUNT(*) as total
+        FROM events
+        WHERE 
+          category_name = ${categoryName}
+          AND (
+            event_name ILIKE ${searchPattern}
+            OR category_name ILIKE ${searchPattern}
+            OR agenda_name ILIKE ${searchPattern}
+            OR event_description ILIKE ${searchPattern}
+            OR venue_name ILIKE ${searchPattern}
+          )
+      `;
+
+      results = await sql`
+        SELECT 
+          id,
+          event_name,
+          event_description,
+          event_date,
+          start_date_time,
+          agenda_id,
+          agenda_name,
+          category_name,
+          is_published,
+          venue_name,
+          venue_address,
+          venue_city,
+          venue_state,
+          venue_zip,
+          file_count
+        FROM events
+        WHERE 
+          category_name = ${categoryName}
+          AND (
+            event_name ILIKE ${searchPattern}
+            OR category_name ILIKE ${searchPattern}
+            OR agenda_name ILIKE ${searchPattern}
+            OR event_description ILIKE ${searchPattern}
+            OR venue_name ILIKE ${searchPattern}
+          )
+        ORDER BY start_date_time DESC
+        LIMIT ${maxResults}
+      `;
+    } else if (categoryName) {
+      // Category filter only (no search term)
+      countResult = await sql`
+        SELECT COUNT(*) as total
+        FROM events
+        WHERE category_name = ${categoryName}
+      `;
+
+      results = await sql`
+        SELECT 
+          id,
+          event_name,
+          event_description,
+          event_date,
+          start_date_time,
+          agenda_id,
+          agenda_name,
+          category_name,
+          is_published,
+          venue_name,
+          venue_address,
+          venue_city,
+          venue_state,
+          venue_zip,
+          file_count
+        FROM events
+        WHERE category_name = ${categoryName}
+        ORDER BY start_date_time DESC
+        LIMIT ${maxResults}
+      `;
+    } else if (searchPattern) {
+      // Search term only (no category filter)
+      countResult = await sql`
+        SELECT COUNT(*) as total
+        FROM events
+        WHERE 
+          event_name ILIKE ${searchPattern}
+          OR category_name ILIKE ${searchPattern}
+          OR agenda_name ILIKE ${searchPattern}
+          OR event_description ILIKE ${searchPattern}
+          OR venue_name ILIKE ${searchPattern}
+      `;
+
+      results = await sql`
+        SELECT 
+          id,
+          event_name,
+          event_description,
+          event_date,
+          start_date_time,
+          agenda_id,
+          agenda_name,
+          category_name,
+          is_published,
+          venue_name,
+          venue_address,
+          venue_city,
+          venue_state,
+          venue_zip,
+          file_count
+        FROM events
+        WHERE 
+          event_name ILIKE ${searchPattern}
+          OR category_name ILIKE ${searchPattern}
+          OR agenda_name ILIKE ${searchPattern}
+          OR event_description ILIKE ${searchPattern}
+          OR venue_name ILIKE ${searchPattern}
+        ORDER BY start_date_time DESC
+        LIMIT ${maxResults}
+      `;
+    } else {
+      // No filters - return empty results
+      return { events: [], total: 0 };
+    }
+
+    const total = parseInt(countResult[0]?.total || '0', 10);
 
     // Map database results to CivicEvent format
     // Note: Neon returns timestamps as strings, so we need to handle both cases

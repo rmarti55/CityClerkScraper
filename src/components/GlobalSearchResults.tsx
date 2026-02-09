@@ -10,6 +10,7 @@ interface GlobalSearchResultsProps {
   total: number;
   isLoading: boolean;
   error: string | null;
+  categoryName?: string | null;
 }
 
 function highlightMatch(text: string, query: string): React.ReactNode {
@@ -190,7 +191,25 @@ export function GlobalSearchResults({
   total,
   isLoading,
   error,
+  categoryName,
 }: GlobalSearchResultsProps) {
+  // Build display text based on what filters are active
+  const hasQuery = query && query.trim().length >= 2;
+  const hasCategory = categoryName && categoryName.trim().length > 0;
+  
+  const getFilterDescription = () => {
+    if (hasQuery && hasCategory) {
+      return `"${query}" in ${categoryName}`;
+    } else if (hasQuery) {
+      return `"${query}"`;
+    } else if (hasCategory) {
+      return categoryName;
+    }
+    return "";
+  };
+
+  const filterDescription = getFilterDescription();
+
   if (error) {
     return (
       <div className="text-center py-12">
@@ -217,7 +236,7 @@ export function GlobalSearchResults({
     return (
       <div>
         <div className="flex items-center gap-2 mb-4 text-sm text-gray-500">
-          <span>Searching for &quot;{query}&quot;...</span>
+          <span>Searching for {filterDescription}...</span>
         </div>
         <LoadingSkeleton />
       </div>
@@ -241,7 +260,7 @@ export function GlobalSearchResults({
           />
         </svg>
         <p className="text-gray-500">
-          No meetings found for &quot;{query}&quot;
+          No meetings found for {filterDescription}
         </p>
         <p className="text-sm text-gray-400 mt-1">
           Try different keywords or check spelling
@@ -256,7 +275,7 @@ export function GlobalSearchResults({
       <div className="flex items-center justify-between mb-4">
         <div className="text-sm text-gray-500">
           <span>
-            Showing {total} result{total !== 1 ? "s" : ""} for &quot;{query}&quot;
+            Showing {total} result{total !== 1 ? "s" : ""} for {filterDescription}
           </span>
           {isLoading && (
             <span className="ml-2 text-gray-400">(updating...)</span>

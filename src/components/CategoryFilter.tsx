@@ -2,28 +2,12 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useCategories, Category } from "@/hooks/useCategories";
+import { useIsMobile } from "@/hooks/useDeviceCapabilities";
 import { CategoryFilterModal } from "./CategoryFilterModal";
 
 interface CategoryFilterProps {
   selectedCategory: Category | null;
   onSelectCategory: (category: Category | null) => void;
-}
-
-// Hook to detect mobile viewport
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640); // sm breakpoint
-    };
-    
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
-  return isMobile;
 }
 
 export function CategoryFilter({

@@ -18,9 +18,15 @@ interface UseGlobalSearchResult {
 
 /**
  * Hook for server-side search across all events
+ * Supports combined search term + category filter with AND logic
+ * 
+ * @param query - Search term (optional if categoryName provided)
+ * @param categoryName - Category to filter by (optional)
+ * @param debounceMs - Debounce delay for search input
  */
 export function useGlobalSearch(
   query: string,
+  categoryName?: string | null,
   debounceMs: number = 300
 ): UseGlobalSearchResult {
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -35,13 +41,6 @@ export function useGlobalSearch(
     const timer = setTimeout(() => {
       setDebouncedQuery(query);
       prevQueryRef.current = query;
-      const trimmed = query.trim();
-      if (trimmed.length < 2) {
-        setIsLoading(false);
-        setResults([]);
-        setTotal(0);
-        setError(null);
-      }
     }, debounceMs);
 
     return () => clearTimeout(timer);
@@ -52,7 +51,11 @@ export function useGlobalSearch(
     const abortController = new AbortController();
 
     const fetchResults = async () => {
-      if (!debouncedQuery.trim() || debouncedQuery.trim().length < 2) {
+      const hasValidQuery = debouncedQuery.trim().length >= 2;
+      const hasCategory = categoryName && categoryName.trim().length > 0;
+
+      // Need at least one filter to fetch
+      if (!hasValidQuery && !hasCategory) {
         setResults([]);
         setTotal(0);
         setError(null);
@@ -64,9 +67,14 @@ export function useGlobalSearch(
       setError(null);
 
       try {
-        const params = new URLSearchParams({
-          q: debouncedQuery.trim(),
-        });
+        const params = new URLSearchParams();
+        
+        if (hasValidQuery) {
+          params.set("q", debouncedQuery.trim());
+        }
+        if (hasCategory) {
+          params.set("categoryName", categoryName.trim());
+        }
 
         const response = await fetch(`/api/search?${params}`, {
           signal: abortController.signal,
@@ -101,7 +109,7 @@ export function useGlobalSearch(
 
     // Cleanup: abort the request when dependencies change or component unmounts
     return () => abortController.abort();
-  }, [debouncedQuery]);
+  }, [debouncedQuery, categoryName]);
 
   return {
     results,
