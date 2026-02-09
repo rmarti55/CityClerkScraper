@@ -4,10 +4,15 @@ import { useCallback, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { CivicEvent } from "@/lib/types";
 import { useGlobalSearch } from "@/hooks/useGlobalSearch";
+import { useSearchHistory } from "@/hooks/useSearchHistory";
+import { useCategoryFilter } from "@/hooks/useCategoryFilter";
 import { useEvents } from "@/context/EventsContext";
 import { SearchBar } from "./SearchBar";
 import { GlobalSearchResults } from "./GlobalSearchResults";
+import { CategoryFilterResults } from "./CategoryFilterResults";
+import { CategoryFilter } from "./CategoryFilter";
 import { MeetingList } from "./MeetingList";
+import { Category } from "@/hooks/useCategories";
 
 // Data availability: CivicClerk data starts June 2024
 const DATA_START_YEAR = 2024;
@@ -21,6 +26,8 @@ interface SearchableContentProps {
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
   onSearchingChange: (isSearching: boolean) => void;
+  selectedCategory: Category | null;
+  onSelectCategory: (category: Category | null) => void;
 }
 
 export function SearchableContent({ 
@@ -31,23 +38,37 @@ export function SearchableContent({
   searchQuery,
   onSearchQueryChange,
   onSearchingChange,
+  selectedCategory,
+  onSelectCategory,
 }: SearchableContentProps) {
   const router = useRouter();
   const pathname = usePathname();
   
   const { setScrollToDate } = useEvents();
+  const { history, addSearch, removeSearch } = useSearchHistory();
   const {
-    results,
-    total,
-    page,
-    totalPages,
-    isLoading,
-    error,
-    setPage,
+    results: searchResults,
+    total: searchTotal,
+    isLoading: searchIsLoading,
+    error: searchError,
     debouncedQuery,
   } = useGlobalSearch(searchQuery);
 
-  const isShowingResults = debouncedQuery.trim().length >= 2;
+  const {
+    results: categoryResults,
+    total: categoryTotal,
+    page: categoryPage,
+    totalPages: categoryTotalPages,
+    isLoading: categoryIsLoading,
+    error: categoryError,
+    setPage: setCategoryPage,
+  } = useCategoryFilter(selectedCategory?.name || null);
+
+  const isShowingSearchResults = debouncedQuery.trim().length >= 2;
+  const isShowingCategoryResults = selectedCategory !== null && !isShowingSearchResults;
+
+  // Combined loading state
+  const isLoading = searchIsLoading || categoryIsLoading;
 
   // Track previous loading state to prevent infinite loop
   const prevIsLoadingRef = useRef(isLoading);
@@ -71,6 +92,19 @@ export function SearchableContent({
     const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
     router.replace(newUrl, { scroll: false });
   }, [debouncedQuery, pathname, router]);
+
+  // Save search to history when search completes successfully
+  const wasLoadingRef = useRef(false);
+  useEffect(() => {
+    // Detect when loading transitions from true to false (search completed)
+    if (wasLoadingRef.current && !searchIsLoading) {
+      // Save if we have a valid query and results
+      if (debouncedQuery.trim().length >= 2 && searchResults.length > 0) {
+        addSearch(debouncedQuery);
+      }
+    }
+    wasLoadingRef.current = searchIsLoading;
+  }, [searchIsLoading, debouncedQuery, searchResults.length, addSearch]);
   
   // Check if viewing a month before data availability
   const isBeforeDataStart = year < DATA_START_YEAR || 
@@ -83,26 +117,44 @@ export function SearchableContent({
 
   return (
     <div>
-      {/* Search bar */}
-      <div className="mb-6">
-        <SearchBar
-          value={searchQuery}
-          onChange={onSearchQueryChange}
-          isSearching={isLoading}
+      {/* Search bar and category filter */}
+      <div className="mb-6 flex flex-col sm:flex-row gap-3 items-stretch">
+        <div className="flex-1">
+          <SearchBar
+            value={searchQuery}
+            onChange={onSearchQueryChange}
+            isSearching={isLoading}
+            recentSearches={history}
+            onSelectRecentSearch={onSearchQueryChange}
+            onRemoveRecentSearch={removeSearch}
+          />
+        </div>
+        <CategoryFilter
+          selectedCategory={selectedCategory}
+          onSelectCategory={onSelectCategory}
         />
       </div>
 
-      {/* Conditional content: search results or meeting list */}
-      {isShowingResults ? (
+      {/* Conditional content: search results, category results, or meeting list */}
+      {isShowingSearchResults ? (
         <GlobalSearchResults
-          results={results}
+          results={searchResults}
           query={debouncedQuery}
-          total={total}
-          page={page}
-          totalPages={totalPages}
-          isLoading={isLoading}
-          error={error}
-          onPageChange={setPage}
+          total={searchTotal}
+          isLoading={searchIsLoading}
+          error={searchError}
+        />
+      ) : isShowingCategoryResults ? (
+        <CategoryFilterResults
+          results={categoryResults}
+          category={selectedCategory!}
+          total={categoryTotal}
+          page={categoryPage}
+          totalPages={categoryTotalPages}
+          isLoading={categoryIsLoading}
+          error={categoryError}
+          onPageChange={setCategoryPage}
+          onClearFilter={() => onSelectCategory(null)}
         />
       ) : events.length === 0 && isBeforeDataStart ? (
         <div className="text-center py-12">

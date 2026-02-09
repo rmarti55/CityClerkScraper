@@ -7,6 +7,7 @@ import { MonthPicker } from "./MonthPicker";
 import { SearchableContent } from "./SearchableContent";
 import { StickyHeader } from "./StickyHeader";
 import { MeetingListSkeleton } from "./skeletons/MeetingCardSkeleton";
+import { Category } from "@/hooks/useCategories";
 
 function ErrorState({ error }: { error: string }) {
   return (
@@ -50,6 +51,12 @@ export function HomePage() {
   // Search state lifted up to share with sticky header
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
   const [isSearching, setIsSearching] = useState(false);
+  
+  // Category filter state
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+
+  // Compute whether filters are active (for hiding Today button)
+  const hasActiveFilter = searchQuery.trim().length >= 2 || selectedCategory !== null;
 
   // Scroll detection for sticky header
   const [showStickyHeader, setShowStickyHeader] = useState(false);
@@ -138,6 +145,7 @@ export function HomePage() {
         onSearchChange={setSearchQuery}
         isSearching={isSearching}
         isVisible={showStickyHeader}
+        hasActiveFilter={hasActiveFilter}
       />
 
       <div className="max-w-4xl mx-auto px-4 py-8">
@@ -154,7 +162,7 @@ export function HomePage() {
         {/* Controls section - ref for scroll detection */}
         <div ref={controlsRef}>
           {/* Month picker */}
-          <MonthPicker />
+          <MonthPicker hasActiveFilter={hasActiveFilter} />
         </div>
 
         {/* Meeting list */}
@@ -171,6 +179,8 @@ export function HomePage() {
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
             onSearchingChange={setIsSearching}
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
           />
         )}
       </div>

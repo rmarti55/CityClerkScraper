@@ -1,74 +1,62 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { CivicEvent } from "@/lib/types";
 
 interface SearchResponse {
   events: CivicEvent[];
   total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
 }
 
 interface UseGlobalSearchResult {
   results: CivicEvent[];
   total: number;
-  page: number;
-  totalPages: number;
   isLoading: boolean;
   error: string | null;
-  setPage: (page: number) => void;
   debouncedQuery: string;
 }
 
 /**
- * Hook for server-side search across all events with pagination
+ * Hook for server-side search across all events
  */
 export function useGlobalSearch(
   query: string,
-  debounceMs: number = 300,
-  limit: number = 20
+  debounceMs: number = 300
 ): UseGlobalSearchResult {
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [page, setPage] = useState(1);
   const [results, setResults] = useState<CivicEvent[]>([]);
   const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const prevQueryRef = useRef(query);
 
-  // Debounce the query and set loading so the first paint shows the skeleton
+  // Debounce the query
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(query);
-      // Reset to page 1 when query changes
-      if (query !== debouncedQuery) {
-        setPage(1);
-      }
+      prevQueryRef.current = query;
       const trimmed = query.trim();
-      if (trimmed.length >= 2) {
-        setIsLoading(true);
-      } else {
+      if (trimmed.length < 2) {
         setIsLoading(false);
         setResults([]);
         setTotal(0);
-        setTotalPages(0);
         setError(null);
       }
     }, debounceMs);
 
     return () => clearTimeout(timer);
-  }, [query, debounceMs, debouncedQuery]);
+  }, [query, debounceMs]);
 
-  // Fetch search results
+  // Fetch search results with AbortController to cancel stale requests
   useEffect(() => {
+    const abortController = new AbortController();
+
     const fetchResults = async () => {
       if (!debouncedQuery.trim() || debouncedQuery.trim().length < 2) {
         setResults([]);
         setTotal(0);
-        setTotalPages(0);
         setError(null);
+        setIsLoading(false);
         return;
       }
 
@@ -78,11 +66,11 @@ export function useGlobalSearch(
       try {
         const params = new URLSearchParams({
           q: debouncedQuery.trim(),
-          page: page.toString(),
-          limit: limit.toString(),
         });
 
-        const response = await fetch(`/api/search?${params}`);
+        const response = await fetch(`/api/search?${params}`, {
+          signal: abortController.signal,
+        });
         
         if (!response.ok) {
           const errorData = await response.json();
@@ -92,33 +80,34 @@ export function useGlobalSearch(
         const data: SearchResponse = await response.json();
         setResults(data.events);
         setTotal(data.total);
-        setTotalPages(data.totalPages);
       } catch (err) {
+        // Ignore abort errors - they're expected when cancelling
+        if (err instanceof Error && err.name === "AbortError") {
+          return;
+        }
         console.error("Search error:", err);
         setError(err instanceof Error ? err.message : "Search failed");
         setResults([]);
         setTotal(0);
-        setTotalPages(0);
       } finally {
-        setIsLoading(false);
+        // Only update loading state if request wasn't aborted
+        if (!abortController.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchResults();
-  }, [debouncedQuery, page, limit]);
 
-  const handleSetPage = useCallback((newPage: number) => {
-    setPage(Math.max(1, Math.min(newPage, totalPages || 1)));
-  }, [totalPages]);
+    // Cleanup: abort the request when dependencies change or component unmounts
+    return () => abortController.abort();
+  }, [debouncedQuery]);
 
   return {
     results,
     total,
-    page,
-    totalPages,
     isLoading,
     error,
-    setPage: handleSetPage,
     debouncedQuery,
   };
 }

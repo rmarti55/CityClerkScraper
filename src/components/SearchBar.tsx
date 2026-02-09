@@ -1,12 +1,15 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useState } from "react";
 
 interface SearchBarProps {
   value: string;
   onChange: (value: string) => void;
   isSearching?: boolean;
   placeholder?: string;
+  recentSearches?: string[];
+  onSelectRecentSearch?: (term: string) => void;
+  onRemoveRecentSearch?: (term: string) => void;
 }
 
 export function SearchBar({
@@ -14,8 +17,13 @@ export function SearchBar({
   onChange,
   isSearching = false,
   placeholder = "Search meetings, agendas, minutes...",
+  recentSearches = [],
+  onSelectRecentSearch,
+  onRemoveRecentSearch,
 }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
 
   const handleClear = useCallback(() => {
     onChange("");
@@ -26,15 +34,54 @@ export function SearchBar({
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Escape") {
         handleClear();
+        setIsFocused(false);
+        inputRef.current?.blur();
       }
     },
     [handleClear]
   );
 
+  const handleFocus = useCallback(() => {
+    setIsFocused(true);
+  }, []);
+
+  const handleBlur = useCallback((e: React.FocusEvent) => {
+    // Check if the new focus target is within our container
+    // Use a small delay to allow click events on dropdown items to fire first
+    setTimeout(() => {
+      if (!containerRef.current?.contains(document.activeElement)) {
+        setIsFocused(false);
+      }
+    }, 150);
+  }, []);
+
+  const handleSelectRecentSearch = useCallback(
+    (term: string) => {
+      onChange(term);
+      onSelectRecentSearch?.(term);
+      setIsFocused(false);
+      inputRef.current?.blur();
+    },
+    [onChange, onSelectRecentSearch]
+  );
+
+  const handleRemoveRecentSearch = useCallback(
+    (e: React.MouseEvent, term: string) => {
+      e.stopPropagation();
+      e.preventDefault();
+      onRemoveRecentSearch?.(term);
+    },
+    [onRemoveRecentSearch]
+  );
+
+  // Show dropdown when focused, has recent searches, and input is empty or very short
+  const showDropdown =
+    isFocused && recentSearches.length > 0 && value.trim().length < 2;
+
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       {/* Search icon */}
-      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
         {isSearching ? (
           <svg
             className="w-5 h-5 text-gray-400 animate-spin"
@@ -79,6 +126,8 @@ export function SearchBar({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
         placeholder={placeholder}
         className="block w-full pl-10 pr-10 py-3 text-gray-900 placeholder-gray-400 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
       />
@@ -88,7 +137,7 @@ export function SearchBar({
         <button
           type="button"
           onClick={handleClear}
-          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors z-10"
           aria-label="Clear search"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,6 +149,81 @@ export function SearchBar({
             />
           </svg>
         </button>
+      )}
+
+      {/* Recent searches dropdown */}
+      {showDropdown && (
+        <div 
+          className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
+          role="listbox"
+          aria-label="Recent searches"
+        >
+          <div className="px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wide border-b border-gray-100">
+            Recent Searches
+          </div>
+          <ul className="py-1">
+            {recentSearches.map((term) => (
+              <li key={term} className="group">
+                <div
+                  role="option"
+                  tabIndex={0}
+                  onClick={() => handleSelectRecentSearch(term)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleSelectRecentSearch(term);
+                    }
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-3 sm:py-2.5 text-left hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation cursor-pointer"
+                  style={{ minHeight: "44px" }}
+                >
+                  {/* Clock icon */}
+                  <svg
+                    className="w-4 h-4 text-gray-400 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  
+                  {/* Search term */}
+                  <span className="flex-1 text-gray-700 truncate text-sm sm:text-base">
+                    {term}
+                  </span>
+                  
+                  {/* Remove button - always visible on mobile, hover on desktop */}
+                  <button
+                    type="button"
+                    onClick={(e) => handleRemoveRecentSearch(e, term)}
+                    className="p-1.5 sm:p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-200 transition-colors sm:opacity-0 group-hover:opacity-100 focus:opacity-100 touch-manipulation"
+                    aria-label={`Remove "${term}" from recent searches`}
+                    style={{ minWidth: "32px", minHeight: "32px" }}
+                  >
+                    <svg
+                      className="w-4 h-4 mx-auto"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

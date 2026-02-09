@@ -210,6 +210,15 @@ export async function getEventById(id: number): Promise<CivicEvent | null> {
 
     if (!response.ok) {
       if (response.status === 404) {
+        // Event no longer exists in API - clean up stale cache entry
+        if (cachedEvent) {
+          try {
+            await db.delete(events).where(eq(events.id, id));
+            console.log(`Deleted stale cache entry for event ${id}`);
+          } catch (deleteError) {
+            console.warn(`Failed to delete stale cache entry for event ${id}:`, deleteError);
+          }
+        }
         return null;
       }
       throw new Error(`Failed to fetch event: ${response.status}`);
@@ -611,16 +620,15 @@ export async function backfillDateRange(
 export { formatEventDate, formatEventTime } from './utils';
 
 /**
- * Search events across all time periods with pagination
- * Returns future events first (ascending), then past events (descending)
+ * Search events across all time periods
+ * Returns results sorted by date descending (newest first)
+ * Limited to 1000 results max to prevent runaway queries
  */
 export async function searchEvents(
-  query: string,
-  page: number = 1,
-  limit: number = 20
+  query: string
 ): Promise<{ events: CivicEvent[]; total: number }> {
-  const offset = (page - 1) * limit;
   const searchPattern = `%${query}%`;
+  const maxResults = 1000;
 
   try {
     // Use raw SQL for the complex ordering and ILIKE search
@@ -640,7 +648,7 @@ export async function searchEvents(
     `;
     const total = parseInt(countResult[0]?.total || '0', 10);
 
-    // Fetch paginated results sorted by date descending (newest first)
+    // Fetch all results sorted by date descending (newest first)
     const results = await sql`
       SELECT 
         id,
@@ -666,8 +674,7 @@ export async function searchEvents(
         OR event_description ILIKE ${searchPattern}
         OR venue_name ILIKE ${searchPattern}
       ORDER BY start_date_time DESC
-      LIMIT ${limit}
-      OFFSET ${offset}
+      LIMIT ${maxResults}
     `;
 
     // Map database results to CivicEvent format

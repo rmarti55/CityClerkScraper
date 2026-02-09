@@ -25,6 +25,7 @@ interface StickyHeaderProps {
   onSearchChange: (value: string) => void;
   isSearching?: boolean;
   isVisible: boolean;
+  hasActiveFilter?: boolean;
 }
 
 export function StickyHeader({
@@ -35,6 +36,7 @@ export function StickyHeader({
   onSearchChange,
   isSearching = false,
   isVisible,
+  hasActiveFilter = false,
 }: StickyHeaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -156,13 +158,15 @@ export function StickyHeader({
               )}
             </div>
 
-            {/* Today button */}
-            <button
-              onClick={onTodayClick}
-              className="px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex-shrink-0"
-            >
-              Today
-            </button>
+            {/* Today button - hidden when search/filter is active */}
+            {!hasActiveFilter && (
+              <button
+                onClick={onTodayClick}
+                className="px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex-shrink-0"
+              >
+                Today
+              </button>
+            )}
           </div>
 
           {/* Mobile layout */}
@@ -187,12 +191,15 @@ export function StickyHeader({
                   {monthName} {selectedYear}
                 </span>
               </div>
-              <button
-                onClick={onTodayClick}
-                className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-              >
-                Today
-              </button>
+              {/* Today button - hidden when search/filter is active */}
+              {!hasActiveFilter && (
+                <button
+                  onClick={onTodayClick}
+                  className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                >
+                  Today
+                </button>
+              )}
             </div>
 
             {/* Bottom row: Full-width search */}

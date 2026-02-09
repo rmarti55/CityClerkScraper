@@ -42,7 +42,7 @@ function HighlightedText({
 
 function SearchResultCard({ result }: { result: SearchResult }) {
   const { item: event, matches } = result;
-  const hasFiles = event.fileCount && event.fileCount > 0;
+  const hasFiles = (event.fileCount ?? 0) > 0;
 
   return (
     <Link
@@ -114,7 +114,8 @@ function SearchResultCard({ result }: { result: SearchResult }) {
             {event.fileCount || 0}
           </span>
 
-          {event.agendaId && (
+          {/* Has documents indicator - only show when files are actually available */}
+          {hasFiles && (
             <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded">
               Has Agenda
             </span>

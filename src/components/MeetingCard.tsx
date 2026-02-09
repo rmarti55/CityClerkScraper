@@ -7,8 +7,7 @@ interface MeetingCardProps {
 }
 
 export function MeetingCard({ event }: MeetingCardProps) {
-  const hasFiles = event.fileCount && event.fileCount > 0;
-  const hasAgenda = event.agendaId !== null && event.agendaId > 0;
+  const hasFiles = (event.fileCount ?? 0) > 0;
   const isFuture = new Date(event.startDateTime) > new Date();
 
   return (
@@ -68,8 +67,8 @@ export function MeetingCard({ event }: MeetingCardProps) {
             </span>
           )}
 
-          {/* Has agenda indicator */}
-          {hasAgenda && (
+          {/* Has documents indicator - only show when files are actually available */}
+          {hasFiles && (
             <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded whitespace-nowrap">
               Has Agenda
             </span>

@@ -2,6 +2,10 @@
 
 import { useEvents } from "@/context/EventsContext";
 
+interface MonthPickerProps {
+  hasActiveFilter?: boolean;
+}
+
 const MONTHS = [
   "January",
   "February",
@@ -17,7 +21,7 @@ const MONTHS = [
   "December",
 ];
 
-export function MonthPicker() {
+export function MonthPicker({ hasActiveFilter = false }: MonthPickerProps) {
   const { currentYear, currentMonth, setCurrentMonth, setScrollToDate } = useEvents();
 
   const navigateToMonth = (year: number, month: number, scrollTo?: string) => {
@@ -177,13 +181,15 @@ export function MonthPicker() {
         </button>
       </div>
 
-      {/* Today button */}
-      <button
-        onClick={goToToday}
-        className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-      >
-        Today
-      </button>
+      {/* Today button - hidden when search/filter is active */}
+      {!hasActiveFilter && (
+        <button
+          onClick={goToToday}
+          className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+        >
+          Today
+        </button>
+      )}
     </div>
   );
 }

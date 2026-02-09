@@ -8,6 +8,7 @@ import {
   formatEventTime,
   CivicFile,
 } from "@/lib/civicclerk";
+import { FileMetadata } from "@/components/FileMetadata";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -72,6 +73,9 @@ function FileCard({ file }: { file: CivicFile }) {
                 Published {new Date(file.publishOn).toLocaleDateString()}
               </span>
             )}
+          </div>
+          <div className="mt-1">
+            <FileMetadata fileId={file.fileId} />
           </div>
         </div>
         <div className="flex gap-2 sm:flex-col sm:gap-2">
@@ -164,7 +168,8 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
 
           {/* Status badges */}
           <div className="flex gap-2 mt-4">
-            {event.agendaId && (
+            {/* Has documents indicator - only show when files are actually available */}
+            {files.length > 0 && (
               <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded">
                 Has Agenda
               </span>

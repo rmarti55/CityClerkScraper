@@ -57,6 +57,8 @@ export const files = pgTable('files', {
   url: text('url').notNull(),
   publishOn: text('publish_on'),
   fileType: integer('file_type'),
+  fileSize: integer('file_size'), // File size in bytes (lazy-loaded)
+  pageCount: integer('page_count'), // PDF page count (lazy-loaded, null for non-PDFs)
   cachedAt: timestamp('cached_at').defaultNow(),
 }, (table) => ({
   eventIdx: index('files_event_idx').on(table.eventId),
