@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useCallback, useEffect, useRef } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { CivicEvent } from "@/lib/types";
 import { useGlobalSearch } from "@/hooks/useGlobalSearch";
 import { useEvents } from "@/context/EventsContext";
@@ -18,15 +18,23 @@ interface SearchableContentProps {
   year: number;
   month: number;
   scrollToDate?: string;
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
+  onSearchingChange: (isSearching: boolean) => void;
 }
 
-export function SearchableContent({ events, year, month, scrollToDate }: SearchableContentProps) {
-  const searchParams = useSearchParams();
+export function SearchableContent({ 
+  events, 
+  year, 
+  month, 
+  scrollToDate,
+  searchQuery,
+  onSearchQueryChange,
+  onSearchingChange,
+}: SearchableContentProps) {
   const router = useRouter();
   const pathname = usePathname();
   
-  // Initialize query from URL parameter
-  const [query, setQuery] = useState(searchParams.get("q") || "");
   const { setScrollToDate } = useEvents();
   const {
     results,
@@ -37,13 +45,24 @@ export function SearchableContent({ events, year, month, scrollToDate }: Searcha
     error,
     setPage,
     debouncedQuery,
-  } = useGlobalSearch(query);
+  } = useGlobalSearch(searchQuery);
 
   const isShowingResults = debouncedQuery.trim().length >= 2;
 
+  // Track previous loading state to prevent infinite loop
+  const prevIsLoadingRef = useRef(isLoading);
+
+  // Notify parent of searching state changes
+  useEffect(() => {
+    if (prevIsLoadingRef.current !== isLoading) {
+      prevIsLoadingRef.current = isLoading;
+      onSearchingChange(isLoading);
+    }
+  }, [isLoading, onSearchingChange]);
+
   // Sync search query to URL when debounced query changes
   useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(window.location.search);
     if (debouncedQuery.trim()) {
       params.set("q", debouncedQuery);
     } else {
@@ -51,7 +70,7 @@ export function SearchableContent({ events, year, month, scrollToDate }: Searcha
     }
     const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
     router.replace(newUrl, { scroll: false });
-  }, [debouncedQuery, pathname, router, searchParams]);
+  }, [debouncedQuery, pathname, router]);
   
   // Check if viewing a month before data availability
   const isBeforeDataStart = year < DATA_START_YEAR || 
@@ -67,8 +86,8 @@ export function SearchableContent({ events, year, month, scrollToDate }: Searcha
       {/* Search bar */}
       <div className="mb-6">
         <SearchBar
-          value={query}
-          onChange={setQuery}
+          value={searchQuery}
+          onChange={onSearchQueryChange}
           isSearching={isLoading}
         />
       </div>

@@ -621,7 +621,6 @@ export async function searchEvents(
 ): Promise<{ events: CivicEvent[]; total: number }> {
   const offset = (page - 1) * limit;
   const searchPattern = `%${query}%`;
-  const now = new Date();
 
   try {
     // Use raw SQL for the complex ordering and ILIKE search
@@ -641,8 +640,7 @@ export async function searchEvents(
     `;
     const total = parseInt(countResult[0]?.total || '0', 10);
 
-    // Fetch paginated results with custom ordering:
-    // Future events first (ascending by date), then past events (descending by date)
+    // Fetch paginated results sorted by date descending (newest first)
     const results = await sql`
       SELECT 
         id,
@@ -667,10 +665,7 @@ export async function searchEvents(
         OR agenda_name ILIKE ${searchPattern}
         OR event_description ILIKE ${searchPattern}
         OR venue_name ILIKE ${searchPattern}
-      ORDER BY 
-        CASE WHEN start_date_time >= ${now} THEN 0 ELSE 1 END,
-        CASE WHEN start_date_time >= ${now} THEN start_date_time END ASC,
-        CASE WHEN start_date_time < ${now} THEN start_date_time END DESC
+      ORDER BY start_date_time DESC
       LIMIT ${limit}
       OFFSET ${offset}
     `;

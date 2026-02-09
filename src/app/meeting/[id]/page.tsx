@@ -59,22 +59,22 @@ function FileCard({ file }: { file: CivicFile }) {
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
-      <div className="flex items-start gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
         <FileIcon fileType={file.type} />
         <div className="flex-1 min-w-0">
           <h3 className="font-medium text-gray-900">{file.name}</h3>
-          <div className="flex items-center gap-2 mt-2">
-            <span className={`px-2 py-0.5 text-xs font-medium rounded ${getFileTypeBadgeColor(file.type)}`}>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <span className={`px-2 py-0.5 text-xs font-medium rounded whitespace-nowrap ${getFileTypeBadgeColor(file.type)}`}>
               {file.type}
             </span>
             {file.publishOn && (
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-gray-400 whitespace-nowrap">
                 Published {new Date(file.publishOn).toLocaleDateString()}
               </span>
             )}
           </div>
         </div>
-        <div className="flex flex-col gap-2">
+        <div className="flex gap-2 sm:flex-col sm:gap-2">
           <a
             href={viewUrl}
             target="_blank"
