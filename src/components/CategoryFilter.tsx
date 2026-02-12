@@ -26,8 +26,11 @@ export function CategoryFilter({
     cat.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside (desktop only)
   useEffect(() => {
+    // Skip click-outside handling on mobile - the modal handles its own closing
+    if (isMobile) return;
+
     const handleClickOutside = (event: MouseEvent) => {
       if (
         dropdownRef.current &&
@@ -40,7 +43,7 @@ export function CategoryFilter({
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [isMobile]);
 
   // Focus input when dropdown opens
   useEffect(() => {
