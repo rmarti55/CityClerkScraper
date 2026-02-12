@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useCallback, useState, useEffect } from "react";
+import { useIsMobile } from "@/hooks/useDeviceCapabilities";
 
 interface SearchBarProps {
   value: string;
@@ -11,6 +12,7 @@ interface SearchBarProps {
   recentSearches?: string[];
   onSelectRecentSearch?: (term: string) => void;
   onRemoveRecentSearch?: (term: string) => void;
+  onMobileSearchOpen?: () => void;
 }
 
 export function SearchBar({
@@ -22,10 +24,12 @@ export function SearchBar({
   recentSearches = [],
   onSelectRecentSearch,
   onRemoveRecentSearch,
+  onMobileSearchOpen,
 }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleClear = useCallback(() => {
     onChange("");
@@ -57,8 +61,14 @@ export function SearchBar({
   );
 
   const handleFocus = useCallback(() => {
+    // On mobile, open the full-screen search modal instead of inline focus
+    if (isMobile && onMobileSearchOpen) {
+      inputRef.current?.blur();
+      onMobileSearchOpen();
+      return;
+    }
     setIsFocused(true);
-  }, []);
+  }, [isMobile, onMobileSearchOpen]);
 
   // Click outside handler - close dropdown when clicking outside
   useEffect(() => {
@@ -114,8 +124,9 @@ export function SearchBar({
   );
 
   // Show dropdown when focused, has recent searches, and input is empty or very short
+  // Only show on desktop - mobile uses full-screen modal
   const showDropdown =
-    isFocused && recentSearches.length > 0 && value.trim().length < 2;
+    !isMobile && isFocused && recentSearches.length > 0 && value.trim().length < 2;
 
   return (
     <div className="flex items-center gap-2" ref={containerRef}>
@@ -267,8 +278,8 @@ export function SearchBar({
         )}
       </div>
 
-      {/* Cancel button - only visible on mobile when focused */}
-      {isFocused && (
+      {/* Cancel button - only visible on mobile when focused (desktop only, mobile uses full-screen modal) */}
+      {!isMobile && isFocused && (
         <button
           type="button"
           onClick={handleCancel}

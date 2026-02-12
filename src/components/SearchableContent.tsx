@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { CivicEvent } from "@/lib/types";
 import { useGlobalSearch } from "@/hooks/useGlobalSearch";
@@ -10,6 +10,7 @@ import { SearchBar } from "./SearchBar";
 import { GlobalSearchResults } from "./GlobalSearchResults";
 import { CategoryFilter } from "./CategoryFilter";
 import { MeetingList } from "./MeetingList";
+import { MobileSearchModal } from "./MobileSearchModal";
 import { Category } from "@/hooks/useCategories";
 
 // Data availability: CivicClerk data starts June 2024
@@ -44,6 +45,9 @@ export function SearchableContent({
   
   const { setScrollToDate } = useEvents();
   const { history, addSearch, removeSearch } = useSearchHistory();
+  
+  // Mobile search modal state
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   
   // Unified search hook that handles both search term and category filter
   const {
@@ -89,6 +93,15 @@ export function SearchableContent({
       addSearch(trimmed);
     }
   }, [addSearch]);
+
+  // Mobile search modal handlers
+  const handleMobileSearchOpen = useCallback(() => {
+    setIsMobileSearchOpen(true);
+  }, []);
+
+  const handleMobileSearchClose = useCallback(() => {
+    setIsMobileSearchOpen(false);
+  }, []);
   
   // Check if viewing a month before data availability
   const isBeforeDataStart = year < DATA_START_YEAR || 
@@ -112,6 +125,7 @@ export function SearchableContent({
             recentSearches={history}
             onSelectRecentSearch={onSearchQueryChange}
             onRemoveRecentSearch={removeSearch}
+            onMobileSearchOpen={handleMobileSearchOpen}
           />
         </div>
         <CategoryFilter
@@ -119,6 +133,22 @@ export function SearchableContent({
           onSelectCategory={onSelectCategory}
         />
       </div>
+
+      {/* Mobile full-screen search modal */}
+      <MobileSearchModal
+        isOpen={isMobileSearchOpen}
+        onClose={handleMobileSearchClose}
+        searchQuery={searchQuery}
+        onSearchChange={onSearchQueryChange}
+        recentSearches={history}
+        onSelectRecentSearch={onSearchQueryChange}
+        onRemoveRecentSearch={removeSearch}
+        searchResults={searchResults}
+        searchTotal={searchTotal}
+        isSearching={isLoading}
+        searchError={searchError}
+        debouncedQuery={debouncedQuery}
+      />
 
       {/* Conditional content: filtered results or meeting list */}
       {isShowingFilteredResults ? (
