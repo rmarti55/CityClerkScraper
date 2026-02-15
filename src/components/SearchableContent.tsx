@@ -169,6 +169,7 @@ export function SearchableContent({
           isLoading={isLoading}
           error={searchError}
           categoryName={selectedCategory?.name}
+          categoryId={selectedCategory?.id}
         />
       ) : events.length === 0 && isBeforeDataStart ? (
         <div className="text-center py-12">

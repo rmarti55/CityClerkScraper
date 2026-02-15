@@ -11,6 +11,7 @@ interface GlobalSearchResultsProps {
   isLoading: boolean;
   error: string | null;
   categoryName?: string | null;
+  categoryId?: number | null;
 }
 
 function highlightMatch(text: string, query: string): React.ReactNode {
@@ -63,17 +64,30 @@ function getMatchedFields(event: CivicEvent, query: string): string[] {
 function SearchResultCard({
   event,
   query,
+  categoryId,
 }: {
   event: CivicEvent;
   query: string;
+  categoryId?: number | null;
 }) {
   const hasFiles = (event.fileCount ?? 0) > 0;
   const eventDate = new Date(event.startDateTime);
   const now = new Date();
   const isFuture = eventDate >= now;
 
-  // Include search query in link so back navigation preserves search state
-  const meetingHref = `/meeting/${event.id}?q=${encodeURIComponent(query)}`;
+  // Build meeting href with search query and category to preserve filter state on back navigation
+  const buildMeetingHref = () => {
+    const params = new URLSearchParams();
+    if (query && query.trim().length >= 2) {
+      params.set("q", query);
+    }
+    if (categoryId) {
+      params.set("category", String(categoryId));
+    }
+    const queryString = params.toString();
+    return queryString ? `/meeting/${event.id}?${queryString}` : `/meeting/${event.id}`;
+  };
+  const meetingHref = buildMeetingHref();
 
   // Determine which fields matched and if the match is visible in the UI
   const matchedFields = getMatchedFields(event, query);
@@ -192,6 +206,7 @@ export function GlobalSearchResults({
   isLoading,
   error,
   categoryName,
+  categoryId,
 }: GlobalSearchResultsProps) {
   // Build display text based on what filters are active
   const hasQuery = query && query.trim().length >= 2;
@@ -286,7 +301,7 @@ export function GlobalSearchResults({
       {/* Results list */}
       <div className="space-y-3">
         {results.map((event) => (
-          <SearchResultCard key={event.id} event={event} query={query} />
+          <SearchResultCard key={event.id} event={event} query={query} categoryId={categoryId} />
         ))}
       </div>
     </div>

@@ -12,7 +12,7 @@ import { FileMetadata } from "@/components/FileMetadata";
 
 interface PageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; category?: string }>;
 }
 
 function FileIcon({ fileType }: { fileType: string }) {
@@ -113,7 +113,7 @@ function FileCard({ file }: { file: CivicFile }) {
 
 export default async function MeetingPage({ params, searchParams }: PageProps) {
   const { id } = await params;
-  const { q: searchQuery } = await searchParams;
+  const { q: searchQuery, category: categoryId } = await searchParams;
   const eventId = parseInt(id);
 
   if (isNaN(eventId)) {
@@ -138,8 +138,19 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
     .filter(Boolean)
     .join(", ");
 
-  // Build back link with search query preserved
-  const backHref = searchQuery ? `/?q=${encodeURIComponent(searchQuery)}` : "/";
+  // Build back link preserving search query and category filter
+  const buildBackHref = () => {
+    const params = new URLSearchParams();
+    if (searchQuery) {
+      params.set("q", searchQuery);
+    }
+    if (categoryId) {
+      params.set("category", categoryId);
+    }
+    const queryString = params.toString();
+    return queryString ? `/?${queryString}` : "/";
+  };
+  const backHref = buildBackHref();
 
   return (
     <main className="min-h-screen bg-gray-50">
