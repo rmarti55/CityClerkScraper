@@ -74,17 +74,27 @@ export function SearchableContent({
     }
   }, [isLoading, onSearchingChange]);
 
-  // Sync search query to URL when debounced query changes
+  // Sync search query and category filter to URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    
+    // Sync search query
     if (debouncedQuery.trim()) {
       params.set("q", debouncedQuery);
     } else {
       params.delete("q");
     }
+    
+    // Sync category filter
+    if (selectedCategory) {
+      params.set("category", String(selectedCategory.id));
+    } else {
+      params.delete("category");
+    }
+    
     const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
     router.replace(newUrl, { scroll: false });
-  }, [debouncedQuery, pathname, router]);
+  }, [debouncedQuery, selectedCategory, pathname, router]);
 
   // Handle explicit search submission (Enter key)
   const handleSearchSubmit = useCallback((query: string) => {

@@ -7,7 +7,7 @@ import { MonthPicker } from "./MonthPicker";
 import { SearchableContent } from "./SearchableContent";
 import { StickyHeader } from "./StickyHeader";
 import { MeetingListSkeleton } from "./skeletons/MeetingCardSkeleton";
-import { Category } from "@/hooks/useCategories";
+import { Category, useCategories } from "@/hooks/useCategories";
 
 function ErrorState({ error }: { error: string }) {
   return (
@@ -48,12 +48,27 @@ export function HomePage() {
     setCurrentMonth,
   } = useEvents();
 
+  // Fetch categories to restore filter from URL
+  const { categories } = useCategories();
+
   // Search state lifted up to share with sticky header
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
   const [isSearching, setIsSearching] = useState(false);
   
-  // Category filter state
+  // Category filter state - initialized from URL if present
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  
+  // Restore category filter from URL when categories are loaded
+  useEffect(() => {
+    const categoryIdParam = searchParams.get("category");
+    if (categoryIdParam && categories.length > 0) {
+      const categoryId = parseInt(categoryIdParam, 10);
+      const foundCategory = categories.find((c) => c.id === categoryId);
+      if (foundCategory) {
+        setSelectedCategory(foundCategory);
+      }
+    }
+  }, [categories, searchParams]);
 
   // Compute whether filters are active (for hiding Today button)
   const hasActiveFilter = searchQuery.trim().length >= 2 || selectedCategory !== null;
