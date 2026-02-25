@@ -574,7 +574,10 @@ export async function getEventsWithFileCounts(
     console.warn('Failed to cache events:', error);
   }
 
-  return eventsWithCounts;
+  return eventsWithCounts.map(e => ({
+    ...e,
+    startDateTime: parseEventStartDateTime(e.startDateTime).toISOString(),
+  }));
 }
 
 function sleep(ms: number): Promise<void> {
