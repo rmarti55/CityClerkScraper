@@ -4,14 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { CivicEvent } from "@/lib/types";
 import { useGlobalSearch } from "@/hooks/useGlobalSearch";
+import { useDocumentSearch } from "@/hooks/useDocumentSearch";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
 import { useEvents } from "@/context/EventsContext";
 import { SearchBar } from "./SearchBar";
 import { GlobalSearchResults } from "./GlobalSearchResults";
+import { DocumentSearchResults } from "./DocumentSearchResults";
 import { CategoryFilter } from "./CategoryFilter";
 import { MeetingList } from "./MeetingList";
 import { MobileSearchModal } from "./MobileSearchModal";
 import { Category } from "@/hooks/useCategories";
+
+type SearchMode = "meetings" | "documents";
 
 // Data availability: CivicClerk data starts June 2024
 const DATA_START_YEAR = 2024;
@@ -48,7 +52,9 @@ export function SearchableContent({
   
   // Mobile search modal state
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
-  
+  // Search mode: meetings (DB) vs documents (Civic Clerk Search API)
+  const [searchMode, setSearchMode] = useState<SearchMode>("meetings");
+
   // Unified search hook that handles both search term and category filter
   const {
     results: searchResults,
@@ -58,21 +64,30 @@ export function SearchableContent({
     debouncedQuery,
   } = useGlobalSearch(searchQuery, selectedCategory?.name);
 
+  const {
+    results: documentResults,
+    isLoading: documentLoading,
+    error: documentError,
+    debouncedQuery: documentQuery,
+  } = useDocumentSearch(searchQuery);
+
   // Determine if we're showing filtered results (search, category, or both)
   const hasSearchQuery = debouncedQuery.trim().length >= 2;
   const hasCategory = selectedCategory !== null;
   const isShowingFilteredResults = hasSearchQuery || hasCategory;
+  const isShowingDocumentSearch = searchMode === "documents" && documentQuery.trim().length >= 2;
 
   // Track previous loading state to prevent infinite loop
   const prevIsLoadingRef = useRef(isLoading);
 
   // Notify parent of searching state changes
+  const effectiveLoading = isShowingDocumentSearch ? documentLoading : isLoading;
   useEffect(() => {
-    if (prevIsLoadingRef.current !== isLoading) {
-      prevIsLoadingRef.current = isLoading;
-      onSearchingChange(isLoading);
+    if (prevIsLoadingRef.current !== effectiveLoading) {
+      prevIsLoadingRef.current = effectiveLoading;
+      onSearchingChange(effectiveLoading);
     }
-  }, [isLoading, onSearchingChange]);
+  }, [effectiveLoading, onSearchingChange]);
 
   // Sync search query and category filter to URL
   useEffect(() => {
@@ -160,8 +175,43 @@ export function SearchableContent({
         debouncedQuery={debouncedQuery}
       />
 
-      {/* Conditional content: filtered results or meeting list */}
-      {isShowingFilteredResults ? (
+      {/* Search mode tabs when user has a search query */}
+      {hasSearchQuery && (
+        <div className="flex gap-1 p-1 mb-4 rounded-lg bg-gray-100 w-fit">
+          <button
+            type="button"
+            onClick={() => setSearchMode("meetings")}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              searchMode === "meetings"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            Meetings
+          </button>
+          <button
+            type="button"
+            onClick={() => setSearchMode("documents")}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              searchMode === "documents"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            Documents
+          </button>
+        </div>
+      )}
+
+      {/* Conditional content: document search, filtered results, or meeting list */}
+      {isShowingDocumentSearch ? (
+        <DocumentSearchResults
+          results={documentResults}
+          query={documentQuery}
+          isLoading={documentLoading}
+          error={documentError}
+        />
+      ) : isShowingFilteredResults ? (
         <GlobalSearchResults
           results={searchResults}
           query={debouncedQuery}

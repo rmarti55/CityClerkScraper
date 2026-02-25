@@ -55,10 +55,10 @@ function getFileTypeBadgeColor(type: string): string {
   return "bg-gray-100 text-gray-700";
 }
 
-function FileCard({ file }: { file: CivicFile }) {
-  // Always use the API proxy route to properly serve the file
+function FileCard({ file, meetingId }: { file: CivicFile; meetingId: number }) {
   const viewUrl = `/api/file/${file.fileId}`;
   const downloadUrl = `/api/file/${file.fileId}?download=true`;
+  const chatUrl = `/meeting/${meetingId}/file/${file.fileId}?name=${encodeURIComponent(file.name)}`;
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
@@ -86,11 +86,20 @@ function FileCard({ file }: { file: CivicFile }) {
         
         {/* Action buttons - full width on mobile, stacked on desktop */}
         <div className="flex gap-2 sm:flex-col sm:flex-shrink-0">
+          <Link
+            href={chatUrl}
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            Chat
+          </Link>
           <a
             href={viewUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -235,7 +244,7 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
           ) : (
             <div className="space-y-3">
               {files.map((file) => (
-                <FileCard key={file.fileId} file={file} />
+                <FileCard key={file.fileId} file={file} meetingId={eventId} />
               ))}
             </div>
           )}

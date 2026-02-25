@@ -43,3 +43,31 @@ export interface MeetingItem {
   agendaObjectItemOutlineNumber: string;
   agendaObjectItemDescription: string | null;
 }
+
+/** One matching file from Civic Clerk Search (agendaFiles/attachments) with optional highlights */
+export interface MatchingFile {
+  fileId: number;
+  name: string;
+  type: string;
+  url?: string;
+  /** Highlighted name (HTML with <mark class="highlight">) from API, or plain name */
+  highlightedName?: string;
+  /** Snippets of matching content (HTML with <mark>) from API */
+  snippets?: string[];
+}
+
+/** One matching agenda item from Civic Clerk Search */
+export interface MatchingItem {
+  id: number;
+  name: string;
+  description?: string | null;
+  highlightedName?: string;
+}
+
+/** One event with its document-search matches (from GET /v1/Search?search=) */
+export interface DocumentSearchResult {
+  event: CivicEvent;
+  matchingFiles: MatchingFile[];
+  matchingItems: MatchingItem[];
+  totalInEvent: number;
+}

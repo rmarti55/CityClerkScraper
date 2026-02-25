@@ -3,8 +3,8 @@ import { eq, gte, lt, and } from 'drizzle-orm';
 import { parseEventStartDateTime } from './datetime';
 
 // Re-export types for backward compatibility
-export type { CivicEvent, CivicFile, MeetingDetails, MeetingItem } from './types';
-import type { CivicEvent, CivicFile, MeetingDetails } from './types';
+export type { CivicEvent, CivicFile, MeetingDetails, MeetingItem, DocumentSearchResult, MatchingFile, MatchingItem } from './types';
+import type { CivicEvent, CivicFile, MeetingDetails, MeetingItem, DocumentSearchResult, MatchingFile, MatchingItem } from './types';
 
 const API_BASE = "https://santafenm.api.civicclerk.com/v1";
 
@@ -33,7 +33,7 @@ function getCacheDuration(eventDate: Date): number {
 interface EventsResponse {
   "@odata.context": string;
   "@odata.count"?: number;
-  value: CivicEvent[];
+  value: RawApiEvent[];
 }
 
 function getHeaders(): HeadersInit {
@@ -59,6 +59,65 @@ interface EventApiResponse {
     publishOn: string;
     fileType: number;
   }>;
+}
+
+/** API returns location in eventLocation (address1, address2, city, state, zipCode); flat venue fields are not sent. */
+interface RawEventLocation {
+  address1?: string | null;
+  address2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+}
+
+/** Raw event from CivicClerk API (list or single). May have eventLocation instead of flat venue fields. */
+type RawApiEvent = Omit<CivicEvent, 'venueName' | 'venueAddress' | 'venueCity' | 'venueState' | 'venueZip'> & {
+  venueName?: string;
+  venueAddress?: string;
+  venueCity?: string;
+  venueState?: string;
+  venueZip?: string;
+  eventLocation?: RawEventLocation | null;
+};
+
+/**
+ * Normalize API event to CivicEvent: use flat venue fields when present,
+ * otherwise map from eventLocation (address1 -> venueName, address2 -> venueAddress, city/state/zipCode).
+ */
+function normalizeApiEvent(raw: RawApiEvent): CivicEvent {
+  let venueName = raw.venueName;
+  let venueAddress = raw.venueAddress;
+  let venueCity = raw.venueCity;
+  let venueState = raw.venueState;
+  let venueZip = raw.venueZip;
+
+  const loc = raw.eventLocation;
+  if (loc && (venueName == null && venueAddress == null && venueCity == null && venueState == null && venueZip == null)) {
+    venueName = loc.address1 ?? undefined;
+    venueAddress = loc.address2 ?? undefined;
+    venueCity = loc.city ?? undefined;
+    venueState = loc.state ?? undefined;
+    venueZip = loc.zipCode ?? undefined;
+  }
+
+  return {
+    id: raw.id,
+    eventName: raw.eventName,
+    eventDescription: raw.eventDescription ?? '',
+    eventDate: raw.eventDate,
+    startDateTime: raw.startDateTime,
+    agendaId: raw.agendaId,
+    agendaName: raw.agendaName ?? '',
+    categoryName: raw.categoryName ?? '',
+    isPublished: raw.isPublished ?? '',
+    venueName: venueName || undefined,
+    venueAddress: venueAddress || undefined,
+    venueCity: venueCity || undefined,
+    venueState: venueState || undefined,
+    venueZip: venueZip || undefined,
+    fileCount: raw.fileCount,
+    fileNames: raw.fileNames,
+  };
 }
 
 /** Fetch Event by id from API and return normalized publishedFiles (for February merge). */
@@ -137,13 +196,13 @@ async function fetchEventsFromAPI(
     }
 
     const data: EventsResponse = await response.json();
-    
+
     // No more results - we've fetched everything
     if (data.value.length === 0) {
       break;
     }
 
-    allEvents.push(...data.value);
+    allEvents.push(...data.value.map(normalizeApiEvent));
     skip += data.value.length;
   }
 
@@ -306,7 +365,25 @@ export async function getEventById(id: number): Promise<CivicEvent | null> {
       throw new Error(`Failed to fetch event: ${response.status}`);
     }
 
-    return response.json();
+    const raw: RawApiEvent = await response.json();
+    const event = normalizeApiEvent(raw);
+    // Update cache with venue so list/detail can show location without refetch
+    try {
+      await db
+        .update(events)
+        .set({
+          venueName: event.venueName ?? null,
+          venueAddress: event.venueAddress ?? null,
+          venueCity: event.venueCity ?? null,
+          venueState: event.venueState ?? null,
+          venueZip: event.venueZip ?? null,
+          cachedAt: new Date(),
+        })
+        .where(eq(events.id, id));
+    } catch {
+      // Non-fatal: response still has venue
+    }
+    return event;
   } catch (apiError) {
     // API failed - fall back to stale cache if available
     console.warn('API unavailable, falling back to stale cache:', apiError);
@@ -563,6 +640,11 @@ export async function getEventsWithFileCounts(
               agendaId: e.agendaId,
               agendaName: e.agendaName,
               categoryName: e.categoryName,
+              venueName: e.venueName ?? null,
+              venueAddress: e.venueAddress ?? null,
+              venueCity: e.venueCity ?? null,
+              venueState: e.venueState ?? null,
+              venueZip: e.venueZip ?? null,
               fileCount: e.fileCount || 0,
               fileNames: e.fileNames || '',
               cachedAt: new Date(),
@@ -670,6 +752,11 @@ export async function backfillDateRange(
             agendaId: e.agendaId,
             agendaName: e.agendaName,
             categoryName: e.categoryName,
+            venueName: e.venueName ?? null,
+            venueAddress: e.venueAddress ?? null,
+            venueCity: e.venueCity ?? null,
+            venueState: e.venueState ?? null,
+            venueZip: e.venueZip ?? null,
             fileCount: e.fileCount || 0,
             fileNames: e.fileNames || '',
             cachedAt: new Date(),
@@ -712,6 +799,120 @@ export async function backfillDateRange(
 // Re-export format helpers for backward compatibility
 export { formatEventDate, formatEventTime } from './utils';
 
+/** Strip <mark class="highlight">...</mark> to get plain text */
+function stripHighlight(s: string): string {
+  return s.replace(/<mark[^>]*>([^<]*)<\/mark>/gi, '$1');
+}
+
+/** Civic Clerk Search API raw response shapes */
+interface SearchEventModel {
+  id: number;
+  name: string;
+  meetingDate?: string;
+  categoryName?: string;
+  publishedFiles?: Array<{ fileId?: number; id?: number; name: string; type: string; url?: string }>;
+  eventLocation?: { address1?: string; address2?: string; city?: string; state?: string; zipCode?: string };
+}
+interface SearchFileModel {
+  id?: number;
+  fileId?: number;
+  name: string;
+  type?: string;
+  fileContent?: string[];
+}
+interface SearchItemModel {
+  id?: number;
+  name?: string;
+  agendaObjectItemName?: string;
+  agendaObjectItemDescription?: string | null;
+}
+interface PublicSearchResultRaw {
+  event: SearchEventModel;
+  agendaFiles?: SearchFileModel[];
+  attachments?: SearchFileModel[];
+  items?: SearchItemModel[];
+}
+
+/**
+ * Search meeting documents via Civic Clerk API (GET /v1/Search?search=).
+ * Returns events with matching files and agenda items, including highlighted snippets.
+ */
+export async function searchCivicClerk(query: string): Promise<DocumentSearchResult[]> {
+  const trimmed = query?.trim();
+  if (!trimmed) return [];
+
+  const url = `${API_BASE}/Search?${new URLSearchParams({ search: trimmed })}`;
+  const response = await fetch(url, {
+    headers: getHeaders(),
+    next: { revalidate: 300 },
+  });
+  if (!response.ok) {
+    throw new Error(`Civic Clerk Search failed: ${response.status}`);
+  }
+  const data: { value?: PublicSearchResultRaw[] } = await response.json();
+  const rawResults = data.value ?? [];
+
+  const results: DocumentSearchResult[] = rawResults.map((row) => {
+    const ev = row.event;
+    const meetingDate = ev.meetingDate ?? '';
+    const dateStr = meetingDate ? new Date(meetingDate).toISOString().slice(0, 10) : '';
+    const loc = ev.eventLocation;
+    const publishedFiles = ev.publishedFiles ?? [];
+
+    const event: CivicEvent = {
+      id: ev.id,
+      eventName: stripHighlight(ev.name ?? ''),
+      eventDescription: '',
+      eventDate: dateStr,
+      startDateTime: meetingDate,
+      agendaId: null,
+      agendaName: ev.categoryName ?? '',
+      categoryName: ev.categoryName ?? '',
+      isPublished: '',
+      venueName: loc?.address1 ?? undefined,
+      venueAddress: [loc?.address1, loc?.address2].filter(Boolean).join(', ') || undefined,
+      venueCity: loc?.city?.trim(),
+      venueState: loc?.state,
+      venueZip: loc?.zipCode,
+      fileCount: publishedFiles.length,
+    };
+
+    const matchingFiles: MatchingFile[] = [];
+    const seenFileKeys = new Set<string>();
+
+    function addFile(f: SearchFileModel, snippets?: string[]) {
+      const key = `${f.fileId ?? f.id ?? 0}-${f.name}`;
+      if (seenFileKeys.has(key)) return;
+      seenFileKeys.add(key);
+      const fromPub = publishedFiles.find((p) => p.name === f.name);
+      matchingFiles.push({
+        fileId: f.fileId ?? fromPub?.fileId ?? (f.id as number) ?? 0,
+        name: stripHighlight(f.name),
+        type: f.type ?? fromPub?.type ?? 'File',
+        url: f.type !== 'agenda files' ? fromPub?.url : undefined,
+        highlightedName: f.name?.includes('<mark') ? f.name : undefined,
+        snippets: snippets ?? (Array.isArray(f.fileContent) ? f.fileContent : undefined),
+      });
+    }
+
+    (row.agendaFiles ?? []).forEach((f) => addFile(f, f.fileContent));
+    (row.attachments ?? []).forEach((f) => addFile(f, f.fileContent));
+
+    const matchingItems: MatchingItem[] = (row.items ?? []).map((it) => ({
+      id: it.id ?? 0,
+      name: stripHighlight(it.name ?? it.agendaObjectItemName ?? ''),
+      description: it.agendaObjectItemDescription ?? undefined,
+      highlightedName: it.name?.includes('<mark') ? it.name : (it.agendaObjectItemName?.includes('<mark') ? it.agendaObjectItemName : undefined),
+    }));
+
+    const totalInEvent = matchingFiles.length + matchingItems.length;
+
+    return { event, matchingFiles, matchingItems, totalInEvent };
+  });
+
+  return results;
+}
+
 /**
  * Search events across all time periods
  * Returns results sorted by date descending (newest first)
@@ -747,8 +948,9 @@ export async function searchEvents(
             event_name ILIKE ${searchPattern}
             OR category_name ILIKE ${searchPattern}
             OR agenda_name ILIKE ${searchPattern}
-            OR event_description ILIKE ${searchPattern}
+            OR             event_description ILIKE ${searchPattern}
             OR venue_name ILIKE ${searchPattern}
+            OR file_names ILIKE ${searchPattern}
           )
       `;
 
@@ -778,6 +980,7 @@ export async function searchEvents(
             OR agenda_name ILIKE ${searchPattern}
             OR event_description ILIKE ${searchPattern}
             OR venue_name ILIKE ${searchPattern}
+            OR file_names ILIKE ${searchPattern}
           )
         ORDER BY start_date_time DESC
         LIMIT ${maxResults}
@@ -823,6 +1026,7 @@ export async function searchEvents(
           OR agenda_name ILIKE ${searchPattern}
           OR event_description ILIKE ${searchPattern}
           OR venue_name ILIKE ${searchPattern}
+          OR file_names ILIKE ${searchPattern}
       `;
 
       results = await sql`
@@ -849,6 +1053,7 @@ export async function searchEvents(
           OR agenda_name ILIKE ${searchPattern}
           OR event_description ILIKE ${searchPattern}
           OR venue_name ILIKE ${searchPattern}
+          OR file_names ILIKE ${searchPattern}
         ORDER BY start_date_time DESC
         LIMIT ${maxResults}
       `;

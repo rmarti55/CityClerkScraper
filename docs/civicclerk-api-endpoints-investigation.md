@@ -14,7 +14,7 @@
 | EventCategories | Yes    | Categories list. |
 | EventTemplate   | No     | Template metadata. |
 | EventsMedia     | No     | Video/stream, captions, bookmarks. |
-| Search          | No     | Full-text style search; returns empty without known query shape. |
+| Search          | Yes    | GET /v1/Search?search=query — full-text; we use for document search. |
 | Sections        | No     | Agenda sections by agendaId; returned empty in probe. |
 | Settings        | No     | Custom portal labels (agenda tab, minutes text, etc.). |
 | Subscriptions   | No     | Subscription options (label, isCheck). |
@@ -65,7 +65,9 @@ README mentions `GET /v1/Events({id})/Files`; probed `Events/1236/Files` → **4
 ### Search
 
 - **PublicSearchResultModel:** event (with publishedFiles), agenda, agendaFiles, attachments, items, videoTimestamps, closedCaptions.
-- GET `/v1/Search` with no params returns `value: []`. Likely needs a search term or filter; exact contract not confirmed.
+- **Query contract (confirmed):** `GET /v1/Search?search=<query>` returns full-text results. No params or `?q=` returns `value: []`. OData `$filter=search(...)` is not supported.
+- **Response:** Each result has `event` (with optional `publishedFiles`), `agendaFiles`, `attachments`, `items`. Names and content use `<mark class="highlight">...</mark>` for matches. `agendaFiles`/items can include `fileContent` (array of highlighted snippets). Event has `meetingDate`, `categoryName`, `eventLocation`; use event `id` to link to meeting page.
+- **We use it:** Yes — `searchCivicClerk(query)` and `/api/search/documents` call this for meeting-document search.
 
 ### Sections
 

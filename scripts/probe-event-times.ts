@@ -7,6 +7,7 @@
  *   npx tsx scripts/probe-event-times.ts 2026-02-11
  *   npx tsx scripts/probe-event-times.ts 2026-02-11 2026-02-12
  */
+export {};
 
 const API_BASE = "https://santafenm.api.civicclerk.com/v1";
 
