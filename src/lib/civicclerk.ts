@@ -1,5 +1,6 @@
 import { db, events, files } from './db';
 import { eq, gte, lt, and } from 'drizzle-orm';
+import { parseEventStartDateTime } from './datetime';
 
 // Re-export types for backward compatibility
 export type { CivicEvent, CivicFile, MeetingDetails, MeetingItem } from './types';
@@ -176,6 +177,41 @@ export async function getEvents(
       return cachedEvents.map(mapCachedEvent);
     }
     throw apiError; // No cache available, re-throw
+  }
+}
+
+/**
+ * Fetch current event name from API (no cache). Used to sync list view with API when titles change (e.g. "Canceled - ...").
+ */
+export async function fetchEventNameFromAPI(id: number): Promise<string | null> {
+  try {
+    const response = await fetch(`${API_BASE}/Events/${id}`, {
+      headers: getHeaders(),
+      next: { revalidate: 300 },
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return (data.eventName as string) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch raw startDateTime string from API (no cache). Used only when correcting
+ * event times (GET /api/events refresh and refresh-event-times script).
+ */
+export async function fetchEventStartDateTimeFromAPI(id: number): Promise<string | null> {
+  try {
+    const response = await fetch(`${API_BASE}/Events/${id}`, {
+      headers: getHeaders(),
+      next: { revalidate: 300 },
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return (data.startDateTime as string) ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -452,7 +488,7 @@ export async function getEventsWithFileCounts(
             eventName: e.eventName,
             eventDescription: e.eventDescription,
             eventDate: e.eventDate,
-            startDateTime: new Date(e.startDateTime),
+            startDateTime: parseEventStartDateTime(e.startDateTime),
             agendaId: e.agendaId,
             agendaName: e.agendaName,
             categoryName: e.categoryName,
@@ -471,6 +507,7 @@ export async function getEventsWithFileCounts(
             set: {
               eventName: e.eventName,
               eventDescription: e.eventDescription,
+              startDateTime: parseEventStartDateTime(e.startDateTime),
               agendaId: e.agendaId,
               agendaName: e.agendaName,
               categoryName: e.categoryName,
@@ -555,7 +592,7 @@ export async function backfillDateRange(
           eventName: e.eventName,
           eventDescription: e.eventDescription,
           eventDate: e.eventDate,
-          startDateTime: new Date(e.startDateTime),
+          startDateTime: parseEventStartDateTime(e.startDateTime),
           agendaId: e.agendaId,
           agendaName: e.agendaName,
           categoryName: e.categoryName,
@@ -574,6 +611,7 @@ export async function backfillDateRange(
           set: {
             eventName: e.eventName,
             eventDescription: e.eventDescription,
+            startDateTime: parseEventStartDateTime(e.startDateTime),
             agendaId: e.agendaId,
             agendaName: e.agendaName,
             categoryName: e.categoryName,

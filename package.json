@@ -8,19 +8,26 @@
     "start": "next start",
     "lint": "eslint",
     "backfill": "tsx scripts/backfill-events.ts",
-    "backfill:probe": "tsx scripts/backfill-events.ts --probe"
+    "backfill:probe": "tsx scripts/backfill-events.ts --probe",
+    "refresh-file-counts": "tsx scripts/refresh-file-counts.ts",
+    "migrate:auth": "tsx scripts/migrate-auth.ts"
   },
   "dependencies": {
+    "@auth/drizzle-adapter": "^1.11.1",
     "@neondatabase/serverless": "^1.0.2",
     "drizzle-orm": "^0.45.1",
     "fuse.js": "^7.1.0",
+    "luxon": "^3.5.0",
     "next": "16.1.6",
+    "next-auth": "^5.0.0-beta.30",
     "pdf-lib": "^1.17.1",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "resend": "^6.9.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/luxon": "^3.7.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

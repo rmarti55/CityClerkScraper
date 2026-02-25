@@ -1,18 +1,47 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { CivicEvent } from "@/lib/types";
 import { formatEventDate, formatEventTime } from "@/lib/utils";
+import { useFollows } from "@/hooks/useFollows";
+import { useLoginModal } from "@/context/LoginModalContext";
+import { MeetingStatusBadges } from "./MeetingStatusBadges";
 
 interface MeetingCardProps {
   event: CivicEvent;
+  /** When set, meeting detail page will link "Back" to this path (e.g. "/governing-body") */
+  backPath?: string;
 }
 
-export function MeetingCard({ event }: MeetingCardProps) {
-  const hasFiles = (event.fileCount ?? 0) > 0;
-  const isFuture = new Date(event.startDateTime) > new Date();
+export function MeetingCard({ event, backPath }: MeetingCardProps) {
+  const { isAuthenticated, isFavorite, toggleFavorite, loadingFavorites } = useFollows();
+  const { openLoginModal } = useLoginModal();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const href = backPath
+    ? `/meeting/${event.id}?from=${encodeURIComponent(backPath.replace(/^\//, ""))}`
+    : (() => {
+        const returnTo = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
+        return `/meeting/${event.id}?from=${encodeURIComponent(returnTo)}`;
+      })();
+
+  const handleFavoriteClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      openLoginModal();
+      return;
+    }
+    await toggleFavorite(event.id);
+  };
+
+  const favorited = isFavorite(event.id);
 
   return (
     <Link
-      href={`/meeting/${event.id}`}
+      href={href}
       className="block bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm transition-all"
     >
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4">
@@ -36,43 +65,34 @@ export function MeetingCard({ event }: MeetingCardProps) {
           )}
         </div>
 
-        {/* Status badges */}
+        {/* Status badges + favorite */}
         <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end">
-          {/* File count badge - always show with icon */}
-          <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full whitespace-nowrap ${
-            hasFiles 
-              ? 'bg-blue-100 text-blue-700' 
-              : 'bg-gray-100 text-gray-500'
-          }`}>
-            <svg
-              className="w-3 h-3"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-              />
-            </svg>
-            {event.fileCount || 0}
-          </span>
+          {/* Favorite star */}
+          <button
+            type="button"
+            onClick={handleFavoriteClick}
+            disabled={loadingFavorites}
+            className="inline-flex items-center justify-center w-8 h-8 rounded-full text-gray-400 hover:text-amber-500 hover:bg-amber-50 transition-colors disabled:opacity-50"
+            aria-label={favorited ? "Remove from favorites" : "Add to favorites"}
+            title={favorited ? "Remove from favorites" : "Save to favorites (sign in to sync)"}
+          >
+            {favorited ? (
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+              </svg>
+            )}
+          </button>
 
-          {/* Upcoming indicator for future meetings */}
-          {isFuture && (
-            <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded whitespace-nowrap">
-              Upcoming
-            </span>
-          )}
-
-          {/* Has documents indicator - only show when files are actually available */}
-          {hasFiles && (
-            <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded whitespace-nowrap">
-              Has Agenda
-            </span>
-          )}
+          <MeetingStatusBadges
+            event={event}
+            fileCount={event.fileCount ?? 0}
+            variant="card"
+            className="sm:flex-col sm:items-end"
+          />
         </div>
       </div>
     </Link>

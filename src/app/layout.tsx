@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { EventsProvider } from "@/context/EventsContext";
+import { AuthProvider } from "@/context/AuthContext";
+import { CommitteeProvider } from "@/context/CommitteeContext";
+import { LoginModalProvider } from "@/context/LoginModalContext";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -23,7 +26,13 @@ export default function RootLayout({
       <body
         className={`${spaceGrotesk.variable} antialiased`}
       >
-        <EventsProvider>{children}</EventsProvider>
+        <AuthProvider>
+          <LoginModalProvider>
+            <EventsProvider>
+              <CommitteeProvider>{children}</CommitteeProvider>
+            </EventsProvider>
+          </LoginModalProvider>
+        </AuthProvider>
       </body>
     </html>
   );

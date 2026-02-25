@@ -1,3 +1,16 @@
+import type { CivicEvent } from "@/lib/types";
+
+/**
+ * Returns true if the event is considered canceled (from title or attachment names).
+ */
+export function isEventCanceled(event: CivicEvent): boolean {
+  const name = (event.eventName || "").trim();
+  if (/^(canceled|cancelled)\b/i.test(name)) return true;
+  const files = (event.fileNames || "").toLowerCase();
+  if (/\bcancel(l)?(ed|ation)?\b/.test(files)) return true;
+  return false;
+}
+
 /**
  * Helper to format date for display
  */

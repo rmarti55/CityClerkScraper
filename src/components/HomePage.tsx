@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import { useEvents } from "@/context/EventsContext";
 import { MonthPicker } from "./MonthPicker";
 import { SearchableContent } from "./SearchableContent";
 import { StickyHeader } from "./StickyHeader";
 import { MeetingListSkeleton } from "./skeletons/MeetingCardSkeleton";
 import { Category, useCategories } from "@/hooks/useCategories";
+import { useIsMobile } from "@/hooks/useDeviceCapabilities";
+import { LoginButton } from "./LoginButton";
 
 function ErrorState({ error }: { error: string }) {
   return (
@@ -35,8 +38,13 @@ function ErrorState({ error }: { error: string }) {
   );
 }
 
+const MONTH_PARAM_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
+const DATE_PARAM_REGEX = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+
 export function HomePage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const {
     isLoading,
     error,
@@ -70,8 +78,56 @@ export function HomePage() {
     }
   }, [categories, searchParams]);
 
+  // Restore calendar view from URL (back/forward, shared links)
+  useEffect(() => {
+    const monthParam = searchParams.get("month");
+    if (monthParam && MONTH_PARAM_REGEX.test(monthParam)) {
+      const [y, m] = monthParam.split("-").map((n) => parseInt(n, 10));
+      if (m >= 1 && m <= 12 && y >= 2020 && y <= 2030) {
+        setCurrentMonth(y, m);
+      }
+    }
+    const dateParam = searchParams.get("date");
+    if (dateParam && DATE_PARAM_REGEX.test(dateParam)) {
+      const d = new Date(dateParam + "T12:00:00");
+      if (!Number.isNaN(d.getTime())) {
+        setScrollToDate(dateParam);
+      }
+    }
+  }, [searchParams, setCurrentMonth, setScrollToDate]);
+
   // Compute whether filters are active (for hiding Today button)
   const hasActiveFilter = searchQuery.trim().length >= 2 || selectedCategory !== null;
+
+  const isMobile = useIsMobile();
+
+  // Sync calendar view to URL so back from meeting detail returns to same view
+  useEffect(() => {
+    const monthStr = `${currentYear}-${String(currentMonth).padStart(2, "0")}`;
+    const currentMonthParam = searchParams.get("month");
+    const currentDateParam = searchParams.get("date") ?? null;
+    if (currentMonthParam === monthStr && currentDateParam === scrollToDate) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("month", monthStr);
+    if (scrollToDate) {
+      params.set("date", scrollToDate);
+    } else {
+      params.delete("date");
+    }
+    const queryString = params.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
+  }, [currentYear, currentMonth, scrollToDate, pathname, router, searchParams]);
+
+  // On mobile, open on today: scroll to today's date when viewing current month with no active filter
+  useEffect(() => {
+    if (!isMobile || hasActiveFilter) return;
+    const now = new Date();
+    const todayYear = now.getFullYear();
+    const todayMonth = now.getMonth() + 1;
+    if (currentYear === todayYear && currentMonth === todayMonth) {
+      setScrollToDate(now.toISOString().split("T")[0]);
+    }
+  }, [isMobile, hasActiveFilter, currentYear, currentMonth, setScrollToDate]);
 
   // Scroll detection for sticky header
   const [showStickyHeader, setShowStickyHeader] = useState(false);
@@ -165,13 +221,32 @@ export function HomePage() {
 
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Santa Fe City Meetings
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Public meeting calendar and documents
-          </p>
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Santa Fe City Meetings
+            </h1>
+            <p className="text-gray-500 mt-1">
+              Public meeting calendar and documents
+            </p>
+          </div>
+          <LoginButton />
+        </div>
+
+        {/* Quick access to committees */}
+        <div className="mb-6">
+          <Link
+            href="/governing-body"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-indigo-700 font-medium text-sm transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            Governing Body
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
         </div>
 
         {/* Controls section - ref for scroll detection */}

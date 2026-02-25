@@ -2,6 +2,11 @@
  * Backfill last 5 years of CivicClerk events and meeting details into the database.
  * Requires DATABASE_URL in .env or .env.local (project root).
  *
+ * Event start times are parsed as America/Denver (Santa Fe local time). If you
+ * previously had wrong meeting times (e.g. 9 AM instead of 4 PM), re-running
+ * backfill for the affected date range will overwrite start_date_time with the
+ * correctly parsed values.
+ *
  * Usage:
  *   npm run backfill           # Full 5-year backfill
  *   npm run backfill:probe     # First month only

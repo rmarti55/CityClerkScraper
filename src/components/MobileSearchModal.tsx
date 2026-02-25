@@ -2,8 +2,9 @@
 
 import { useRef, useEffect } from "react";
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { CivicEvent } from "@/lib/types";
-import { formatEventDate, formatEventTime } from "@/lib/utils";
+import { formatEventDate, formatEventTime, isEventCanceled } from "@/lib/utils";
 
 interface MobileSearchModalProps {
   isOpen: boolean;
@@ -49,12 +50,16 @@ function SearchResultItem({
   query: string;
   onClose: () => void;
 }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const hasFiles = (event.fileCount ?? 0) > 0;
   const eventDate = new Date(event.startDateTime);
   const now = new Date();
   const isFuture = eventDate >= now;
+  const isCanceled = isEventCanceled(event);
 
-  const meetingHref = `/meeting/${event.id}?q=${encodeURIComponent(query)}`;
+  const returnTo = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
+  const meetingHref = `/meeting/${event.id}?q=${encodeURIComponent(query)}&from=${encodeURIComponent(returnTo)}`;
 
   return (
     <Link
@@ -86,6 +91,11 @@ function SearchResultItem({
 
         {/* Status indicators */}
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
+          {isCanceled && (
+            <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded">
+              Canceled
+            </span>
+          )}
           {isFuture && (
             <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded">
               Upcoming

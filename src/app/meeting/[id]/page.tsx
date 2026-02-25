@@ -9,10 +9,11 @@ import {
   CivicFile,
 } from "@/lib/civicclerk";
 import { FileMetadata } from "@/components/FileMetadata";
+import { MeetingStatusBadges } from "@/components/MeetingStatusBadges";
 
 interface PageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ q?: string; category?: string }>;
+  searchParams: Promise<{ q?: string; category?: string; from?: string }>;
 }
 
 function FileIcon({ fileType }: { fileType: string }) {
@@ -72,7 +73,7 @@ function FileCard({ file }: { file: CivicFile }) {
               </span>
               {file.publishOn && (
                 <span className="text-xs text-gray-400 whitespace-nowrap">
-                  Published {new Date(file.publishOn).toLocaleDateString()}
+                  Posted {new Date(file.publishOn).toLocaleDateString()}
                 </span>
               )}
             </div>
@@ -113,7 +114,7 @@ function FileCard({ file }: { file: CivicFile }) {
 
 export default async function MeetingPage({ params, searchParams }: PageProps) {
   const { id } = await params;
-  const { q: searchQuery, category: categoryId } = await searchParams;
+  const { q: searchQuery, category: categoryId, from: fromPath } = await searchParams;
   const eventId = parseInt(id);
 
   if (isNaN(eventId)) {
@@ -138,8 +139,12 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
     .filter(Boolean)
     .join(", ");
 
-  // Build back link preserving search query and category filter
+  // Build back link: use "from" (e.g. governing-body) when present, else preserve home search/category
   const buildBackHref = () => {
+    if (fromPath && typeof fromPath === "string" && fromPath.trim()) {
+      const path = fromPath.trim().replace(/^\//, "");
+      if (path) return `/${path}`;
+    }
     const params = new URLSearchParams();
     if (searchQuery) {
       params.set("q", searchQuery);
@@ -190,18 +195,8 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
           </div>
 
           {/* Status badges */}
-          <div className="flex gap-2 mt-4">
-            {/* Has documents indicator - only show when files are actually available */}
-            {files.length > 0 && (
-              <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded">
-                Has Agenda
-              </span>
-            )}
-            {event.isPublished === "Published" && (
-              <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded">
-                Published
-              </span>
-            )}
+          <div className="mt-4">
+            <MeetingStatusBadges event={event} variant="detail" />
           </div>
 
           {event.eventDescription && (

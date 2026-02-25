@@ -7,7 +7,7 @@ Built because the official CivicClerk portal is terrible.
 ## Features
 
 - **Monthly calendar view** - Browse meetings by month with easy navigation
-- **Category filtering** - Filter meetings by category (City Council, Planning Commission, etc.)
+- **Category filtering** - Filter meetings by category (City Council, Planning Commission, etc.); mobile-friendly category filter modal
 - **Global search** - Server-side search across all meetings with pagination
 - **Client-side search** - Fast fuzzy search within the current month using Fuse.js
 - **Search history** - Recent searches saved locally for quick access
@@ -16,10 +16,17 @@ Built because the official CivicClerk portal is terrible.
 - **File metadata** - See file sizes and PDF page counts before downloading
 - **Sticky header** - Quick access to search and navigation while scrolling
 - **URL-synced search** - Search state persists in URL for sharing
-- **Activity badges** - See file counts, "Upcoming" status, and "Has Agenda" at a glance
+- **Activity badges** - File counts, "Upcoming" status, and "Has Agenda" at a glance (meeting status badges)
 - **Database caching** - Age-based caching for fast performance
 - **Historical data** - Backfill utility to import 5 years of meeting history
 - **Loading skeletons** - Smooth loading states throughout the UI
+- **Auth** - Magic-link login (email), session, sign in/out via NextAuth
+- **Follows** - Follow categories (e.g. Governing Body, Planning Commission) and favorite individual meetings; My Follows page
+- **Governing body pages** - Dedicated page per committee with scroll-restore and committee-specific meeting list
+- **Committee summaries** - LLM-generated summaries (OpenRouter) for committee pages, with 24h cache
+- **Email digest** - Optional daily digest for followed categories (cron + Resend)
+- **Login modal** - In-app login without leaving the page
+- **Latest business** - Summary/snippet on committee pages (latest business card)
 
 ## Tech Stack
 
@@ -29,8 +36,11 @@ Built because the official CivicClerk portal is terrible.
 - [Tailwind CSS 4](https://tailwindcss.com/)
 - [Drizzle ORM 0.45.1](https://orm.drizzle.team/)
 - [Neon Serverless PostgreSQL](https://neon.tech/)
+- [NextAuth v5 (Auth.js)](https://authjs.dev/) with [Drizzle adapter](https://authjs.dev/reference/adapter/drizzle) for magic-link auth
+- [Resend](https://resend.com/) for transactional email (magic link and digest)
 - [Fuse.js 7.1.0](https://www.fusejs.io/) for client-side fuzzy search
 - [pdf-lib 1.17.1](https://pdf-lib.js.org/) for PDF metadata extraction
+- Optional: [OpenRouter](https://openrouter.ai/) for LLM-generated committee summaries
 
 ## Quick Start
 
@@ -48,16 +58,19 @@ Open http://localhost:3000
 
 ## Environment Variables
 
-Create a `.env` or `.env.local` file in the project root:
+Create a `.env` or `.env.local` file in the project root. See `.env.example` for a template.
 
-```bash
-# Required: PostgreSQL connection string (Neon recommended)
-DATABASE_URL=postgresql://user:password@host/database?sslmode=require
-```
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string (Neon recommended) |
+| `NEXTAUTH_SECRET` | Yes (for auth) | Generate with `openssl rand -base64 32` |
+| `NEXTAUTH_URL` | Yes (for auth) | App URL (e.g. `http://localhost:3000`) |
+| `RESEND_API_KEY` | Yes (for magic link) | From [Resend](https://resend.com/api-keys) |
+| `CRON_SECRET` | Yes (for digest) | Secret for protecting `/api/cron/notifications` |
+| `EMAIL_FROM` | No | Custom from address (requires verified domain in Resend) |
+| `OPENROUTER_API_KEY` | No | For AI committee summaries; omit for fallback text |
 
-See `.env.example` for a template.
-
-**Note:** The CivicClerk API is publicly accessible - no API key needed.
+**Note:** The CivicClerk API is publicly accessible—no API key needed. The app's auth, email, and cron features require the variables above.
 
 ## Database Setup
 
@@ -65,11 +78,13 @@ This project uses PostgreSQL (via Neon) with Drizzle ORM.
 
 1. Create a database on [Neon](https://neon.tech/) (free tier available)
 2. Copy the connection string to your `.env` file
-3. Run migrations:
+3. Run migrations (new installs use Drizzle only):
 
 ```bash
 npx drizzle-kit push
 ```
+
+**Existing databases:** If you have an old auth schema (e.g. integer `users.id`, `password_hash`), run the one-off migration to Auth.js before or instead of relying only on Drizzle: `npm run migrate:auth` (or `tsx scripts/migrate-auth.ts`). New installs should use `npx drizzle-kit push` only.
 
 4. (Optional) Backfill historical data:
 
@@ -77,6 +92,8 @@ npx drizzle-kit push
 npm run backfill        # Full 5-year backfill
 npm run backfill:probe  # Test with 1 month first
 ```
+
+   After deploying the meeting-time timezone fix, re-run backfill for affected date ranges so existing events get the correct `start_date_time` (e.g. 4:00 PM instead of 9:00 AM).
 
 ## Scripts
 
@@ -88,6 +105,8 @@ npm run backfill:probe  # Test with 1 month first
 | `npm run lint` | Run ESLint |
 | `npm run backfill` | Backfill 5 years of historical meeting data |
 | `npm run backfill:probe` | Test backfill with first month only |
+| `npm run refresh-file-counts` | Refresh `file_count` and file metadata in the database |
+| `npm run migrate:auth` | One-off migration from old auth schema to Auth.js (see Database setup) |
 
 ## API Routes
 
@@ -101,6 +120,11 @@ Internal API endpoints used by the frontend:
 | `/api/file/[id]/metadata` | GET | Returns file size and PDF page count |
 | `/api/categories` | GET | Returns all event categories with meeting counts |
 | `/api/events/by-category` | GET | Filter events by category with pagination |
+| `/api/auth/[...nextauth]` | * | NextAuth handlers (sign in, callback, session) |
+| `/api/committees/[slug]/summary` | GET | Cached LLM committee summary; optional `?refresh=true` |
+| `/api/cron/notifications` | GET | Cron: send daily digest (protected by `CRON_SECRET`) |
+| `/api/favorites` | GET/POST/DELETE | User favorites (meeting IDs) |
+| `/api/follows/categories` | GET/POST/DELETE | User category follows |
 
 ### Search API
 
@@ -157,42 +181,75 @@ Parameters:
 src/
 ├── app/                    # Next.js App Router
 │   ├── api/               # API routes
+│   │   ├── auth/[...nextauth]/  # NextAuth handlers
 │   │   ├── categories/    # GET event categories
+│   │   ├── committees/[slug]/summary/  # LLM committee summary
+│   │   ├── cron/notifications/  # Daily digest cron
 │   │   ├── events/        # GET all cached events
 │   │   │   └── by-category/  # Filter by category
+│   │   ├── favorites/     # User favorites
 │   │   ├── file/[id]/     # File proxy with caching
 │   │   │   └── metadata/  # File size & page count
+│   │   ├── follows/categories/  # User category follows
 │   │   └── search/        # Server-side search
+│   ├── auth/error/        # Auth error page
+│   ├── auth/verify/       # Magic link verification
+│   ├── governing-body/    # Committee page (per slug)
 │   ├── meeting/[id]/      # Meeting detail page
+│   ├── my-follows/        # User's follows and favorites
 │   ├── layout.tsx         # Root layout
 │   └── page.tsx           # Home page
 ├── components/            # React components
 │   ├── skeletons/        # Loading skeleton components
-│   ├── CategoryFilter.tsx    # Category dropdown filter
+│   ├── CategoryFilter.tsx       # Category dropdown filter
+│   ├── CategoryFilterModal.tsx  # Mobile category picker
 │   ├── CategoryFilterResults.tsx  # Filtered results display
-│   ├── FileMetadata.tsx  # File size & page count display
-│   ├── HomePage.tsx      # Main home page
-│   ├── MeetingCard.tsx   # Meeting card display
-│   ├── MeetingList.tsx   # Meeting list with grouping
-│   ├── MonthPicker.tsx   # Month/year navigation
-│   ├── SearchBar.tsx     # Search input
-│   ├── StickyHeader.tsx  # Sticky header on scroll
+│   ├── CommitteeMeetingList.tsx  # Committee meeting list
+│   ├── FollowCategoryButton.tsx # Follow category action
+│   ├── FileMetadata.tsx   # File size & page count display
+│   ├── GoverningBodyScrollRestore.tsx  # Scroll restore on committee page
+│   ├── HomePage.tsx       # Main home page
+│   ├── LatestBusinessCard.tsx   # Summary on committee page
+│   ├── LoginButton.tsx    # Sign in / account dropdown
+│   ├── LoginModal.tsx     # In-app login modal
+│   ├── MeetingCard.tsx    # Meeting card display
+│   ├── MeetingList.tsx    # Meeting list with grouping
+│   ├── MeetingStatusBadges.tsx  # Upcoming, Has Agenda, etc.
+│   ├── MobileSearchModal.tsx    # Mobile search UI
+│   ├── MonthPicker.tsx    # Month/year navigation
+│   ├── Pagination.tsx     # Pagination controls
+│   ├── SearchBar.tsx      # Search input
+│   ├── SearchableContent.tsx    # Search + history + global results
+│   ├── SearchResults.tsx  # Search results display
+│   ├── StickyHeader.tsx   # Sticky header on scroll
 │   └── ...
-├── context/              # React context providers
-│   └── EventsContext.tsx # Global events state
-├── hooks/                # Custom React hooks
+├── context/               # React context providers
+│   ├── AuthContext.tsx    # SessionProvider wrapper
+│   ├── CommitteeContext.tsx   # Committee summary cache
+│   ├── EventsContext.tsx  # Global events state
+│   └── LoginModalContext.tsx  # Login modal open state
+├── hooks/                 # Custom React hooks
 │   ├── useCategories.ts  # Fetch & cache categories
 │   ├── useCategoryFilter.ts  # Category filtering with pagination
-│   ├── useGlobalSearch.ts    # Server-side search
-│   ├── useSearch.ts      # Client-side Fuse.js search
-│   └── useSearchHistory.ts   # Recent search persistence
-└── lib/                  # Core libraries
-    ├── civicclerk.ts     # API client & caching logic
-    ├── types.ts          # TypeScript types
-    ├── utils.ts          # Utility functions
-    └── db/               # Database layer
-        ├── index.ts      # Drizzle connection
-        └── schema.ts     # Database schema
+│   ├── useDeviceCapabilities.ts  # Mobile, touch, hover
+│   ├── useFollows.ts      # Favorites and category follows
+│   ├── useGlobalSearch.ts # Server-side search
+│   ├── useSearch.ts       # Client-side Fuse.js search
+│   └── useSearchHistory.ts  # Recent search persistence
+└── lib/                   # Core libraries
+    ├── auth.ts            # NextAuth config
+    ├── breakpoints.ts     # Media queries and touch targets
+    ├── civicclerk.ts      # API client & caching logic
+    ├── committees.ts      # Committee config and slugs
+    ├── datetime.ts        # Date/time parsing
+    ├── types.ts           # TypeScript types (e.g. CivicEvent)
+    ├── utils.ts           # Utility functions
+    ├── db/                # Database layer
+    │   ├── index.ts       # Drizzle connection
+    │   └── schema.ts      # Database schema
+    └── llm/               # LLM committee summaries
+        ├── openrouter.ts  # OpenRouter API client
+        └── summary.ts     # Committee summary generation
 ```
 
 ## Caching Strategy
@@ -213,7 +270,7 @@ The app also uses:
 
 1. Push to GitHub
 2. Import project in Vercel
-3. Add environment variable: `DATABASE_URL`
+3. Add environment variables: `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL` (production URL), `RESEND_API_KEY`, and `CRON_SECRET` (if using Vercel Cron for `/api/cron/notifications`). Optionally set `EMAIL_FROM` (requires verified domain in Resend) and `OPENROUTER_API_KEY` for AI committee summaries.
 4. Deploy
 
 ## CivicClerk API Reference

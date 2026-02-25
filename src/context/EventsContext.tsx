@@ -37,7 +37,7 @@ interface EventsContextType {
 const EventsContext = createContext<EventsContextType | null>(null);
 
 const REFRESH_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
-const STORAGE_KEY = "cityclerk_events_cache";
+const STORAGE_KEY = "cityclerk_events_cache_v3";
 
 interface CachedData {
   events: CivicEvent[];
@@ -125,11 +125,12 @@ export function EventsProvider({ children }: { children: ReactNode }) {
     [allEvents]
   );
 
-  // Set current month
+  // Set current month — refetch so server can refresh file counts for the viewed month
   const setCurrentMonth = useCallback((year: number, month: number) => {
     setCurrentYear(year);
     setCurrentMonthState(month);
-  }, []);
+    fetchEvents(false);
+  }, [fetchEvents]);
 
   // Manual refresh
   const refresh = useCallback(async () => {

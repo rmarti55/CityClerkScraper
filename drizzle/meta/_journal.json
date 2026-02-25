@@ -2,19 +2,10 @@
   "version": "7",
   "dialect": "postgresql",
   "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1770351624357,
-      "tag": "0000_add-file-names-column",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1770623298771,
-      "tag": "0001_add-file-metadata",
-      "breakpoints": true
-    }
+    {"idx": 0, "version": "7", "when": 1770351624357, "tag": "0000_add-file-names-column", "breakpoints": true},
+    {"idx": 1, "version": "7", "when": 1770623298771, "tag": "0001_add-file-metadata", "breakpoints": true},
+    {"idx": 2, "version": "7", "when": 1739659200000, "tag": "0002_add-auth-tables", "breakpoints": true},
+    {"idx": 3, "version": "7", "when": 1739836800000, "tag": "0003_add-committee-summaries", "breakpoints": true},
+    {"idx": 4, "version": "7", "when": 1739923200000, "tag": "0004_add-follow-and-notification-tables", "breakpoints": true}
   ]
 }
