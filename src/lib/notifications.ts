@@ -5,11 +5,14 @@ import {
   notificationPreferences,
   sentNotifications,
   events,
+  favorites,
 } from "@/lib/db/schema";
-import { eq, and, inArray, gte, lte, sql } from "drizzle-orm";
+import { eq, and, inArray, gte, lte } from "drizzle-orm";
 import { sendDigestEmail, type DigestMeeting } from "@/emails/digest";
+import { sendMeetingReminderEmail } from "@/emails/meeting-reminder";
 
 const DIGEST_TYPE = "daily_digest";
+const REMINDER_TYPE = "meeting_reminder";
 const UPCOMING_DAYS = 7;
 
 /**
@@ -136,6 +139,117 @@ export async function runDailyDigest(): Promise<{ sent: number; errors: string[]
       sent++;
     } catch (err) {
       errors.push(`User ${user.id}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  return { sent, errors };
+}
+
+/**
+ * Run meeting reminders: for each user who follows a meeting (favorite) and has
+ * meeting reminders enabled, if the meeting starts within their reminder window
+ * (e.g. 55–65 min for 60-min setting), send one reminder and record in sent_notifications.
+ */
+export async function runMeetingReminders(): Promise<{
+  sent: number;
+  errors: string[];
+}> {
+  const appUrl =
+    process.env.NEXTAUTH_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  const errors: string[] = [];
+  let sent = 0;
+
+  const now = new Date();
+
+  const favRows = await db
+    .select({
+      userId: favorites.userId,
+      eventId: favorites.eventId,
+      eventName: events.eventName,
+      startDateTime: events.startDateTime,
+    })
+    .from(favorites)
+    .innerJoin(events, eq(favorites.eventId, events.id))
+    .where(gte(events.startDateTime, now));
+
+  if (favRows.length === 0) return { sent: 0, errors: [] };
+
+  const userIds = [...new Set(favRows.map((r) => r.userId))];
+  const prefs = await db
+    .select({
+      userId: notificationPreferences.userId,
+      meetingReminderEnabled: notificationPreferences.meetingReminderEnabled,
+      meetingReminderMinutesBefore: notificationPreferences.meetingReminderMinutesBefore,
+    })
+    .from(notificationPreferences)
+    .where(inArray(notificationPreferences.userId, userIds));
+
+  const prefsByUser = new Map(
+    prefs.map((p) => [
+      p.userId,
+      {
+        enabled: p.meetingReminderEnabled !== "false",
+        minutesBefore: p.meetingReminderMinutesBefore ?? 60,
+      },
+    ])
+  );
+  for (const uid of userIds) {
+    if (!prefsByUser.has(uid)) prefsByUser.set(uid, { enabled: true, minutesBefore: 60 });
+  }
+
+  const alreadySent = await db
+    .select({ userId: sentNotifications.userId, payload: sentNotifications.payload })
+    .from(sentNotifications)
+    .where(eq(sentNotifications.type, REMINDER_TYPE));
+  const sentSet = new Set(alreadySent.map((s) => `${s.userId}:${s.payload}`));
+
+  const userRows = await db
+    .select({ id: users.id, email: users.email })
+    .from(users)
+    .where(inArray(users.id, userIds));
+  const userById = new Map(userRows.map((u) => [u.id, u]));
+
+  for (const row of favRows) {
+    const userPref = prefsByUser.get(row.userId);
+    if (!userPref?.enabled) continue;
+
+    const min = userPref.minutesBefore;
+    const windowStart = new Date(now.getTime() + (min - 5) * 60 * 1000);
+    const windowEnd = new Date(now.getTime() + (min + 5) * 60 * 1000);
+    const start = row.startDateTime.getTime();
+    if (start < windowStart.getTime() || start > windowEnd.getTime()) continue;
+
+    const key = `${row.userId}:${JSON.stringify({ eventId: row.eventId })}`;
+    if (sentSet.has(key)) continue;
+
+    const user = userById.get(row.userId);
+    if (!user?.email) continue;
+
+    try {
+      const { error } = await sendMeetingReminderEmail({
+        to: user.email,
+        eventName: row.eventName,
+        startDateTime: row.startDateTime.toISOString(),
+        eventId: row.eventId,
+        appUrl,
+      });
+      if (error) {
+        errors.push(`User ${row.userId} event ${row.eventId}: ${String(error)}`);
+        continue;
+      }
+      await db.insert(sentNotifications).values({
+        userId: row.userId,
+        type: REMINDER_TYPE,
+        categoryName: null,
+        payload: JSON.stringify({ eventId: row.eventId }),
+      });
+      sentSet.add(key);
+      sent++;
+    } catch (err) {
+      errors.push(
+        `User ${row.userId} event ${row.eventId}: ${err instanceof Error ? err.message : String(err)}`
+      );
     }
   }
 

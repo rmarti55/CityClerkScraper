@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { categoryFollows } from "@/lib/db/schema";
+import { categoryFollows, notificationPreferences } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import { sendFollowConfirmationEmail } from "@/emails/follow-confirmation";
 
 /**
  * GET /api/follows/categories
@@ -10,19 +11,27 @@ import { eq, and } from "drizzle-orm";
  * Returns [] if not authenticated.
  */
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ categoryNames: [] });
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ categoryNames: [] });
+    }
+
+    const rows = await db
+      .select({ categoryName: categoryFollows.categoryName })
+      .from(categoryFollows)
+      .where(eq(categoryFollows.userId, session.user.id));
+
+    return NextResponse.json({
+      categoryNames: rows.map((r) => r.categoryName),
+    });
+  } catch (err) {
+    console.error("GET /api/follows/categories failed:", err);
+    return NextResponse.json(
+      { error: "Failed to load category follows" },
+      { status: 500 }
+    );
   }
-
-  const rows = await db
-    .select({ categoryName: categoryFollows.categoryName })
-    .from(categoryFollows)
-    .where(eq(categoryFollows.userId, session.user.id));
-
-  return NextResponse.json({
-    categoryNames: rows.map((r) => r.categoryName),
-  });
 }
 
 /**
@@ -74,6 +83,23 @@ export async function POST(request: NextRequest) {
       { error: "Failed to follow category" },
       { status: 500 }
     );
+  }
+
+  const appUrl =
+    process.env.NEXTAUTH_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  const to = session.user?.email;
+  if (to) {
+    const prefs = await db
+      .select({ confirmationEmailEnabled: notificationPreferences.confirmationEmailEnabled })
+      .from(notificationPreferences)
+      .where(eq(notificationPreferences.userId, session.user.id));
+    const sendConfirmation = prefs[0]?.confirmationEmailEnabled !== "false";
+    if (sendConfirmation) {
+      sendFollowConfirmationEmail({ to, type: "category", name: categoryName, appUrl }).catch(
+        (err) => console.error("Follow confirmation email failed:", err)
+      );
+    }
   }
 
   return NextResponse.json({ ok: true, categoryName });

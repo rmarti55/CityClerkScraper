@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { SearchResult, getHighlightedSegments } from "@/hooks/useSearch";
-import { formatEventDate, formatEventTime } from "@/lib/utils";
+import { formatEventDate, formatEventTime, formatEventLocation } from "@/lib/utils";
+import { MapPinIcon } from "./EventLocation";
 import { MeetingStatusBadges } from "./MeetingStatusBadges";
 
 interface SearchResultsProps {
@@ -41,8 +42,29 @@ function HighlightedText({
   );
 }
 
-function SearchResultCard({ result }: { result: SearchResult }) {
+function highlightMatch(text: string, query: string): React.ReactNode {
+  if (!text || !query) return text;
+  const lowerText = text.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+  const index = lowerText.indexOf(lowerQuery);
+  if (index === -1) return text;
+  return (
+    <>
+      {text.slice(0, index)}
+      <mark className="bg-yellow-200 text-gray-900 rounded px-0.5">
+        {text.slice(index, index + query.length)}
+      </mark>
+      {text.slice(index + query.length)}
+    </>
+  );
+}
+
+function SearchResultCard({ result, query }: { result: SearchResult; query: string }) {
   const { item: event, matches } = result;
+  const locationStr = formatEventLocation(event);
+  const venueMatched = matches.some((m) =>
+    ["venueName", "venueAddress", "venueCity", "venueState", "venueZip"].includes(String(m.key))
+  );
 
   return (
     <Link
@@ -67,13 +89,12 @@ function SearchResultCard({ result }: { result: SearchResult }) {
           </p>
 
           {/* Location with highlighting */}
-          {event.venueName && (
-            <p className="text-sm text-gray-400 mt-1 truncate">
-              <HighlightedText
-                text={event.venueName}
-                matches={matches}
-                fieldName="venueName"
-              />
+          {locationStr && (
+            <p className="text-sm text-gray-500 flex items-start gap-1.5 mt-1 min-w-0 truncate" aria-label="Location">
+              <MapPinIcon className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+              <span className="truncate" title={locationStr}>
+                {venueMatched && query ? highlightMatch(locationStr, query) : locationStr}
+              </span>
             </p>
           )}
 
@@ -141,7 +162,7 @@ export function SearchResults({ results, query }: SearchResultsProps) {
       {/* Results list */}
       <div className="space-y-3">
         {results.map((result) => (
-          <SearchResultCard key={result.item.id} result={result} />
+          <SearchResultCard key={result.item.id} result={result} query={query} />
         ))}
       </div>
     </div>

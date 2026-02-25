@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useFollows } from "@/hooks/useFollows";
@@ -22,25 +22,38 @@ export default function MyFollowsPage() {
 
   const [favoriteEvents, setFavoriteEvents] = useState<CivicEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [eventsError, setEventsError] = useState<string | null>(null);
 
-  // Fetch event details for favorited event IDs
-  useEffect(() => {
+  const fetchFollowedEvents = useCallback(() => {
     if (!isAuthenticated || favoriteEventIds.size === 0) {
       setFavoriteEvents([]);
+      setEventsError(null);
       return;
     }
     const ids = Array.from(favoriteEventIds);
     setLoadingEvents(true);
-    fetch("/api/events")
-      .then((res) => res.json())
+    setEventsError(null);
+    const params = new URLSearchParams({ eventIds: ids.join(",") });
+    fetch(`/api/events?${params}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load");
+        return res.json();
+      })
       .then((data: { events?: CivicEvent[] }) => {
         const events = data.events ?? [];
         const byId = new Map(events.map((e) => [e.id, e]));
         setFavoriteEvents(ids.map((id) => byId.get(id)).filter(Boolean) as CivicEvent[]);
       })
-      .catch(() => setFavoriteEvents([]))
+      .catch(() => {
+        setFavoriteEvents([]);
+        setEventsError("Couldn't load followed meetings. Check your connection and try again.");
+      })
       .finally(() => setLoadingEvents(false));
   }, [isAuthenticated, favoriteEventIds]);
+
+  useEffect(() => {
+    fetchFollowedEvents();
+  }, [fetchFollowedEvents]);
 
   if (status === "loading") {
     return (
@@ -70,9 +83,9 @@ export default function MyFollowsPage() {
             Back to meetings
           </Link>
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-            <h1 className="text-xl font-bold text-gray-900 mb-2">My Follows</h1>
+            <h1 className="text-xl font-bold text-gray-900 mb-2">My Follow</h1>
             <p className="text-gray-600 mb-6">
-              Sign in to see and manage your followed categories and favorite meetings.
+              Sign in to see and manage your followed categories and meetings you follow.
             </p>
             <button
               onClick={openLoginModal}
@@ -88,8 +101,9 @@ export default function MyFollowsPage() {
 
   const categoryNames = Array.from(followedCategoryNames);
   const hasCategories = categoryNames.length > 0;
-  const hasFavorites = favoriteEvents.length > 0;
-  const isEmpty = !hasCategories && !hasFavorites && !loadingEvents && !loadingFavorites;
+  const hasFollowedMeetingIds = favoriteEventIds.size > 0;
+  const hasFollowedMeetings = favoriteEvents.length > 0;
+  const isEmpty = !hasCategories && !hasFollowedMeetings && !loadingEvents && !loadingFavorites;
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -104,15 +118,20 @@ export default function MyFollowsPage() {
           Back to meetings
         </Link>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">My Follows</h1>
-        <p className="text-gray-500 mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">My Follow</h1>
+        <p className="text-gray-500 mb-4">
           Categories and meetings you follow. You’ll get email updates when new meetings are scheduled for followed categories.
+        </p>
+        <p className="mb-8">
+          <Link href="/profile" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+            Manage your alerts
+          </Link>
         </p>
 
         {isEmpty && (
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
             <p className="text-gray-500 mb-4">
-              You haven’t followed any categories or favorited any meetings yet.
+              You haven’t followed any categories or followed any meetings yet.
             </p>
             <Link
               href="/governing-body"
@@ -154,11 +173,22 @@ export default function MyFollowsPage() {
           </section>
         )}
 
-        {hasFavorites && (
+        {(hasFollowedMeetingIds || hasFollowedMeetings) && (
           <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Favorite meetings</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Followed meetings</h2>
             {loadingEvents ? (
               <div className="text-sm text-gray-500">Loading…</div>
+            ) : eventsError ? (
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-3">{eventsError}</p>
+                <button
+                  type="button"
+                  onClick={fetchFollowedEvents}
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                  Try again
+                </button>
+              </div>
             ) : (
               <ul className="space-y-3">
                 {favoriteEvents

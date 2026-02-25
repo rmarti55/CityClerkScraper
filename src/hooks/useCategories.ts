@@ -16,8 +16,8 @@ interface UseCategoriesResult {
 }
 
 // Version the cache key to force refresh when data structure changes
-const CACHE_KEY = "cityclerk_categories_cache_v2";
-const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
+const CACHE_KEY = "cityclerk_categories_cache_v3";
+const CACHE_DURATION_MS = 2 * 60 * 1000; // 2 min so dropdown counts stay in sync with DB
 
 interface CachedData {
   categories: Category[];

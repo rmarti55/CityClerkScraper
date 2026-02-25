@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { db, events } from '@/lib/db';
+import { count, isNotNull } from 'drizzle-orm';
 
 const API_BASE = "https://santafenm.api.civicclerk.com/v1";
 
@@ -17,65 +19,43 @@ interface CivicClerkCategory {
   parentId: number;
 }
 
-interface CategoryCountResult {
-  categoryName: string;
-  count: number;
-}
-
 /**
- * Fetch all category counts by paginating through the OData groupby results
+ * Get per-category event counts from the local DB (same source as /api/events/by-category).
+ * Keeps dropdown counts in sync with dashboard "Showing X results".
  */
-async function fetchAllCategoryCounts(): Promise<Map<string, number>> {
+async function getCategoryCountsFromDB(): Promise<Map<string, number>> {
+  const rows = await db
+    .select({
+      categoryName: events.categoryName,
+      meetingCount: count(),
+    })
+    .from(events)
+    .where(isNotNull(events.categoryName))
+    .groupBy(events.categoryName);
+
   const countMap = new Map<string, number>();
-  let skip = 0;
-  
-  while (true) {
-    const url = `${API_BASE}/Events?$apply=groupby((categoryName),aggregate($count as count))&$skip=${skip}`;
-    const response = await fetch(url, {
-      headers: { Accept: "application/json" },
-      next: { revalidate: 3600 },
-    });
-    
-    if (!response.ok) {
-      console.warn(`Failed to fetch category counts at skip=${skip}`);
-      break;
-    }
-    
-    const data = await response.json();
-    const counts: CategoryCountResult[] = data.value || [];
-    
-    if (counts.length === 0) {
-      break; // No more results
-    }
-    
-    counts.forEach((c) => {
-      countMap.set(c.categoryName, c.count);
-    });
-    
-    skip += counts.length;
-    
-    // Safety limit to prevent infinite loops
-    if (skip > 200) {
-      break;
+  for (const row of rows) {
+    if (row.categoryName != null) {
+      countMap.set(row.categoryName, Number(row.meetingCount));
     }
   }
-  
   return countMap;
 }
 
 /**
  * GET /api/categories
- * Returns all event categories from CivicClerk API with meeting counts
+ * Returns event categories from CivicClerk API with meeting counts from local DB.
+ * Counts use the same DB as /api/events/by-category so dropdown and dashboard stay in sync.
  */
 export async function GET() {
   try {
-    // Fetch categories and counts in parallel
+    // Fetch category list from CivicClerk; counts from DB (single source of truth for list view)
     const [categoriesRes, countMap] = await Promise.all([
       fetch(`${API_BASE}/EventCategories`, {
         headers: { Accept: "application/json" },
-        next: { revalidate: 3600 }, // Cache for 1 hour
+        next: { revalidate: 300 }, // 5 min
       }),
-      fetchAllCategoryCounts(),
+      getCategoryCountsFromDB(),
     ]);
 
     if (!categoriesRes.ok) {

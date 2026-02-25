@@ -98,11 +98,14 @@ export const categoryFollows = pgTable('category_follows', {
   userCategoryIdx: uniqueIndex('category_follows_user_category_idx').on(table.userId, table.categoryName),
 }));
 
-// User notification preferences (email digest for followed categories)
+// User notification preferences (email digest, confirmation, meeting reminders)
 export const notificationPreferences = pgTable('notification_preferences', {
   id: serial('id').primaryKey(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
   emailDigestEnabled: text('email_digest_enabled').default('true'), // 'true' | 'false'
+  confirmationEmailEnabled: text('confirmation_email_enabled').default('true'), // 'true' | 'false'
+  meetingReminderEnabled: text('meeting_reminder_enabled').default('true'), // 'true' | 'false'
+  meetingReminderMinutesBefore: integer('meeting_reminder_minutes_before').default(60), // 0 = day-of (future)
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
   userIdx: uniqueIndex('notification_preferences_user_idx').on(table.userId),

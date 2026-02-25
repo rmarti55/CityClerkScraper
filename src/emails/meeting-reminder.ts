@@ -13,16 +13,11 @@ function getResend(): Resend {
   return resend;
 }
 
-export interface DigestMeeting {
-  id: number;
-  eventName: string;
-  startDateTime: string;
-  categoryName: string;
-}
-
-export interface SendDigestParams {
+export interface SendMeetingReminderParams {
   to: string;
-  categoryMeetings: { categoryName: string; meetings: DigestMeeting[] }[];
+  eventName: string;
+  startDateTime: string; // ISO string
+  eventId: number;
   appUrl: string;
 }
 
@@ -38,32 +33,19 @@ function formatDate(d: string): string {
   });
 }
 
-export async function sendDigestEmail({ to, categoryMeetings, appUrl }: SendDigestParams) {
-  const totalMeetings = categoryMeetings.reduce((sum, c) => sum + c.meetings.length, 0);
-  if (totalMeetings === 0) return { id: null, error: null };
-
-  const subject = `${SITE_NAME}: ${totalMeetings} upcoming meeting${totalMeetings === 1 ? "" : "s"} in your followed categories`;
-
-  const sections = categoryMeetings
-    .filter((c) => c.meetings.length > 0)
-    .map(
-      (c) => `
-        <tr><td style="padding: 16px 0 8px; font-weight: 600; color: #111827;">${c.categoryName}</td></tr>
-        ${c.meetings
-          .map(
-            (m) => `
-          <tr>
-            <td style="padding: 4px 0 12px 20px; border-left: 3px solid #e5e7eb;">
-              <a href="${appUrl}/meeting/${m.id}" style="color: #2563eb; text-decoration: none;">${m.eventName}</a>
-              <br/><span style="font-size: 13px; color: #6b7280;">${formatDate(m.startDateTime)}</span>
-            </td>
-          </tr>
-        `
-          )
-          .join("")}
-      `
-    )
-    .join("");
+/**
+ * Sends a meeting reminder (e.g. 1 hour before the meeting).
+ */
+export async function sendMeetingReminderEmail({
+  to,
+  eventName,
+  startDateTime,
+  eventId,
+  appUrl,
+}: SendMeetingReminderParams): Promise<{ id: string | null; error: unknown }> {
+  const subject = `Reminder: ${eventName} — ${formatDate(startDateTime)}`;
+  const meetingUrl = `${appUrl}/meeting/${eventId}`;
+  const myFollowUrl = `${appUrl}/my-follows`;
 
   const html = `
 <!DOCTYPE html>
@@ -85,13 +67,13 @@ export async function sendDigestEmail({ to, categoryMeetings, appUrl }: SendDige
           </tr>
           <tr>
             <td style="background-color: #ffffff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-              <h2 style="margin: 0 0 16px; font-size: 18px; font-weight: 600; color: #111827;">Upcoming meetings</h2>
-              <p style="margin: 0 0 20px; font-size: 14px; color: #6b7280;">Here are upcoming meetings in the categories you follow (next 7 days).</p>
-              <table role="presentation" style="width: 100%; border-collapse: collapse;">
-                ${sections}
-              </table>
-              <p style="margin: 24px 0 0; font-size: 14px;">
-                <a href="${appUrl}/my-follows" style="color: #2563eb; text-decoration: none;">My Follow</a>
+              <h2 style="margin: 0 0 16px; font-size: 18px; font-weight: 600; color: #111827;">Meeting reminder</h2>
+              <p style="margin: 0 0 8px; font-size: 16px; font-weight: 600; color: #111827;">${eventName}</p>
+              <p style="margin: 0 0 20px; font-size: 14px; color: #6b7280;">${formatDate(startDateTime)}</p>
+              <p style="margin: 0; font-size: 14px;">
+                <a href="${meetingUrl}" style="color: #2563eb; text-decoration: none;">View meeting</a>
+                &nbsp;·&nbsp;
+                <a href="${myFollowUrl}" style="color: #2563eb; text-decoration: none;">My Follow</a>
                 &nbsp;·&nbsp;
                 <a href="${appUrl}/profile" style="color: #2563eb; text-decoration: none;">Manage your alerts</a>
               </p>
@@ -111,20 +93,13 @@ export async function sendDigestEmail({ to, categoryMeetings, appUrl }: SendDige
   `;
 
   const text = [
-    `${SITE_NAME} - Upcoming meetings`,
+    "Meeting reminder",
+    eventName,
+    formatDate(startDateTime),
     "",
-    ...categoryMeetings.flatMap((c) =>
-      c.meetings.length === 0
-        ? []
-        : [
-            c.categoryName,
-            ...c.meetings.map(
-              (m) => `  - ${m.eventName} (${formatDate(m.startDateTime)}) ${appUrl}/meeting/${m.id}`
-            ),
-            "",
-          ]
-    ),
-    `My Follow: ${appUrl}/my-follows | Manage your alerts: ${appUrl}/profile`,
+    `View meeting: ${meetingUrl}`,
+    `My Follow: ${myFollowUrl}`,
+    `Manage your alerts: ${appUrl}/profile`,
   ].join("\n");
 
   const { data, error } = await getResend().emails.send({

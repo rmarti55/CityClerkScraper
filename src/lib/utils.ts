@@ -35,3 +35,34 @@ export function formatEventTime(dateString: string): string {
     hour12: true,
   });
 }
+
+const VENUE_KEYS = [
+  "venueName",
+  "venueAddress",
+  "venueCity",
+  "venueState",
+  "venueZip",
+] as const;
+
+export type VenuePick = Pick<
+  CivicEvent,
+  (typeof VENUE_KEYS)[number]
+>;
+
+/**
+ * Format event venue as a single civic-portal-style address string.
+ * e.g. "Councilors' Conference Room, City Hall 200 Lincoln Avenue Santa Fe, New Mexico 87507"
+ */
+export function formatEventLocation(
+  event: VenuePick
+): string {
+  const { venueName, venueAddress, venueCity, venueState, venueZip } = event;
+  const stateZip = [venueState, venueZip].filter(Boolean).join(" ");
+  const cityStateZip = venueCity
+    ? stateZip
+      ? `${venueCity}, ${stateZip}`
+      : venueCity
+    : stateZip;
+  const parts = [venueName, venueAddress, cityStateZip].filter(Boolean);
+  return parts.join(" ");
+}

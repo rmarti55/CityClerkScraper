@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { SITE_NAME } from "@/lib/branding";
 
 // Initialize Resend lazily to avoid build-time errors when API key is not available
 let resend: Resend | null = null;
@@ -20,16 +21,16 @@ interface SendMagicLinkParams {
 
 export async function sendMagicLinkEmail({ identifier, url }: SendMagicLinkParams) {
   const { error } = await getResend().emails.send({
-    from: process.env.EMAIL_FROM || "Santa Fe Meetings <noreply@resend.dev>",
+    from: process.env.EMAIL_FROM || `${SITE_NAME} <noreply@resend.dev>`,
     to: identifier,
-    subject: "Sign in to Santa Fe City Meetings",
+    subject: `Sign in to ${SITE_NAME}`,
     html: `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sign in to Santa Fe City Meetings</title>
+  <title>Sign in to ${SITE_NAME}</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f9fafb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
   <table role="presentation" style="width: 100%; border-collapse: collapse;">
@@ -40,7 +41,7 @@ export async function sendMagicLinkEmail({ identifier, url }: SendMagicLinkParam
           <tr>
             <td style="padding-bottom: 32px; text-align: center;">
               <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #111827;">
-                Santa Fe City Meetings
+                ${SITE_NAME}
               </h1>
             </td>
           </tr>
@@ -83,7 +84,7 @@ export async function sendMagicLinkEmail({ identifier, url }: SendMagicLinkParam
                 If you didn't request this email, you can safely ignore it.
               </p>
               <p style="margin: 16px 0 0; font-size: 12px; color: #d1d5db;">
-                Santa Fe Civic Dashboard
+                ${SITE_NAME}
               </p>
             </td>
           </tr>
@@ -94,7 +95,7 @@ export async function sendMagicLinkEmail({ identifier, url }: SendMagicLinkParam
 </body>
 </html>
     `,
-    text: `Sign in to Santa Fe City Meetings
+    text: `Sign in to ${SITE_NAME}
 
 Click this link to sign in: ${url}
 

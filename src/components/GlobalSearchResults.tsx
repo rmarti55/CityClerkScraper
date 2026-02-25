@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { CivicEvent } from "@/lib/types";
-import { formatEventDate, formatEventTime } from "@/lib/utils";
+import { formatEventDate, formatEventTime, formatEventLocation } from "@/lib/utils";
+import { MapPinIcon } from "./EventLocation";
 import { MeetingStatusBadges } from "./MeetingStatusBadges";
 
 interface GlobalSearchResultsProps {
@@ -56,10 +57,11 @@ function getMatchedFields(event: CivicEvent, query: string): string[] {
   if (event.eventDescription?.toLowerCase().includes(lowerQuery)) {
     matches.push("description");
   }
-  if (event.venueName?.toLowerCase().includes(lowerQuery)) {
+  const locationStr = formatEventLocation(event);
+  if (locationStr && locationStr.toLowerCase().includes(lowerQuery)) {
     matches.push("venue");
   }
-  
+
   return matches;
 }
 
@@ -91,11 +93,12 @@ function SearchResultCard({
   const meetingHref = buildMeetingHref();
 
   // Determine which fields matched and if the match is visible in the UI
+  const locationStr = formatEventLocation(event);
   const matchedFields = getMatchedFields(event, query);
   const titleMatches = event.eventName?.toLowerCase().includes(query.toLowerCase());
-  const venueMatches = event.venueName?.toLowerCase().includes(query.toLowerCase());
+  const venueMatches = locationStr?.toLowerCase().includes(query.toLowerCase());
   const descriptionMatches = event.eventDescription?.toLowerCase().includes(query.toLowerCase());
-  
+
   // Show "matched in" indicator when match isn't visible in title, venue, or description
   const showMatchIndicator = !titleMatches && !venueMatches && !descriptionMatches && matchedFields.length > 0;
 
@@ -118,9 +121,12 @@ function SearchResultCard({
           </p>
 
           {/* Location */}
-          {event.venueName && (
-            <p className="text-sm text-gray-400 mt-1 truncate">
-              {highlightMatch(event.venueName, query)}
+          {locationStr && (
+            <p className="text-sm text-gray-500 flex items-start gap-1.5 mt-1 min-w-0 truncate" aria-label="Location">
+              <MapPinIcon className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+              <span className="truncate" title={locationStr}>
+                {query && venueMatches ? highlightMatch(locationStr, query) : locationStr}
+              </span>
             </p>
           )}
 

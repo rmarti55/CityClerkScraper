@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { favorites } from "@/lib/db/schema";
+import { favorites, notificationPreferences, events } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import { sendFollowConfirmationEmail } from "@/emails/follow-confirmation";
 
 /**
  * GET /api/favorites
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json(
-      { error: "You must be signed in to favorite meetings" },
+      { error: "You must be signed in to follow meetings" },
       { status: 401 }
     );
   }
@@ -70,9 +71,33 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error("Failed to add favorite:", err);
     return NextResponse.json(
-      { error: "Failed to save favorite" },
+      { error: "Failed to follow meeting" },
       { status: 500 }
     );
+  }
+
+  const appUrl =
+    process.env.NEXTAUTH_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  const to = session.user?.email;
+  if (to) {
+    const [prefs, eventRows] = await Promise.all([
+      db
+        .select({ confirmationEmailEnabled: notificationPreferences.confirmationEmailEnabled })
+        .from(notificationPreferences)
+        .where(eq(notificationPreferences.userId, session.user.id)),
+      db.select({ eventName: events.eventName }).from(events).where(eq(events.id, eventId)),
+    ]);
+    const sendConfirmation = prefs[0]?.confirmationEmailEnabled !== "false";
+    const eventName = eventRows[0]?.eventName ?? "Meeting";
+    if (sendConfirmation) {
+      sendFollowConfirmationEmail({
+        to,
+        type: "meeting",
+        name: eventName,
+        appUrl,
+      }).catch((err) => console.error("Follow confirmation email failed:", err));
+    }
   }
 
   return NextResponse.json({ ok: true, eventId });
@@ -86,7 +111,7 @@ export async function DELETE(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json(
-      { error: "You must be signed in to unfavorite meetings" },
+      { error: "You must be signed in to unfollow meetings" },
       { status: 401 }
     );
   }
@@ -112,7 +137,7 @@ export async function DELETE(request: NextRequest) {
   } catch (err) {
     console.error("Failed to remove favorite:", err);
     return NextResponse.json(
-      { error: "Failed to remove favorite" },
+      { error: "Failed to unfollow meeting" },
       { status: 500 }
     );
   }

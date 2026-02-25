@@ -61,7 +61,14 @@ export function LoginButton() {
                 className="block px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
                 onClick={() => setShowDropdown(false)}
               >
-                My Follows
+                My Follow
+              </a>
+              <a
+                href="/profile"
+                className="block px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                onClick={() => setShowDropdown(false)}
+              >
+                Alert settings
               </a>
               <button
                 onClick={() => {

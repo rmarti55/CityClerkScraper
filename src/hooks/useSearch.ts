@@ -19,6 +19,10 @@ const fuseOptions: IFuseOptions<CivicEvent> = {
     { name: "fileNames", weight: 1.5 }, // Search document/attachment names
     { name: "eventDescription", weight: 1 },
     { name: "venueName", weight: 0.5 },
+    { name: "venueAddress", weight: 0.5 },
+    { name: "venueCity", weight: 0.5 },
+    { name: "venueState", weight: 0.3 },
+    { name: "venueZip", weight: 0.3 },
   ],
   threshold: 0.4,
   includeMatches: true,

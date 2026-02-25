@@ -4,7 +4,8 @@ import { useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { CivicEvent } from "@/lib/types";
-import { formatEventDate, formatEventTime, isEventCanceled } from "@/lib/utils";
+import { formatEventDate, formatEventTime, formatEventLocation, isEventCanceled } from "@/lib/utils";
+import { MapPinIcon } from "./EventLocation";
 
 interface MobileSearchModalProps {
   isOpen: boolean;
@@ -60,6 +61,7 @@ function SearchResultItem({
 
   const returnTo = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
   const meetingHref = `/meeting/${event.id}?q=${encodeURIComponent(query)}&from=${encodeURIComponent(returnTo)}`;
+  const locationStr = formatEventLocation(event);
 
   return (
     <Link
@@ -82,9 +84,14 @@ function SearchResultItem({
           </p>
 
           {/* Location */}
-          {event.venueName && (
-            <p className="text-sm text-gray-400 mt-0.5 truncate">
-              {highlightMatch(event.venueName, query)}
+          {locationStr && (
+            <p className="text-sm text-gray-500 flex items-start gap-1.5 mt-0.5 min-w-0 truncate" aria-label="Location">
+              <MapPinIcon className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+              <span className="truncate" title={locationStr}>
+                {query && locationStr.toLowerCase().includes(query.toLowerCase())
+                  ? highlightMatch(locationStr, query)
+                  : locationStr}
+              </span>
             </p>
           )}
         </div>

@@ -36,40 +36,41 @@ function formatDateHeader(dateString: string): string {
 export function MeetingList({ events, scrollToDate, onScrollComplete }: MeetingListProps) {
   const highlightedRef = useRef<string | null>(null);
 
-  // Scroll to target date (or nearest future date) when scrollToDate changes
+  // Scroll to target date when scrollToDate changes. Defer so it runs after layout and wins on desktop.
   useEffect(() => {
     if (!scrollToDate || events.length === 0) return;
 
-    // Get all available dates (America/Denver) sorted
     const availableDates = Array.from(
       new Set(events.map((e) => getEventDateKeyInDenver(e.startDateTime)))
     ).sort();
 
-    // Find the target date: exact match, nearest future, or last available
     let targetDate = availableDates.find((d) => d >= scrollToDate);
     if (!targetDate) {
-      // No future dates, use the last available date
       targetDate = availableDates[availableDates.length - 1];
     }
 
-    const element = document.getElementById(`date-${targetDate}`);
-    if (element) {
-      // Scroll to the element with offset for header
-      const yOffset = -100;
-      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top: y, behavior: "smooth" });
+    const dateKey = targetDate;
+    const rafId = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const element = document.getElementById(`date-${dateKey}`);
+        if (element) {
+          const yOffset = -100;
+          const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          window.scrollTo({ top: y, behavior: "auto" });
 
-      // Add highlight class
-      highlightedRef.current = targetDate;
-      element.classList.add("scroll-highlight");
+          highlightedRef.current = dateKey;
+          element.classList.add("scroll-highlight");
 
-      // Remove highlight after animation
-      setTimeout(() => {
-        element.classList.remove("scroll-highlight");
-        highlightedRef.current = null;
-        onScrollComplete?.();
-      }, 2000);
-    }
+          setTimeout(() => {
+            element.classList.remove("scroll-highlight");
+            highlightedRef.current = null;
+            onScrollComplete?.();
+          }, 2000);
+        }
+      });
+    });
+
+    return () => cancelAnimationFrame(rafId);
   }, [scrollToDate, events, onScrollComplete]);
 
   if (events.length === 0) {

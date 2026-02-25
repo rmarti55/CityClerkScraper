@@ -3,6 +3,8 @@
  * Provides access to multiple LLM providers through a single API
  */
 
+import { SITE_NAME } from '@/lib/branding';
+
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 // Default model - can be overridden per request
@@ -57,7 +59,7 @@ export async function chatCompletion(
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
       'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-      'X-Title': 'Santa Fe City Clerk Dashboard',
+      'X-Title': SITE_NAME,
     },
     body: JSON.stringify({
       model,

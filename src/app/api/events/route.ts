@@ -1,160 +1,124 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db, events } from '@/lib/db';
-import { asc, eq } from 'drizzle-orm';
+import { asc, inArray } from 'drizzle-orm';
 import type { CivicEvent } from '@/lib/types';
-import {
-  getMeetingDetails,
-  fetchEventNameFromAPI,
-  fetchEventStartDateTimeFromAPI,
-} from '@/lib/civicclerk';
-import { parseEventStartDateTime } from '@/lib/datetime';
+import { getEventsWithFileCounts } from '@/lib/civicclerk';
 
-/** Events within this many days in the past are refreshed when fileCount=0 (agendas may have been published after cache). Use 31 to cover full current month. */
-const RECENT_PAST_DAYS = 31;
-const RECENT_PAST_MS = RECENT_PAST_DAYS * 24 * 60 * 60 * 1000;
+/** Always run fresh so dashboard gets API data for the requested month. */
+export const dynamic = 'force-dynamic';
+
+/** Month param format: YYYY-MM (e.g. 2026-02). Defaults to current month if missing. */
+const MONTH_REGEX = /^(\d{4})-(0[1-9]|1[0-2])$/;
+
+function rowToCivicEvent(e: {
+  id: number;
+  eventName: string;
+  eventDescription: string | null;
+  eventDate: string;
+  startDateTime: Date;
+  agendaId: number | null;
+  agendaName: string | null;
+  categoryName: string | null;
+  isPublished: string | null;
+  venueName: string | null;
+  venueAddress: string | null;
+  venueCity: string | null;
+  venueState: string | null;
+  venueZip: string | null;
+  fileCount: number | null;
+  fileNames: string | null;
+}): CivicEvent {
+  return {
+    id: e.id,
+    eventName: e.eventName,
+    eventDescription: e.eventDescription || '',
+    eventDate: e.eventDate,
+    startDateTime: e.startDateTime.toISOString(),
+    agendaId: e.agendaId,
+    agendaName: e.agendaName || '',
+    categoryName: e.categoryName || '',
+    isPublished: e.isPublished || '',
+    venueName: e.venueName ?? undefined,
+    venueAddress: e.venueAddress ?? undefined,
+    venueCity: e.venueCity ?? undefined,
+    venueState: e.venueState ?? undefined,
+    venueZip: e.venueZip ?? undefined,
+    fileCount: e.fileCount ?? 0,
+    fileNames: e.fileNames ?? undefined,
+  };
+}
 
 /**
- * GET /api/events
- * Returns all cached events from the database.
- * Used for client-side caching to enable instant month navigation.
- *
- * For upcoming events, and recent-past events, with agendaId but fileCount=0,
- * fetches fresh file counts from the API to ensure accurate display.
+ * GET /api/events?eventIds=1,2,3
+ * Returns only the requested events from the database (no external API refresh).
+ * Used by My Follow page for fast loading of followed meetings.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const eventIdsParam = request.nextUrl.searchParams.get('eventIds');
+  if (eventIdsParam) {
+    const ids = eventIdsParam
+      .split(',')
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => Number.isInteger(n) && n > 0);
+    if (ids.length > 0) {
+      try {
+        const rows = await db
+          .select()
+          .from(events)
+          .where(inArray(events.id, ids))
+          .orderBy(asc(events.startDateTime));
+        const mappedEvents: CivicEvent[] = rows.map(rowToCivicEvent);
+        return NextResponse.json({
+          events: mappedEvents,
+          count: mappedEvents.length,
+          fetchedAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error('Failed to fetch events by IDs:', error);
+        return NextResponse.json(
+          { error: 'Failed to fetch events' },
+          { status: 500 }
+        );
+      }
+    }
+  }
+
+  // Main path: month-scoped, API-first. Client sends month=YYYY-MM (defaults to current month).
+  const monthParam = request.nextUrl.searchParams.get('month')?.trim();
+  const now = new Date();
+  let year: number;
+  let month: number;
+  if (monthParam && MONTH_REGEX.test(monthParam)) {
+    const [, y, m] = monthParam.match(MONTH_REGEX)!;
+    year = parseInt(y!, 10);
+    month = parseInt(m!, 10);
+  } else {
+    year = now.getFullYear();
+    month = now.getMonth() + 1;
+  }
+  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextYear = month === 12 ? year + 1 : year;
+  const endDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+
   try {
-    // Fetch all events ordered by date
-    const allEvents = await db
-      .select()
-      .from(events)
-      .orderBy(asc(events.startDateTime));
-
-    const now = new Date();
-    const recentPastStart = new Date(now.getTime() - RECENT_PAST_MS);
-
-    // Events that are upcoming or recent-past: refresh event names from API so list and detail stay in sync (e.g. "Canceled - ...")
-    const isUpcomingOrRecentPast = (e: { startDateTime: Date }) => {
-      const isUpcoming = e.startDateTime > now;
-      const isRecentPast = e.startDateTime >= recentPastStart && e.startDateTime <= now;
-      return isUpcoming || isRecentPast;
-    };
-    const eventsNeedingNameRefresh = allEvents.filter(isUpcomingOrRecentPast);
-
-    // Find events with agendaId but missing file counts that are upcoming or recent-past
-    const eventsNeedingFileRefresh = allEvents.filter((e) => {
-      if (!e.agendaId || e.agendaId <= 0 || (e.fileCount || 0) !== 0) return false;
-      return isUpcomingOrRecentPast(e);
+    const eventsForMonth = await getEventsWithFileCounts(startDate, endDate, {
+      forceRefresh: true,
     });
-
-    // Refresh event names from API (batch) so dashboard shows same titles as detail page
-    const refreshedNames = new Map<number, string>();
-    if (eventsNeedingNameRefresh.length > 0) {
-      const nameBatchSize = 5;
-      for (let i = 0; i < eventsNeedingNameRefresh.length; i += nameBatchSize) {
-        const batch = eventsNeedingNameRefresh.slice(i, i + nameBatchSize);
-        const results = await Promise.all(
-          batch.map(async (event) => {
-            const name = await fetchEventNameFromAPI(event.id);
-            return { eventId: event.id, eventName: name };
-          })
-        );
-        for (const r of results) {
-          if (r.eventName != null) refreshedNames.set(r.eventId, r.eventName);
-        }
+    return NextResponse.json(
+      {
+        events: eventsForMonth,
+        count: eventsForMonth.length,
+        fetchedAt: new Date().toISOString(),
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, max-age=0',
+        },
       }
-      updateEventNames(refreshedNames).catch(err =>
-        console.warn('Failed to update event names cache:', err)
-      );
-    }
-
-    // Refresh start_date_time from API for upcoming + recent-past so times stay correct (e.g. 4 PM not 9 AM)
-    const refreshedStartDateTimes = new Map<number, Date>();
-    if (eventsNeedingNameRefresh.length > 0) {
-      const timeBatchSize = 5;
-      for (let i = 0; i < eventsNeedingNameRefresh.length; i += timeBatchSize) {
-        const batch = eventsNeedingNameRefresh.slice(i, i + timeBatchSize);
-        const results = await Promise.all(
-          batch.map(async (event) => {
-            const raw = await fetchEventStartDateTimeFromAPI(event.id);
-            if (raw == null) return { eventId: event.id, date: null as Date | null };
-            const date = parseEventStartDateTime(raw);
-            return { eventId: event.id, date: Number.isNaN(date.getTime()) ? null : date };
-          })
-        );
-        for (const r of results) {
-          if (r.date != null) refreshedStartDateTimes.set(r.eventId, r.date);
-        }
-      }
-      updateStartDateTimes(refreshedStartDateTimes).catch(err =>
-        console.warn('Failed to update start_date_time cache:', err)
-      );
-    }
-
-    // Fetch fresh file counts for events that need it (in parallel, batched)
-    const refreshedCounts = new Map<number, { fileCount: number; fileNames: string }>();
-    if (eventsNeedingFileRefresh.length > 0) {
-      const batchSize = 5;
-      for (let i = 0; i < eventsNeedingFileRefresh.length; i += batchSize) {
-        const batch = eventsNeedingFileRefresh.slice(i, i + batchSize);
-        const results = await Promise.all(
-          batch.map(async (event) => {
-            try {
-              const meeting = await getMeetingDetails(event.agendaId!);
-              const fileCount = meeting?.publishedFiles?.length || 0;
-              const fileNames = meeting?.publishedFiles?.map(f => f.name).join(' ') || '';
-              return { eventId: event.id, fileCount, fileNames };
-            } catch (err) {
-              console.warn(`[events] getMeetingDetails failed eventId=${event.id} agendaId=${event.agendaId}`, err);
-              return { eventId: event.id, fileCount: 0, fileNames: '' };
-            }
-          })
-        );
-        for (const result of results) {
-          if (result.fileCount > 0) {
-            refreshedCounts.set(result.eventId, {
-              fileCount: result.fileCount,
-              fileNames: result.fileNames,
-            });
-          }
-        }
-      }
-      updateFileCounts(refreshedCounts).catch(err =>
-        console.warn('Failed to update file counts cache:', err)
-      );
-    }
-
-    // Map to CivicEvent format, using refreshed names, times, and counts where available
-    const mappedEvents: CivicEvent[] = allEvents.map((e) => {
-      const refreshed = refreshedCounts.get(e.id);
-      const eventName = refreshedNames.get(e.id) ?? e.eventName;
-      const startDateTime = refreshedStartDateTimes.get(e.id) ?? e.startDateTime;
-      return {
-        id: e.id,
-        eventName,
-        eventDescription: e.eventDescription || '',
-        eventDate: e.eventDate,
-        startDateTime: startDateTime.toISOString(),
-        agendaId: e.agendaId,
-        agendaName: e.agendaName || '',
-        categoryName: e.categoryName || '',
-        isPublished: e.isPublished || '',
-        venueName: e.venueName || undefined,
-        venueAddress: e.venueAddress || undefined,
-        venueCity: e.venueCity || undefined,
-        venueState: e.venueState || undefined,
-        venueZip: e.venueZip || undefined,
-        fileCount: refreshed?.fileCount ?? e.fileCount ?? 0,
-        fileNames: refreshed?.fileNames ?? e.fileNames ?? undefined,
-      };
-    });
-
-    return NextResponse.json({
-      events: mappedEvents,
-      count: mappedEvents.length,
-      fetchedAt: new Date().toISOString(),
-    });
+    );
   } catch (error) {
-    console.error('Failed to fetch all events:', error);
+    console.error('Failed to fetch events for month:', error);
     return NextResponse.json(
       { error: 'Failed to fetch events' },
       { status: 500 }
@@ -162,45 +126,3 @@ export async function GET() {
   }
 }
 
-/**
- * Update file counts in the database cache for the given events.
- * This runs asynchronously to not block the response.
- */
-async function updateFileCounts(
-  counts: Map<number, { fileCount: number; fileNames: string }>
-): Promise<void> {
-  for (const [eventId, { fileCount, fileNames }] of counts) {
-    await db
-      .update(events)
-      .set({
-        fileCount,
-        fileNames,
-        cachedAt: new Date(),
-      })
-      .where(eq(events.id, eventId));
-  }
-}
-
-/**
- * Update event names in the database cache so list and detail views stay in sync (e.g. "Canceled - ...").
- */
-async function updateEventNames(names: Map<number, string>): Promise<void> {
-  for (const [eventId, eventName] of names) {
-    await db
-      .update(events)
-      .set({ eventName, cachedAt: new Date() })
-      .where(eq(events.id, eventId));
-  }
-}
-
-/**
- * Update start_date_time in the database cache so meeting times display correctly (e.g. 4 PM not 9 AM).
- */
-async function updateStartDateTimes(times: Map<number, Date>): Promise<void> {
-  for (const [eventId, startDateTime] of times) {
-    await db
-      .update(events)
-      .set({ startDateTime, cachedAt: new Date() })
-      .where(eq(events.id, eventId));
-  }
-}

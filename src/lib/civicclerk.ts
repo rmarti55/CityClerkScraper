@@ -42,6 +42,52 @@ function getHeaders(): HeadersInit {
   };
 }
 
+/** True if the date is in February 2026 (scope for Event+Meeting file merge). */
+function isFebruary2026(date: Date): boolean {
+  const y = date.getUTCFullYear();
+  const m = date.getUTCMonth();
+  return y === 2026 && m === 1; // 0-indexed month
+}
+
+/** Raw Event API response includes publishedFiles; we use it only for February merge. */
+interface EventApiResponse {
+  publishedFiles?: Array<{
+    fileId: number;
+    name: string;
+    type: string;
+    url: string;
+    publishOn: string;
+    fileType: number;
+  }>;
+}
+
+/** Fetch Event by id from API and return normalized publishedFiles (for February merge). */
+async function fetchEventPublishedFilesFromAPI(eventId: number): Promise<CivicFile[]> {
+  const response = await fetch(`${API_BASE}/Events/${eventId}`, {
+    headers: getHeaders(),
+    next: { revalidate: 300 },
+  });
+  if (!response.ok) return [];
+  const data: EventApiResponse = await response.json();
+  const list = data.publishedFiles ?? [];
+  return list.map((f) => ({
+    fileId: f.fileId,
+    name: f.name,
+    type: f.type,
+    url: f.url,
+    publishOn: f.publishOn,
+    fileType: f.fileType,
+  }));
+}
+
+/** Merge meeting files and event files, dedupe by fileId (meeting wins). */
+function mergeAndDedupeFileLists(meetingFiles: CivicFile[], eventFiles: CivicFile[]): CivicFile[] {
+  const byId = new Map<number, CivicFile>();
+  for (const f of meetingFiles) byId.set(f.fileId, f);
+  for (const f of eventFiles) if (!byId.has(f.fileId)) byId.set(f.fileId, f);
+  return Array.from(byId.values());
+}
+
 /**
  * True if the requested date range is entirely in the past (end of range before today).
  * For past ranges we prefer DB whenever we have any cached data (no API refetch).
@@ -334,25 +380,25 @@ export async function getEventFiles(eventId: number): Promise<CivicFile[]> {
 
   // Try to fetch from API
   try {
-    // First get the event to find its agendaId
     const event = await getEventById(eventId);
-    if (!event || !event.agendaId) {
+    if (!event) {
       return cachedFilesList.length > 0 ? cachedFilesList.map(mapCachedFile) : [];
     }
 
-    // Then get meeting details which contain the files
-    const meeting = await getMeetingDetails(event.agendaId);
-    if (!meeting) {
-      return cachedFilesList.length > 0 ? cachedFilesList.map(mapCachedFile) : [];
+    const meeting = event.agendaId != null ? await getMeetingDetails(event.agendaId) : null;
+    const meetingFiles: CivicFile[] = meeting?.publishedFiles ?? [];
+
+    let eventFiles: CivicFile[] = [];
+    if (isFebruary2026(new Date(event.startDateTime))) {
+      eventFiles = await fetchEventPublishedFilesFromAPI(eventId);
     }
 
-    const publishedFiles = meeting.publishedFiles || [];
+    const publishedFiles = mergeAndDedupeFileLists(meetingFiles, eventFiles);
 
-    // Cache the files
     try {
       if (publishedFiles.length > 0) {
         await db.insert(files)
-          .values(publishedFiles.map(f => ({
+          .values(publishedFiles.map((f) => ({
             id: f.fileId,
             eventId: eventId,
             name: f.name,
@@ -403,54 +449,60 @@ export function getFileUrl(fileId: number): string {
 }
 
 /**
- * Get events with file counts for a month (with database caching)
+ * Get events with file counts for a date range (with optional database caching).
+ * When forceRefresh is true, always fetches from the API and returns that result (then upserts to DB).
  */
 export async function getEventsWithFileCounts(
   startDate: string,
-  endDate: string
+  endDate: string,
+  options?: { forceRefresh?: boolean }
 ): Promise<CivicEvent[]> {
+  const forceRefresh = options?.forceRefresh === true;
   let cachedEvents: (typeof events.$inferSelect)[] = [];
-  
-  try {
-    // Check cache first - fetch all cached events for the date range
-    cachedEvents = await db.select().from(events)
-      .where(
-        and(
-          gte(events.startDateTime, new Date(startDate)),
-          lt(events.startDateTime, new Date(endDate))
-        )
-      )
-      .orderBy(events.startDateTime);
 
-    if (cachedEvents.length > 0) {
-      const hasAllFileNames = cachedEvents.every(e => e.fileNames !== null);
-      // For past ranges, serve from DB only if we have complete data (including fileNames)
-      if (isRangeInPast(endDate) && hasAllFileNames) {
-        console.log(`Serving ${cachedEvents.length} cached events for past range`);
-        return cachedEvents.map(mapCachedEvent);
+  if (!forceRefresh) {
+    try {
+      // Check cache first - fetch all cached events for the date range
+      cachedEvents = await db.select().from(events)
+        .where(
+          and(
+            gte(events.startDateTime, new Date(startDate)),
+            lt(events.startDateTime, new Date(endDate))
+          )
+        )
+        .orderBy(events.startDateTime);
+
+      if (cachedEvents.length > 0) {
+        const hasAllFileNames = cachedEvents.every(e => e.fileNames !== null);
+        // For past ranges, serve from DB only if we have complete data (including fileNames)
+        if (isRangeInPast(endDate) && hasAllFileNames) {
+          console.log(`Serving ${cachedEvents.length} cached events for past range`);
+          return cachedEvents.map(mapCachedEvent);
+        }
+        // For current/future ranges, require all cached events to be fresh
+        const allFresh = cachedEvents.every(e => isCacheFresh(e.cachedAt, e.startDateTime, e.fileNames !== null));
+        if (allFresh) {
+          return cachedEvents.map(mapCachedEvent);
+        }
       }
-      // For current/future ranges, require all cached events to be fresh
-      const allFresh = cachedEvents.every(e => isCacheFresh(e.cachedAt, e.startDateTime, e.fileNames !== null));
-      if (allFresh) {
-        return cachedEvents.map(mapCachedEvent);
-      }
+    } catch (error) {
+      console.warn('Database cache unavailable, fetching from API:', error);
     }
-  } catch (error) {
-    console.warn('Database cache unavailable, fetching from API:', error);
   }
 
-  // Try to fetch fresh data from API
+  // Fetch fresh data from API (always when forceRefresh; otherwise when cache miss or stale)
   let fetchedEvents: CivicEvent[];
   try {
     fetchedEvents = await fetchEventsFromAPI(startDate, endDate);
   } catch (apiError) {
-    // API failed - fall back to stale cache if available
-    console.warn('API unavailable, falling back to stale cache:', apiError);
-    if (cachedEvents.length > 0) {
+    // API failed - fall back to stale cache if available (only when not forceRefresh)
+    if (!forceRefresh && cachedEvents.length > 0) {
+      console.warn('API unavailable, falling back to stale cache:', apiError);
       console.log(`Serving ${cachedEvents.length} stale cached events with file counts`);
       return cachedEvents.map(mapCachedEvent);
     }
-    throw apiError; // No cache available, re-throw
+    console.warn('API unavailable:', apiError);
+    throw apiError;
   }
 
   // Fetch file counts in parallel (batch of 5 to be safe)

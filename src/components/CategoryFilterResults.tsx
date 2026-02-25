@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { CivicEvent } from "@/lib/types";
 import { formatEventDate, formatEventTime } from "@/lib/utils";
+import { EventLocation } from "./EventLocation";
 import { Pagination } from "./Pagination";
 import { Category } from "@/hooks/useCategories";
 import { MeetingStatusBadges } from "./MeetingStatusBadges";
@@ -37,11 +38,7 @@ function ResultCard({ event }: { event: CivicEvent }) {
           </p>
 
           {/* Location */}
-          {event.venueName && (
-            <p className="text-sm text-gray-400 mt-1 truncate">
-              {event.venueName}
-            </p>
-          )}
+          <EventLocation event={event} truncate className="mt-1" />
         </div>
 
         {/* Status badges */}

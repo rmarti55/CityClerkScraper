@@ -61,7 +61,7 @@ export function MonthPicker({ hasActiveFilter = false }: MonthPickerProps) {
     if (targetElement) {
       const yOffset = -100;
       const y = targetElement.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top: y, behavior: "smooth" });
+      window.scrollTo({ top: y, behavior: "auto" });
 
       // Add highlight animation
       targetElement.classList.add("scroll-highlight");

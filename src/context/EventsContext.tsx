@@ -56,6 +56,14 @@ export function EventsProvider({ children }: { children: ReactNode }) {
   
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isFetchingRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Load from localStorage on mount
   const loadFromCache = useCallback((): CachedData | null => {
@@ -82,34 +90,44 @@ export function EventsProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Fetch all events from API
-  const fetchEvents = useCallback(async (showLoading = true) => {
-    if (isFetchingRef.current) return;
-    isFetchingRef.current = true;
-    
-    if (showLoading) {
-      setIsLoading(true);
-    }
-    setError(null);
-
-    try {
-      const response = await fetch("/api/events");
-      if (!response.ok) {
-        throw new Error(`Failed to fetch events: ${response.status}`);
+  // Fetch events for a month from API (dashboard is month-scoped, API-first).
+  // Pass year/month when changing month so the request uses the new month before state updates.
+  const fetchEvents = useCallback(
+    async (showLoading = true, year?: number, month?: number) => {
+      isFetchingRef.current = true;
+      if (showLoading) {
+        setIsLoading(true);
       }
-      const data = await response.json();
-      setAllEvents(data.events);
-      setLastFetchedAt(data.fetchedAt);
-      saveToCache(data.events, data.fetchedAt);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Unknown error";
-      setError(message);
-      console.error("Failed to fetch events:", e);
-    } finally {
-      setIsLoading(false);
-      isFetchingRef.current = false;
-    }
-  }, [saveToCache]);
+      setError(null);
+
+      const y = year ?? currentYear;
+      const m = month ?? currentMonth;
+      const monthParam = `${y}-${String(m).padStart(2, "0")}`;
+
+      try {
+        const response = await fetch(
+          `/api/events?month=${monthParam}`,
+          { cache: "no-store" }
+        );
+        if (!response.ok) {
+          throw new Error(`Failed to fetch events: ${response.status}`);
+        }
+        const data = await response.json();
+        if (!mountedRef.current) return;
+        setAllEvents(data.events);
+        setLastFetchedAt(data.fetchedAt);
+        saveToCache(data.events, data.fetchedAt);
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "Unknown error";
+        if (mountedRef.current) setError(message);
+        console.error("Failed to fetch events:", e);
+      } finally {
+        if (mountedRef.current) setIsLoading(false);
+        isFetchingRef.current = false;
+      }
+    },
+    [saveToCache, currentYear, currentMonth]
+  );
 
   // Filter events by month
   const getEventsForMonth = useCallback(
@@ -125,11 +143,11 @@ export function EventsProvider({ children }: { children: ReactNode }) {
     [allEvents]
   );
 
-  // Set current month — refetch so server can refresh file counts for the viewed month
+  // Set current month — refetch events for the new month (pass year/month so request uses them immediately)
   const setCurrentMonth = useCallback((year: number, month: number) => {
     setCurrentYear(year);
     setCurrentMonthState(month);
-    fetchEvents(false);
+    fetchEvents(false, year, month);
   }, [fetchEvents]);
 
   // Manual refresh

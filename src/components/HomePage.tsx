@@ -4,12 +4,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useEvents } from "@/context/EventsContext";
+import { SITE_NAME, SITE_DESCRIPTION } from "@/lib/branding";
 import { MonthPicker } from "./MonthPicker";
 import { SearchableContent } from "./SearchableContent";
 import { StickyHeader } from "./StickyHeader";
 import { MeetingListSkeleton } from "./skeletons/MeetingCardSkeleton";
 import { Category, useCategories } from "@/hooks/useCategories";
-import { useIsMobile } from "@/hooks/useDeviceCapabilities";
 import { LoginButton } from "./LoginButton";
 
 function ErrorState({ error }: { error: string }) {
@@ -54,7 +54,13 @@ export function HomePage() {
     scrollToDate,
     setScrollToDate,
     setCurrentMonth,
+    refresh,
   } = useEvents();
+
+  // Refetch whenever user lands on dashboard (e.g. open app or "Back to meetings") so list and file counts stay fresh
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   // Fetch categories to restore filter from URL
   const { categories } = useCategories();
@@ -99,8 +105,6 @@ export function HomePage() {
   // Compute whether filters are active (for hiding Today button)
   const hasActiveFilter = searchQuery.trim().length >= 2 || selectedCategory !== null;
 
-  const isMobile = useIsMobile();
-
   // Sync calendar view to URL so back from meeting detail returns to same view.
   // When scrollToDate is cleared after scroll, keep date= in URL so "Back to meetings" restores scroll.
   useEffect(() => {
@@ -119,16 +123,16 @@ export function HomePage() {
     router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
   }, [currentYear, currentMonth, scrollToDate, pathname, router, searchParams]);
 
-  // On mobile, open on today: scroll to today's date when viewing current month with no active filter
+  // Open on today: set scroll target when viewing current month with no active filter (desktop and mobile)
   useEffect(() => {
-    if (!isMobile || hasActiveFilter) return;
+    if (hasActiveFilter) return;
     const now = new Date();
     const todayYear = now.getFullYear();
     const todayMonth = now.getMonth() + 1;
     if (currentYear === todayYear && currentMonth === todayMonth) {
       setScrollToDate(now.toISOString().split("T")[0]);
     }
-  }, [isMobile, hasActiveFilter, currentYear, currentMonth, setScrollToDate]);
+  }, [hasActiveFilter, currentYear, currentMonth, setScrollToDate]);
 
   // Scroll detection for sticky header
   const [showStickyHeader, setShowStickyHeader] = useState(false);
@@ -136,6 +140,11 @@ export function HomePage() {
 
   // Get events for the current month from client-side cache
   const events = getEventsForMonth(currentYear, currentMonth);
+
+  // Summary stats for sticky header (same formula as MeetingList)
+  const meetingCount = events.length;
+  const withAttachmentsCount = events.filter((e) => (e.fileCount || 0) > 0).length;
+  const totalFilesCount = events.reduce((sum, e) => sum + (e.fileCount || 0), 0);
 
   // Scroll detection effect
   useEffect(() => {
@@ -192,7 +201,7 @@ export function HomePage() {
       if (targetElement) {
         const yOffset = -100;
         const y = targetElement.getBoundingClientRect().top + window.pageYOffset + yOffset;
-        window.scrollTo({ top: y, behavior: "smooth" });
+        window.scrollTo({ top: y, behavior: "auto" });
 
         targetElement.classList.add("scroll-highlight");
         setTimeout(() => {
@@ -218,6 +227,11 @@ export function HomePage() {
         isSearching={isSearching}
         isVisible={showStickyHeader}
         hasActiveFilter={hasActiveFilter}
+        meetingCount={meetingCount}
+        withAttachmentsCount={withAttachmentsCount}
+        totalFilesCount={totalFilesCount}
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
       />
 
       <div className="max-w-4xl mx-auto px-4 py-8">
@@ -225,10 +239,10 @@ export function HomePage() {
         <div className="mb-8 flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              Santa Fe City Meetings
+              {SITE_NAME}
             </h1>
             <p className="text-gray-500 mt-1">
-              Public meeting calendar and documents
+              {SITE_DESCRIPTION}
             </p>
           </div>
           <LoginButton />
