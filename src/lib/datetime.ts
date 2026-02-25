@@ -34,3 +34,16 @@ export function parseEventStartDateTime(apiStartDateTime: string): Date {
   }
   return dt.toJSDate();
 }
+
+/**
+ * Return the event's calendar date in America/Denver as "YYYY-MM-DD".
+ * Used for grouping and scroll so section headers match the displayed date on cards.
+ * Example: "2026-02-25T01:00:00.000Z" (6 PM Feb 24 Mountain) → "2026-02-24".
+ */
+export function getEventDateKeyInDenver(isoString: string): string {
+  const dt = DateTime.fromISO(isoString.trim(), { zone: EVENT_TIMEZONE });
+  if (!dt.isValid) {
+    return isoString.split("T")[0] ?? "";
+  }
+  return dt.toFormat("yyyy-MM-dd");
+}

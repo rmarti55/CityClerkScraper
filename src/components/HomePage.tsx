@@ -101,19 +101,20 @@ export function HomePage() {
 
   const isMobile = useIsMobile();
 
-  // Sync calendar view to URL so back from meeting detail returns to same view
+  // Sync calendar view to URL so back from meeting detail returns to same view.
+  // When scrollToDate is cleared after scroll, keep date= in URL so "Back to meetings" restores scroll.
   useEffect(() => {
     const monthStr = `${currentYear}-${String(currentMonth).padStart(2, "0")}`;
     const currentMonthParam = searchParams.get("month");
     const currentDateParam = searchParams.get("date") ?? null;
-    if (currentMonthParam === monthStr && currentDateParam === scrollToDate) return;
+    const effectiveDate = scrollToDate ?? currentDateParam;
+    if (currentMonthParam === monthStr && currentDateParam === effectiveDate) return;
     const params = new URLSearchParams(searchParams.toString());
     params.set("month", monthStr);
     if (scrollToDate) {
       params.set("date", scrollToDate);
-    } else {
-      params.delete("date");
     }
+    // When scrollToDate is null (e.g. after scroll complete), leave date in URL so Back restores scroll
     const queryString = params.toString();
     router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
   }, [currentYear, currentMonth, scrollToDate, pathname, router, searchParams]);

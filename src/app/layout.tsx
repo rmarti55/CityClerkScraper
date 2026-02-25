@@ -5,6 +5,7 @@ import { EventsProvider } from "@/context/EventsContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { CommitteeProvider } from "@/context/CommitteeContext";
 import { LoginModalProvider } from "@/context/LoginModalContext";
+import { ToastProvider } from "@/context/ToastContext";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -28,9 +29,11 @@ export default function RootLayout({
       >
         <AuthProvider>
           <LoginModalProvider>
-            <EventsProvider>
-              <CommitteeProvider>{children}</CommitteeProvider>
-            </EventsProvider>
+            <ToastProvider>
+              <EventsProvider>
+                <CommitteeProvider>{children}</CommitteeProvider>
+              </EventsProvider>
+            </ToastProvider>
           </LoginModalProvider>
         </AuthProvider>
       </body>

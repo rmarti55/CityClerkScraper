@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import {
   getEventById,
   getEventFiles,
-  getMeetingDetails,
   formatEventDate,
   formatEventTime,
   CivicFile,
@@ -127,12 +126,8 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
     notFound();
   }
 
-  // Get files via the meeting/agenda endpoint
-  let files: CivicFile[] = [];
-  if (event.agendaId) {
-    const meeting = await getMeetingDetails(event.agendaId);
-    files = meeting?.publishedFiles || [];
-  }
+  // Get files (upserts into DB so metadata API can cache size/page count)
+  const files = await getEventFiles(eventId);
 
   // Build location string
   const location = [event.venueName, event.venueAddress, event.venueCity]

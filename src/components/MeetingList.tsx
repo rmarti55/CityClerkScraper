@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { CivicEvent } from "@/lib/types";
 import { MeetingCard } from "./MeetingCard";
+import { getEventDateKeyInDenver } from "@/lib/datetime";
 
 interface MeetingListProps {
   events: CivicEvent[];
@@ -10,12 +11,12 @@ interface MeetingListProps {
   onScrollComplete?: () => void;
 }
 
-// Group events by date
+// Group events by date (America/Denver) so section headers match the date on cards
 function groupEventsByDate(events: CivicEvent[]): Map<string, CivicEvent[]> {
   const groups = new Map<string, CivicEvent[]>();
 
   for (const event of events) {
-    const dateKey = event.startDateTime.split("T")[0];
+    const dateKey = getEventDateKeyInDenver(event.startDateTime);
     const existing = groups.get(dateKey) || [];
     groups.set(dateKey, [...existing, event]);
   }
@@ -39,9 +40,9 @@ export function MeetingList({ events, scrollToDate, onScrollComplete }: MeetingL
   useEffect(() => {
     if (!scrollToDate || events.length === 0) return;
 
-    // Get all available dates sorted
+    // Get all available dates (America/Denver) sorted
     const availableDates = Array.from(
-      new Set(events.map((e) => e.startDateTime.split("T")[0]))
+      new Set(events.map((e) => getEventDateKeyInDenver(e.startDateTime)))
     ).sort();
 
     // Find the target date: exact match, nearest future, or last available

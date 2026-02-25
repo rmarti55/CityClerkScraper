@@ -6,6 +6,7 @@ import { CivicEvent } from "@/lib/types";
 import { formatEventDate, formatEventTime } from "@/lib/utils";
 import { useFollows } from "@/hooks/useFollows";
 import { useLoginModal } from "@/context/LoginModalContext";
+import { useToast } from "@/context/ToastContext";
 import { MeetingStatusBadges } from "./MeetingStatusBadges";
 
 interface MeetingCardProps {
@@ -17,6 +18,7 @@ interface MeetingCardProps {
 export function MeetingCard({ event, backPath }: MeetingCardProps) {
   const { isAuthenticated, isFavorite, toggleFavorite, loadingFavorites } = useFollows();
   const { openLoginModal } = useLoginModal();
+  const { showToast } = useToast();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -32,9 +34,13 @@ export function MeetingCard({ event, backPath }: MeetingCardProps) {
     e.stopPropagation();
     if (!isAuthenticated) {
       openLoginModal();
+      showToast("Sign in to save favorites.");
       return;
     }
-    await toggleFavorite(event.id);
+    const success = await toggleFavorite(event.id);
+    if (success) {
+      showToast(favorited ? "Removed from favorites." : "Saved to favorites.");
+    }
   };
 
   const favorited = isFavorite(event.id);
@@ -72,7 +78,11 @@ export function MeetingCard({ event, backPath }: MeetingCardProps) {
             type="button"
             onClick={handleFavoriteClick}
             disabled={loadingFavorites}
-            className="inline-flex items-center justify-center w-8 h-8 rounded-full text-gray-400 hover:text-amber-500 hover:bg-amber-50 transition-colors disabled:opacity-50"
+            className={`inline-flex items-center justify-center w-8 h-8 rounded-full transition-colors disabled:opacity-50 ${
+              favorited
+                ? "text-amber-500"
+                : "text-gray-400 hover:bg-gray-100"
+            }`}
             aria-label={favorited ? "Remove from favorites" : "Add to favorites"}
             title={favorited ? "Remove from favorites" : "Save to favorites (sign in to sync)"}
           >
