@@ -21,6 +21,7 @@ export function formatEventDate(dateString: string): string {
     month: "short",
     day: "numeric",
     year: "numeric",
+    timeZone: "America/Denver",
   });
 }
 
@@ -33,6 +34,7 @@ export function formatEventTime(dateString: string): string {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
+    timeZone: "America/Denver",
   });
 }
 
