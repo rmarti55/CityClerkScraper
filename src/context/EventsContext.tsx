@@ -10,6 +10,7 @@ import {
   ReactNode,
 } from "react";
 import type { CivicEvent } from "@/lib/types";
+import { getNowInDenver, getEventDateKeyInDenver } from "@/lib/datetime";
 
 interface EventsContextType {
   // All events loaded from API
@@ -32,6 +33,8 @@ interface EventsContextType {
   lastFetchedAt: string | null;
   // Manual refresh
   refresh: () => Promise<void>;
+  // Update a single event in the list (e.g. after a per-meeting refresh)
+  updateEvent: (event: CivicEvent) => void;
 }
 
 const EventsContext = createContext<EventsContextType | null>(null);
@@ -45,13 +48,13 @@ interface CachedData {
 }
 
 export function EventsProvider({ children }: { children: ReactNode }) {
-  const now = new Date();
+  const { year: initialYear, month: initialMonth } = getNowInDenver();
   const [allEvents, setAllEvents] = useState<CivicEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastFetchedAt, setLastFetchedAt] = useState<string | null>(null);
-  const [currentYear, setCurrentYear] = useState(now.getFullYear());
-  const [currentMonth, setCurrentMonthState] = useState(now.getMonth() + 1);
+  const [currentYear, setCurrentYear] = useState(initialYear);
+  const [currentMonth, setCurrentMonthState] = useState(initialMonth);
   const [scrollToDate, setScrollToDate] = useState<string | null>(null);
   
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -129,15 +132,14 @@ export function EventsProvider({ children }: { children: ReactNode }) {
     [saveToCache, currentYear, currentMonth]
   );
 
-  // Filter events by month
+  // Filter events by month using Denver calendar date so evening meetings at
+  // month boundaries (e.g. 11 PM Mountain on Jan 31 = Feb 1 UTC) are not lost.
   const getEventsForMonth = useCallback(
     (year: number, month: number): CivicEvent[] => {
       return allEvents.filter((event) => {
-        const eventDate = new Date(event.startDateTime);
-        return (
-          eventDate.getFullYear() === year &&
-          eventDate.getMonth() + 1 === month
-        );
+        const key = getEventDateKeyInDenver(event.startDateTime); // "YYYY-MM-DD" in Denver
+        const [y, m] = key.split("-").map(Number);
+        return y === year && m === month;
       });
     },
     [allEvents]
@@ -154,6 +156,22 @@ export function EventsProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     await fetchEvents(false);
   }, [fetchEvents]);
+
+  // Update a single event in allEvents (called after a per-meeting API refresh)
+  const updateEvent = useCallback((updatedEvent: CivicEvent) => {
+    setAllEvents(prev => {
+      const next = prev.map(e => e.id === updatedEvent.id ? updatedEvent : e);
+      // Persist to localStorage so the updated cachedAt survives navigation
+      if (lastFetchedAt) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ events: next, fetchedAt: lastFetchedAt }));
+        } catch {
+          // Non-fatal
+        }
+      }
+      return next;
+    });
+  }, [lastFetchedAt]);
 
   // Initial load: try cache first, then fetch
   useEffect(() => {
@@ -221,6 +239,7 @@ export function EventsProvider({ children }: { children: ReactNode }) {
         setScrollToDate,
         lastFetchedAt,
         refresh,
+        updateEvent,
       }}
     >
       {children}

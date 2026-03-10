@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { CivicEvent } from "@/lib/types";
-import { formatEventDate, formatEventTime, formatEventLocation } from "@/lib/utils";
+import { formatEventLocation, buildMapsUrl } from "@/lib/utils";
 import { MapPinIcon } from "./EventLocation";
-import { MeetingStatusBadges } from "./MeetingStatusBadges";
+import { MeetingCard } from "./MeetingCard";
 
 interface GlobalSearchResultsProps {
   results: CivicEvent[];
@@ -19,13 +18,13 @@ interface GlobalSearchResultsProps {
 
 function highlightMatch(text: string, query: string): React.ReactNode {
   if (!text || !query) return text;
-  
+
   const lowerText = text.toLowerCase();
   const lowerQuery = query.toLowerCase();
   const index = lowerText.indexOf(lowerQuery);
-  
+
   if (index === -1) return text;
-  
+
   return (
     <>
       {text.slice(0, index)}
@@ -37,35 +36,21 @@ function highlightMatch(text: string, query: string): React.ReactNode {
   );
 }
 
-/**
- * Determine which field(s) matched the search query
- * Returns a human-readable string indicating where the match was found
- */
 function getMatchedFields(event: CivicEvent, query: string): string[] {
   const lowerQuery = query.toLowerCase();
   const matches: string[] = [];
-  
-  if (event.eventName?.toLowerCase().includes(lowerQuery)) {
-    matches.push("title");
-  }
-  if (event.categoryName?.toLowerCase().includes(lowerQuery)) {
-    matches.push("category");
-  }
-  if (event.agendaName?.toLowerCase().includes(lowerQuery)) {
-    matches.push("agenda");
-  }
-  if (event.eventDescription?.toLowerCase().includes(lowerQuery)) {
-    matches.push("description");
-  }
+
+  if (event.eventName?.toLowerCase().includes(lowerQuery)) matches.push("title");
+  if (event.categoryName?.toLowerCase().includes(lowerQuery)) matches.push("category");
+  if (event.agendaName?.toLowerCase().includes(lowerQuery)) matches.push("agenda");
+  if (event.eventDescription?.toLowerCase().includes(lowerQuery)) matches.push("description");
   const locationStr = formatEventLocation(event);
-  if (locationStr && locationStr.toLowerCase().includes(lowerQuery)) {
-    matches.push("venue");
-  }
+  if (locationStr && locationStr.toLowerCase().includes(lowerQuery)) matches.push("venue");
 
   return matches;
 }
 
-function SearchResultCard({
+function GlobalSearchResultCard({
   event,
   query,
   categoryId,
@@ -76,85 +61,66 @@ function SearchResultCard({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  // Build meeting href with q, category, and from (current path+query) so "Back to meetings" restores view
+
   const buildMeetingHref = () => {
     const params = new URLSearchParams();
-    if (query && query.trim().length >= 2) {
-      params.set("q", query);
-    }
-    if (categoryId) {
-      params.set("category", String(categoryId));
-    }
+    if (query && query.trim().length >= 2) params.set("q", query);
+    if (categoryId) params.set("category", String(categoryId));
     const returnTo = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
     params.set("from", returnTo);
-    const queryString = params.toString();
-    return `/meeting/${event.id}?${queryString}`;
+    return `/meeting/${event.id}?${params.toString()}`;
   };
-  const meetingHref = buildMeetingHref();
 
-  // Determine which fields matched and if the match is visible in the UI
   const locationStr = formatEventLocation(event);
+  const mapsUrl = buildMapsUrl(event);
   const matchedFields = getMatchedFields(event, query);
   const titleMatches = event.eventName?.toLowerCase().includes(query.toLowerCase());
   const venueMatches = locationStr?.toLowerCase().includes(query.toLowerCase());
   const descriptionMatches = event.eventDescription?.toLowerCase().includes(query.toLowerCase());
-
-  // Show "matched in" indicator when match isn't visible in title, venue, or description
   const showMatchIndicator = !titleMatches && !venueMatches && !descriptionMatches && matchedFields.length > 0;
 
+  const locationTextContent = query && venueMatches ? highlightMatch(locationStr, query) : locationStr;
+
+  const locationNode = locationStr ? (
+    <p className="text-sm text-gray-500 flex items-start gap-1.5 mt-2 min-w-0 truncate" aria-label="Location">
+      <MapPinIcon className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+      {mapsUrl ? (
+        <a
+          href={mapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="truncate hover:underline"
+          title={locationStr}
+        >
+          {locationTextContent}
+        </a>
+      ) : (
+        <span className="truncate" title={locationStr}>
+          {locationTextContent}
+        </span>
+      )}
+    </p>
+  ) : null;
+
   return (
-    <Link
-      href={meetingHref}
-      className="block bg-white border border-gray-200 rounded-lg p-4 hover:border-indigo-300 hover:shadow-md transition-all"
+    <MeetingCard
+      event={event}
+      href={buildMeetingHref()}
+      titleNode={highlightMatch(event.eventName, query)}
+      locationNode={locationNode}
     >
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4">
-        <div className="flex-1 min-w-0">
-          {/* Title */}
-          <h3 className="font-semibold text-gray-900">
-            {highlightMatch(event.eventName, query)}
-          </h3>
-
-          {/* Date and time */}
-          <p className="text-sm text-gray-500 mt-1">
-            {formatEventDate(event.startDateTime)} at{" "}
-            {formatEventTime(event.startDateTime)}
-          </p>
-
-          {/* Location */}
-          {locationStr && (
-            <p className="text-sm text-gray-500 flex items-start gap-1.5 mt-1 min-w-0 truncate" aria-label="Location">
-              <MapPinIcon className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-              <span className="truncate" title={locationStr}>
-                {query && venueMatches ? highlightMatch(locationStr, query) : locationStr}
-              </span>
-            </p>
-          )}
-
-          {/* Description snippet if it contains the search term */}
-          {event.eventDescription &&
-            event.eventDescription.toLowerCase().includes(query.toLowerCase()) && (
-              <p className="text-sm text-gray-500 mt-2 line-clamp-2">
-                {highlightMatch(event.eventDescription, query)}
-              </p>
-            )}
-
-          {/* Show which field matched when not visible in title/venue/description */}
-          {showMatchIndicator && (
-            <p className="text-xs text-gray-400 mt-2 italic">
-              Matched in: {matchedFields.join(", ")}
-            </p>
-          )}
-        </div>
-
-        {/* Status badges */}
-        <MeetingStatusBadges
-          event={event}
-          fileCount={event.fileCount ?? 0}
-          variant="card"
-          className="sm:flex-col sm:items-end"
-        />
-      </div>
-    </Link>
+      {event.eventDescription && descriptionMatches && (
+        <p className="text-sm text-gray-500 mt-2 line-clamp-2">
+          {highlightMatch(event.eventDescription, query)}
+        </p>
+      )}
+      {showMatchIndicator && (
+        <p className="text-xs text-gray-400 mt-2 italic">
+          Matched in: {matchedFields.join(", ")}
+        </p>
+      )}
+    </MeetingCard>
   );
 }
 
@@ -184,18 +150,13 @@ export function GlobalSearchResults({
   categoryName,
   categoryId,
 }: GlobalSearchResultsProps) {
-  // Build display text based on what filters are active
   const hasQuery = query && query.trim().length >= 2;
   const hasCategory = categoryName && categoryName.trim().length > 0;
-  
+
   const getFilterDescription = () => {
-    if (hasQuery && hasCategory) {
-      return `"${query}" in ${categoryName}`;
-    } else if (hasQuery) {
-      return `"${query}"`;
-    } else if (hasCategory) {
-      return categoryName;
-    }
+    if (hasQuery && hasCategory) return `"${query}" in ${categoryName}`;
+    if (hasQuery) return `"${query}"`;
+    if (hasCategory) return categoryName;
     return "";
   };
 
@@ -262,7 +223,6 @@ export function GlobalSearchResults({
 
   return (
     <div>
-      {/* Results count */}
       <div className="flex items-center justify-between mb-4">
         <div className="text-sm text-gray-500">
           <span>
@@ -274,10 +234,9 @@ export function GlobalSearchResults({
         </div>
       </div>
 
-      {/* Results list */}
       <div className="space-y-3">
         {results.map((event) => (
-          <SearchResultCard key={event.id} event={event} query={query} categoryId={categoryId} />
+          <GlobalSearchResultCard key={event.id} event={event} query={query} categoryId={categoryId} />
         ))}
       </div>
     </div>

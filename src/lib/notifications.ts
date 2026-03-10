@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { DateTime } from "luxon";
 import {
   users,
   categoryFollows,
@@ -54,9 +55,8 @@ export async function runDailyDigest(): Promise<{ sent: number; errors: string[]
     if (!prefs.some((p) => p.userId === uid)) digestEnabled.add(uid);
   }
 
-  // Already sent today (any daily_digest for this user today)
-  const todayStart = new Date();
-  todayStart.setUTCHours(0, 0, 0, 0);
+  // Already sent today (any daily_digest for this user today, anchored to Denver midnight)
+  const todayStart = DateTime.now().setZone("America/Denver").startOf("day").toJSDate();
   const sentToday = await db
     .select({ userId: sentNotifications.userId })
     .from(sentNotifications)

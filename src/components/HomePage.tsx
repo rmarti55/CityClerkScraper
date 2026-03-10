@@ -5,6 +5,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useEvents } from "@/context/EventsContext";
 import { SITE_NAME, SITE_DESCRIPTION } from "@/lib/branding";
+import { getTodayInDenver, getNowInDenver } from "@/lib/datetime";
 import { MonthPicker } from "./MonthPicker";
 import { SearchableContent } from "./SearchableContent";
 import { StickyHeader } from "./StickyHeader";
@@ -126,11 +127,9 @@ export function HomePage() {
   // Open on today: set scroll target when viewing current month with no active filter (desktop and mobile)
   useEffect(() => {
     if (hasActiveFilter) return;
-    const now = new Date();
-    const todayYear = now.getFullYear();
-    const todayMonth = now.getMonth() + 1;
+    const { year: todayYear, month: todayMonth, dateKey: todayDate } = getNowInDenver();
     if (currentYear === todayYear && currentMonth === todayMonth) {
-      setScrollToDate(now.toISOString().split("T")[0]);
+      setScrollToDate(todayDate);
     }
   }, [hasActiveFilter, currentYear, currentMonth, setScrollToDate]);
 
@@ -170,10 +169,7 @@ export function HomePage() {
 
   // Today button handler for sticky header
   const handleTodayClick = useCallback(() => {
-    const now = new Date();
-    const todayYear = now.getFullYear();
-    const todayMonth = now.getMonth() + 1;
-    const todayDate = now.toISOString().split("T")[0];
+    const { year: todayYear, month: todayMonth, dateKey: todayDate } = getNowInDenver();
 
     if (currentYear === todayYear && currentMonth === todayMonth) {
       // Already on current month - scroll to today's date

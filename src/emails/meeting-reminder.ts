@@ -30,6 +30,7 @@ function formatDate(d: string): string {
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: "America/Denver",
   });
 }
 

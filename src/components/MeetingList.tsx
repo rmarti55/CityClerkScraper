@@ -30,6 +30,7 @@ function formatDateHeader(dateString: string): string {
     weekday: "long",
     month: "long",
     day: "numeric",
+    timeZone: "America/Denver",
   });
 }
 

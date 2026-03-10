@@ -1,10 +1,11 @@
 import { db, events, files } from './db';
 import { eq, gte, lt, and } from 'drizzle-orm';
-import { parseEventStartDateTime } from './datetime';
+import { parseEventStartDateTime, getEventDateKeyInDenver, getNowInDenver } from './datetime';
+import { DateTime } from 'luxon';
 
 // Re-export types for backward compatibility
-export type { CivicEvent, CivicFile, MeetingDetails, MeetingItem, DocumentSearchResult, MatchingFile, MatchingItem } from './types';
-import type { CivicEvent, CivicFile, MeetingDetails, MeetingItem, DocumentSearchResult, MatchingFile, MatchingItem } from './types';
+export type { CivicEvent, CivicFile, MeetingDetails, MeetingItem, ItemAttachment, DocumentSearchResult, MatchingFile, MatchingItem } from './types';
+import type { CivicEvent, CivicFile, MeetingDetails, MeetingItem, ItemAttachment, DocumentSearchResult, MatchingFile, MatchingItem } from './types';
 
 const API_BASE = "https://santafenm.api.civicclerk.com/v1";
 
@@ -152,10 +153,9 @@ function mergeAndDedupeFileLists(meetingFiles: CivicFile[], eventFiles: CivicFil
  * For past ranges we prefer DB whenever we have any cached data (no API refetch).
  */
 function isRangeInPast(endDate: string): boolean {
-  const end = new Date(endDate);
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  return end < startOfToday;
+  const end = DateTime.fromISO(endDate, { zone: "America/Denver" });
+  const todayDenver = DateTime.now().setZone("America/Denver").startOf("day");
+  return end < todayDenver;
 }
 
 /**
@@ -230,6 +230,7 @@ function mapCachedEvent(e: typeof events.$inferSelect): CivicEvent {
     venueZip: e.venueZip || undefined,
     fileCount: e.fileCount || 0,
     fileNames: e.fileNames || undefined,
+    cachedAt: e.cachedAt ? e.cachedAt.toISOString() : undefined,
   };
 }
 
@@ -656,10 +657,148 @@ export async function getEventsWithFileCounts(
     console.warn('Failed to cache events:', error);
   }
 
+  const upsertedAt = new Date().toISOString();
   return eventsWithCounts.map(e => ({
     ...e,
     startDateTime: parseEventStartDateTime(e.startDateTime).toISOString(),
+    cachedAt: upsertedAt,
   }));
+}
+
+/**
+ * Force-refresh a single event from the CivicClerk API, bypassing all caches.
+ * Fetches event metadata and meeting file details, then upserts both to the DB
+ * with an updated cachedAt timestamp. Returns the fresh CivicEvent with cachedAt set.
+ */
+export async function refreshEventById(id: number): Promise<CivicEvent | null> {
+  const response = await fetch(`${API_BASE}/Events/${id}`, {
+    headers: getHeaders(),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) return null;
+    throw new Error(`Failed to fetch event: ${response.status}`);
+  }
+
+  const raw: RawApiEvent = await response.json();
+  const event = normalizeApiEvent(raw);
+  const now = new Date();
+
+  // Fetch meeting file details for file count / fileNames
+  let fileCount = event.fileCount ?? 0;
+  let fileNames = event.fileNames ?? '';
+  let publishedFiles: CivicFile[] = [];
+
+  if (event.agendaId != null) {
+    try {
+      const meeting = await getMeetingDetails(event.agendaId);
+      if (meeting?.publishedFiles) {
+        publishedFiles = meeting.publishedFiles;
+        fileCount = publishedFiles.length;
+        fileNames = publishedFiles.map(f => f.name).join(' ');
+      }
+    } catch {
+      // Non-fatal — use whatever we already have
+    }
+  }
+
+  // Also merge Event-level publishedFiles for Feb 2026
+  if (isFebruary2026(new Date(event.startDateTime))) {
+    try {
+      const eventFiles = await fetchEventPublishedFilesFromAPI(id);
+      publishedFiles = mergeAndDedupeFileLists(publishedFiles, eventFiles);
+      fileCount = publishedFiles.length;
+      fileNames = publishedFiles.map(f => f.name).join(' ');
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  // Upsert event to DB with fresh cachedAt
+  try {
+    await db
+      .insert(events)
+      .values({
+        id: event.id,
+        eventName: event.eventName,
+        eventDescription: event.eventDescription,
+        eventDate: event.eventDate,
+        startDateTime: parseEventStartDateTime(event.startDateTime),
+        agendaId: event.agendaId,
+        agendaName: event.agendaName,
+        categoryName: event.categoryName,
+        isPublished: event.isPublished,
+        venueName: event.venueName ?? null,
+        venueAddress: event.venueAddress ?? null,
+        venueCity: event.venueCity ?? null,
+        venueState: event.venueState ?? null,
+        venueZip: event.venueZip ?? null,
+        fileCount,
+        fileNames,
+        cachedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: events.id,
+        set: {
+          eventName: event.eventName,
+          eventDescription: event.eventDescription,
+          startDateTime: parseEventStartDateTime(event.startDateTime),
+          agendaId: event.agendaId,
+          agendaName: event.agendaName,
+          categoryName: event.categoryName,
+          isPublished: event.isPublished,
+          venueName: event.venueName ?? null,
+          venueAddress: event.venueAddress ?? null,
+          venueCity: event.venueCity ?? null,
+          venueState: event.venueState ?? null,
+          venueZip: event.venueZip ?? null,
+          fileCount,
+          fileNames,
+          cachedAt: now,
+        },
+      });
+  } catch (error) {
+    console.warn('Failed to update event cache:', error);
+  }
+
+  // Upsert files to DB with fresh cachedAt
+  if (publishedFiles.length > 0) {
+    try {
+      await db
+        .insert(files)
+        .values(
+          publishedFiles.map(f => ({
+            id: f.fileId,
+            eventId: id,
+            name: f.name,
+            type: f.type,
+            url: f.url,
+            publishOn: f.publishOn,
+            fileType: f.fileType,
+            cachedAt: now,
+          }))
+        )
+        .onConflictDoUpdate({
+          target: files.id,
+          set: {
+            name: files.name,
+            type: files.type,
+            url: files.url,
+            cachedAt: now,
+          },
+        });
+    } catch (error) {
+      console.warn('Failed to update file cache:', error);
+    }
+  }
+
+  return {
+    ...event,
+    fileCount,
+    fileNames,
+    cachedAt: now.toISOString(),
+  };
 }
 
 function sleep(ms: number): Promise<void> {
@@ -796,6 +935,31 @@ export async function backfillDateRange(
   return { eventsCount: eventsWithCounts.length, meetingsCalls };
 }
 
+/**
+ * Recursively collect all attachments across items and their childItems.
+ */
+function collectAllAttachments(items: MeetingItem[]): ItemAttachment[] {
+  const result: ItemAttachment[] = [];
+  for (const item of items) {
+    if (item.attachmentsList) result.push(...item.attachmentsList);
+    if (item.childItems?.length) result.push(...collectAllAttachments(item.childItems));
+  }
+  return result;
+}
+
+/**
+ * Fetch a fresh pdfVersionFullPath SAS URL for a specific attachment.
+ * The SAS URL expires every ~7 days so we re-fetch the meeting each time
+ * we need a URL and the PDF is not already in the disk cache.
+ */
+export async function getAttachmentFreshUrl(agendaId: number, attachmentId: number): Promise<string | null> {
+  const meeting = await getMeetingDetails(agendaId);
+  if (!meeting) return null;
+  const allAttachments = collectAllAttachments(meeting.items ?? []);
+  const attachment = allAttachments.find((a) => a.id === attachmentId);
+  return attachment?.pdfVersionFullPath ?? null;
+}
+
 // Re-export format helpers for backward compatibility
 export { formatEventDate, formatEventTime } from './utils';
 
@@ -855,7 +1019,9 @@ export async function searchCivicClerk(query: string): Promise<DocumentSearchRes
   const results: DocumentSearchResult[] = rawResults.map((row) => {
     const ev = row.event;
     const meetingDate = ev.meetingDate ?? '';
-    const dateStr = meetingDate ? new Date(meetingDate).toISOString().slice(0, 10) : '';
+    const dateStr = meetingDate
+      ? getEventDateKeyInDenver(parseEventStartDateTime(meetingDate).toISOString())
+      : '';
     const loc = ev.eventLocation;
     const publishedFiles = ev.publishedFiles ?? [];
 

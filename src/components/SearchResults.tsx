@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { SearchResult, getHighlightedSegments } from "@/hooks/useSearch";
-import { formatEventDate, formatEventTime, formatEventLocation } from "@/lib/utils";
+import { formatEventLocation, buildMapsUrl } from "@/lib/utils";
 import { MapPinIcon } from "./EventLocation";
-import { MeetingStatusBadges } from "./MeetingStatusBadges";
+import { MeetingCard } from "./MeetingCard";
 
 interface SearchResultsProps {
   results: SearchResult[];
@@ -59,67 +58,60 @@ function highlightMatch(text: string, query: string): React.ReactNode {
   );
 }
 
-function SearchResultCard({ result, query }: { result: SearchResult; query: string }) {
+function ClientSearchResultCard({ result, query }: { result: SearchResult; query: string }) {
   const { item: event, matches } = result;
   const locationStr = formatEventLocation(event);
+  const mapsUrl = buildMapsUrl(event);
   const venueMatched = matches.some((m) =>
     ["venueName", "venueAddress", "venueCity", "venueState", "venueZip"].includes(String(m.key))
   );
+  const locationTextContent = venueMatched && query ? highlightMatch(locationStr, query) : locationStr;
+
+  const locationNode = locationStr ? (
+    <p className="text-sm text-gray-500 flex items-start gap-1.5 mt-2 min-w-0 truncate" aria-label="Location">
+      <MapPinIcon className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+      {mapsUrl ? (
+        <a
+          href={mapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="truncate hover:underline"
+          title={locationStr}
+        >
+          {locationTextContent}
+        </a>
+      ) : (
+        <span className="truncate" title={locationStr}>
+          {locationTextContent}
+        </span>
+      )}
+    </p>
+  ) : null;
 
   return (
-    <Link
-      href={`/meeting/${event.id}`}
-      className="block bg-white border border-gray-200 rounded-lg p-4 hover:border-indigo-300 hover:shadow-md transition-all"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          {/* Title */}
-          <h3 className="font-semibold text-gray-900">
-            <HighlightedText
-              text={event.eventName}
-              matches={matches}
-              fieldName="eventName"
-            />
-          </h3>
-
-          {/* Date and time */}
-          <p className="text-sm text-gray-500 mt-1">
-            {formatEventDate(event.startDateTime)} at{" "}
-            {formatEventTime(event.startDateTime)}
-          </p>
-
-          {/* Location with highlighting */}
-          {locationStr && (
-            <p className="text-sm text-gray-500 flex items-start gap-1.5 mt-1 min-w-0 truncate" aria-label="Location">
-              <MapPinIcon className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-              <span className="truncate" title={locationStr}>
-                {venueMatched && query ? highlightMatch(locationStr, query) : locationStr}
-              </span>
-            </p>
-          )}
-
-          {/* Description snippet if matched */}
-          {event.eventDescription &&
-            matches.some((m) => m.key === "eventDescription") && (
-              <p className="text-sm text-gray-500 mt-2 line-clamp-2">
-                <HighlightedText
-                  text={event.eventDescription}
-                  matches={matches}
-                  fieldName="eventDescription"
-                />
-              </p>
-            )}
-        </div>
-
-        {/* Status badges */}
-        <MeetingStatusBadges
-          event={event}
-          fileCount={event.fileCount ?? 0}
-          variant="card"
-          className="flex-col items-end flex-shrink-0"
+    <MeetingCard
+      event={event}
+      titleNode={
+        <HighlightedText
+          text={event.eventName}
+          matches={matches}
+          fieldName="eventName"
         />
-      </div>
-    </Link>
+      }
+      locationNode={locationNode}
+    >
+      {event.eventDescription &&
+        matches.some((m) => m.key === "eventDescription") && (
+          <p className="text-sm text-gray-500 mt-2 line-clamp-2">
+            <HighlightedText
+              text={event.eventDescription}
+              matches={matches}
+              fieldName="eventDescription"
+            />
+          </p>
+        )}
+    </MeetingCard>
   );
 }
 
@@ -152,17 +144,15 @@ export function SearchResults({ results, query }: SearchResultsProps) {
 
   return (
     <div>
-      {/* Results count */}
       <div className="flex items-center gap-2 mb-4 text-sm text-gray-500">
         <span>
           {results.length} result{results.length !== 1 ? "s" : ""} for &quot;{query}&quot;
         </span>
       </div>
 
-      {/* Results list */}
       <div className="space-y-3">
         {results.map((result) => (
-          <SearchResultCard key={result.item.id} result={result} query={query} />
+          <ClientSearchResultCard key={result.item.id} result={result} query={query} />
         ))}
       </div>
     </div>

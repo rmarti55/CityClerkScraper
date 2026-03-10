@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getFileUrl } from "@/lib/civicclerk";
+import { getAttachmentFreshUrl } from "@/lib/civicclerk";
 import {
   existsSync,
   createReadStream,
@@ -18,12 +18,12 @@ function ensureCacheDir() {
   }
 }
 
-function getCachedFilePath(fileId: number): string {
-  return join(FILE_CACHE_DIR, `${fileId}.pdf`);
+function getAttachmentCachePath(attachmentId: number): string {
+  return join(FILE_CACHE_DIR, `attachment-${attachmentId}.pdf`);
 }
 
-function getCacheStat(fileId: number): { size: number; mtimeMs: number } | null {
-  const cachePath = getCachedFilePath(fileId);
+function getCacheStat(attachmentId: number): { size: number; mtimeMs: number } | null {
+  const cachePath = getAttachmentCachePath(attachmentId);
   try {
     if (existsSync(cachePath)) {
       const st = statSync(cachePath);
@@ -33,30 +33,27 @@ function getCacheStat(fileId: number): { size: number; mtimeMs: number } | null 
   return null;
 }
 
-async function fetchFileFromAPI(fileId: number): Promise<Buffer | null> {
-  const apiUrl = getFileUrl(fileId);
-  const apiResponse = await fetch(apiUrl, {
-    headers: { Accept: "application/json" },
-  });
-  if (!apiResponse.ok) throw new Error(`API returned ${apiResponse.status}`);
+async function fetchAttachmentFromAPI(
+  attachmentId: number,
+  agendaId: number,
+): Promise<Buffer | null> {
+  const freshUrl = await getAttachmentFreshUrl(agendaId, attachmentId);
+  if (!freshUrl)
+    throw new Error(`Attachment ${attachmentId} not found in meeting ${agendaId}`);
 
-  const data = await apiResponse.json();
-  if (!data.blobUri) throw new Error("No blobUri in API response");
+  const response = await fetch(freshUrl);
+  if (!response.ok) throw new Error(`Azure Blob returned ${response.status}`);
 
-  const fileResponse = await fetch(data.blobUri);
-  if (!fileResponse.ok)
-    throw new Error(`Blob storage returned ${fileResponse.status}`);
-
-  const arrayBuffer = await fileResponse.arrayBuffer();
+  const arrayBuffer = await response.arrayBuffer();
   return Buffer.from(arrayBuffer);
 }
 
-function saveToLocalCache(fileId: number, data: Buffer): void {
+function saveToLocalCache(attachmentId: number, data: Buffer): void {
   try {
     ensureCacheDir();
-    writeFileSync(getCachedFilePath(fileId), data);
+    writeFileSync(getAttachmentCachePath(attachmentId), data);
   } catch (e) {
-    console.warn(`Failed to cache file ${fileId}:`, e);
+    console.warn(`Failed to cache attachment ${attachmentId}:`, e);
   }
 }
 
@@ -134,35 +131,44 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const fileId = parseInt(id);
+  const attachmentId = parseInt(id);
 
-  if (isNaN(fileId)) {
-    return NextResponse.json({ error: "Invalid file ID" }, { status: 400 });
+  if (isNaN(attachmentId)) {
+    return NextResponse.json({ error: "Invalid attachment ID" }, { status: 400 });
   }
+
+  const agendaIdParam = request.nextUrl.searchParams.get("agendaId");
+  const agendaId = agendaIdParam ? parseInt(agendaIdParam) : NaN;
 
   const isDownload = request.nextUrl.searchParams.get("download") === "true";
   const nameParam = request.nextUrl.searchParams.get("name");
   const filename = nameParam
     ? (nameParam.endsWith(".pdf") ? nameParam : `${nameParam}.pdf`)
-    : `file-${fileId}.pdf`;
+    : `attachment-${attachmentId}.pdf`;
 
   try {
-    let stat = getCacheStat(fileId);
+    let stat = getCacheStat(attachmentId);
 
     if (!stat) {
-      const fileData = await fetchFileFromAPI(fileId);
-      if (!fileData) {
-        return NextResponse.json({ error: "Failed to fetch file" }, { status: 500 });
+      if (isNaN(agendaId)) {
+        return NextResponse.json(
+          { error: "agendaId query param required when attachment is not cached" },
+          { status: 400 },
+        );
       }
-      saveToLocalCache(fileId, fileData);
-      stat = getCacheStat(fileId);
+      const fileData = await fetchAttachmentFromAPI(attachmentId, agendaId);
+      if (!fileData) {
+        return NextResponse.json({ error: "Failed to fetch attachment" }, { status: 500 });
+      }
+      saveToLocalCache(attachmentId, fileData);
+      stat = getCacheStat(attachmentId);
       if (!stat) {
-        return NextResponse.json({ error: "Failed to cache file" }, { status: 500 });
+        return NextResponse.json({ error: "Failed to cache attachment" }, { status: 500 });
       }
     }
 
     return streamCachedFile(
-      getCachedFilePath(fileId),
+      getAttachmentCachePath(attachmentId),
       stat.size,
       stat.mtimeMs,
       request,
@@ -170,13 +176,13 @@ export async function GET(
       isDownload,
     );
   } catch (error) {
-    console.error("Error fetching file:", error);
+    console.error("Error fetching attachment:", error);
 
-    const stat = getCacheStat(fileId);
+    const stat = getCacheStat(attachmentId);
     if (stat) {
-      console.log(`Serving stale cache for file ${fileId} due to API error`);
+      console.log(`Serving stale cache for attachment ${attachmentId} due to error`);
       return streamCachedFile(
-        getCachedFilePath(fileId),
+        getAttachmentCachePath(attachmentId),
         stat.size,
         stat.mtimeMs,
         request,
@@ -185,6 +191,6 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ error: "Failed to fetch file" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch attachment" }, { status: 500 });
   }
 }

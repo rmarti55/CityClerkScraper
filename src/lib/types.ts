@@ -18,6 +18,8 @@ export interface CivicEvent {
   // Computed fields
   fileCount?: number;
   fileNames?: string; // Concatenated file names for search
+  // Cache metadata
+  cachedAt?: string; // ISO timestamp of last sync from CivicClerk API
 }
 
 export interface CivicFile {
@@ -37,11 +39,24 @@ export interface MeetingDetails {
   items: MeetingItem[];
 }
 
+export interface ItemAttachment {
+  id: number;
+  agendaObjectItemId: number;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+  isPublished: boolean;
+  pdfVersionFullPath: string;
+  mediaFullPath: string;
+}
+
 export interface MeetingItem {
   id: number;
   agendaObjectItemName: string;
   agendaObjectItemOutlineNumber: string;
   agendaObjectItemDescription: string | null;
+  attachmentsList?: ItemAttachment[];
+  childItems?: MeetingItem[];
 }
 
 /** One matching file from Civic Clerk Search (agendaFiles/attachments) with optional highlights */

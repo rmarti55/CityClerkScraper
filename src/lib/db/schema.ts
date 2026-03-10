@@ -139,6 +139,18 @@ export const files = pgTable('files', {
   eventIdx: index('files_event_idx').on(table.eventId),
 }));
 
+// Committee members scraped from city websites
+export const committeeMembers = pgTable('committee_members', {
+  id: serial('id').primaryKey(),
+  categoryName: text('category_name').notNull(),
+  name: text('name').notNull(),
+  role: text('role'), // "Chair", "Member", "Alternate", "Mayor", etc.
+  sourceUrl: text('source_url'),
+  scrapedAt: timestamp('scraped_at').defaultNow(),
+}, (table) => ({
+  categoryIdx: index('committee_members_category_idx').on(table.categoryName),
+}));
+
 // LLM-generated committee summaries (cached)
 export const committeeSummaries = pgTable('committee_summaries', {
   id: serial('id').primaryKey(),
@@ -174,3 +186,5 @@ export type File = typeof files.$inferSelect;
 export type NewFile = typeof files.$inferInsert;
 export type CommitteeSummary = typeof committeeSummaries.$inferSelect;
 export type NewCommitteeSummary = typeof committeeSummaries.$inferInsert;
+export type CommitteeMember = typeof committeeMembers.$inferSelect;
+export type NewCommitteeMember = typeof committeeMembers.$inferInsert;

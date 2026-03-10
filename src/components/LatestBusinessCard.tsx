@@ -1,65 +1,44 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
+import type { CommitteeStats } from "@/lib/committees/stats";
+import type { CommitteeLink } from "@/lib/committees/links";
 
 interface LatestBusinessCardProps {
   committeeSlug: string;
   committeeName: string;
 }
 
-interface SummaryData {
-  summary: string;
-  generatedAt: string;
-  model: string;
-  cached: boolean;
+interface MemberRow {
+  name: string;
+  role: string | null;
+}
+
+interface OverviewData {
+  stats: CommitteeStats;
+  members: MemberRow[];
+  membersScrapedAt: string | null;
+  links: CommitteeLink[];
 }
 
 export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusinessCardProps) {
-  const [data, setData] = useState<SummaryData | null>(null);
+  const [data, setData] = useState<OverviewData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const fetchSummary = async (refresh = false) => {
-    try {
-      if (refresh) {
-        setIsRefreshing(true);
-      } else {
-        setIsLoading(true);
-      }
-      setError(null);
-
-      const url = `/api/committees/${committeeSlug}/summary${refresh ? '?refresh=true' : ''}`;
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch summary');
-      }
-
-      const result = await response.json();
-      setData(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  };
 
   useEffect(() => {
-    fetchSummary();
+    setIsLoading(true);
+    setError(null);
+    fetch(`/api/committees/${committeeSlug}/overview`)
+      .then(r => {
+        if (!r.ok) throw new Error('Failed to load overview');
+        return r.json() as Promise<OverviewData>;
+      })
+      .then(setData)
+      .catch(e => setError(e instanceof Error ? e.message : 'An error occurred'))
+      .finally(() => setIsLoading(false));
   }, [committeeSlug]);
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  };
 
   if (isLoading) {
     return (
@@ -70,10 +49,9 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
         </div>
         <div className="space-y-3">
           <div className="h-4 bg-gray-200 rounded w-full" />
-          <div className="h-4 bg-gray-200 rounded w-full" />
           <div className="h-4 bg-gray-200 rounded w-3/4" />
+          <div className="h-4 bg-gray-200 rounded w-5/6" />
         </div>
-        <div className="mt-4 h-3 bg-gray-100 rounded w-32" />
       </div>
     );
   }
@@ -85,67 +63,233 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
-          <span className="font-medium">Unable to load summary</span>
+          <span className="font-medium">Unable to load overview</span>
         </div>
-        <p className="text-sm text-gray-600 mb-3">{error}</p>
-        <button
-          onClick={() => fetchSummary()}
-          className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-        >
-          Try again
-        </button>
+        <p className="text-sm text-gray-600">{error}</p>
       </div>
     );
   }
 
+  if (!data) return null;
+
+  const { stats, members, membersScrapedAt, links } = data;
+  const typeEntries = Object.entries(stats.meetingTypeCounts).sort(([, a], [, b]) => b - a);
+
   return (
-    <div className="bg-gradient-to-br from-indigo-50 to-white rounded-xl border border-indigo-100 p-6">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-          <h2 className="text-lg font-semibold text-gray-900">Latest Business</h2>
-        </div>
-        <button
-          onClick={() => fetchSummary(true)}
-          disabled={isRefreshing}
-          className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1 disabled:opacity-50"
-          title="Refresh summary"
-        >
-          <svg 
-            className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} 
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          {isRefreshing ? 'Updating...' : 'Refresh'}
-        </button>
+    <div className="bg-gradient-to-br from-indigo-50 to-white rounded-xl border border-indigo-100 p-4 sm:p-5 space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <svg className="w-5 h-5 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+        <h2 className="text-lg font-semibold text-gray-900">{committeeName} Overview</h2>
       </div>
 
-      {data && (
-        <>
-          <div className="prose prose-sm prose-gray max-w-none">
-            {data.summary.split('\n\n').map((paragraph, i) => (
-              <p key={i} className="text-gray-700 leading-relaxed mb-3 last:mb-0">
-                {paragraph}
-              </p>
-            ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Left Column: Schedule & Resources */}
+        <div className="space-y-6">
+          {/* ── Section 1: Meeting Stats ── */}
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-indigo-500 mb-2">
+              Meeting Schedule
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {stats.frequencyPattern && (
+                <StatPill
+                  label="Meets"
+                  value={stats.frequencyPattern}
+                  icon={
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  }
+                />
+              )}
+              {stats.totalMeetingsThisYear > 0 && (
+                <StatPill
+                  label={`Meetings in ${new Date().getFullYear()}`}
+                  value={String(stats.totalMeetingsThisYear)}
+                  icon={
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  }
+                />
+              )}
+              {typeEntries.length > 0 && (
+                <StatPill
+                  label="Meeting types"
+                  value={typeEntries.map(([type, count]) => `${count} ${type}`).join(', ')}
+                  icon={
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                  }
+                />
+              )}
+            </div>
+
+            {/* Last met / Next meeting */}
+            {(stats.lastMeeting || stats.nextMeeting) && (
+              <div className="mt-3 bg-white rounded-lg border border-indigo-100 p-2.5 flex flex-col gap-1.5 text-xs">
+                {stats.lastMeeting && (
+                  <div className="flex items-start gap-1.5 text-gray-600">
+                    <span className="shrink-0 text-gray-400 mt-0.5">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </span>
+                    <span>
+                      <span className="font-medium text-gray-700">Last met: </span>
+                      {stats.lastMeeting.date}
+                    </span>
+                  </div>
+                )}
+                {stats.nextMeeting && (
+                  <div className="flex items-start gap-1.5 text-gray-600">
+                    <span className="shrink-0 text-indigo-400 mt-0.5">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3-3 3m-4-3h7M3 12a9 9 0 1018 0A9 9 0 003 12z" />
+                      </svg>
+                    </span>
+                    <span>
+                      <span className="font-medium text-indigo-700">Next meeting: </span>
+                      {stats.nextMeeting.date}
+                      {stats.nextMeeting.name && (
+                        <span className="text-gray-500"> &mdash; {stats.nextMeeting.name}</span>
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="mt-4 pt-4 border-t border-indigo-100 flex items-center justify-between text-xs text-gray-500">
-            <span>
-              Updated {formatDate(data.generatedAt)}
-              {data.cached && ' (cached)'}
-            </span>
-            <span className="text-indigo-400">
-              AI-generated summary
-            </span>
-          </div>
-        </>
-      )}
+          {/* ── Section 3: Links ── */}
+          {links.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-indigo-500 mb-2">
+                Resources
+              </h3>
+              <ul className="flex flex-wrap gap-x-4 gap-y-2">
+                {links.map(link => {
+                  const isInternal = link.url.startsWith('/');
+                  const icon = isInternal ? (
+                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  );
+                  return (
+                    <li key={link.url}>
+                      {isInternal ? (
+                        <Link
+                          href={link.url}
+                          className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 hover:underline bg-indigo-50/50 px-2 py-1 rounded-md border border-indigo-100/50"
+                        >
+                          {icon}
+                          {link.label}
+                        </Link>
+                      ) : (
+                        <a
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 hover:underline bg-indigo-50/50 px-2 py-1 rounded-md border border-indigo-100/50"
+                        >
+                          {icon}
+                          {link.label}
+                        </a>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: Members */}
+        <div>
+          {/* ── Section 2: Members ── */}
+          {members.length > 0 && (
+            <div>
+              <div className="flex items-baseline justify-between mb-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-indigo-500">
+                  Members
+                </h3>
+                {membersScrapedAt && (
+                  <span className="text-[10px] text-gray-400">
+                    Updated {new Date(membersScrapedAt).toLocaleDateString('en-US', {
+                      month: 'short', day: 'numeric', year: 'numeric',
+                    })}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {members.map(m => (
+                  <div key={m.name} className="inline-flex items-center gap-1.5 bg-white border border-gray-200 px-2 py-1 rounded-md text-xs">
+                    <span className="text-gray-700 font-medium">{m.name}</span>
+                    {m.role && m.role !== 'Member' && (
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                        m.role === 'Chair'
+                          ? 'bg-indigo-100 text-indigo-700'
+                          : m.role === 'Mayor'
+                          ? 'bg-amber-100 text-amber-700'
+                          : m.role === 'Mayor Pro Tem'
+                          ? 'bg-orange-100 text-orange-700'
+                          : m.role === 'Alternate'
+                          ? 'bg-gray-100 text-gray-600'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {m.role}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Section 2 empty state ── */}
+          {members.length === 0 && (
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-indigo-500 mb-2">
+                Members
+              </h3>
+              <p className="text-xs text-gray-400 italic">
+                Member roster not yet loaded.{' '}
+                <code className="text-[10px] bg-gray-100 px-1 py-0.5 rounded">
+                  POST /api/admin/committees/{committeeSlug}/scrape-members
+                </code>
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Sub-component: stat pill ──────────────────────────────────
+
+interface StatPillProps {
+  label: string;
+  value: string;
+  icon: React.ReactNode;
+}
+
+function StatPill({ label, value, icon }: StatPillProps) {
+  return (
+    <div className="bg-white rounded-md border border-indigo-100 px-2 py-1.5 flex flex-col gap-0.5 min-w-[100px]">
+      <div className="flex items-center gap-1 text-gray-400">
+        {icon}
+        <span className="text-[10px] font-medium uppercase tracking-wide">{label}</span>
+      </div>
+      <span className="text-xs font-semibold text-gray-800 leading-snug">{value}</span>
     </div>
   );
 }

@@ -3,14 +3,18 @@ import { notFound } from "next/navigation";
 import {
   getEventById,
   getEventFiles,
+  getMeetingDetails,
   formatEventDate,
   formatEventTime,
   CivicFile,
+  MeetingItem,
+  ItemAttachment,
 } from "@/lib/civicclerk";
 import { formatEventLocation } from "@/lib/utils";
 import { FileMetadata } from "@/components/FileMetadata";
 import { EventLocation } from "@/components/EventLocation";
 import { MeetingStatusBadges } from "@/components/MeetingStatusBadges";
+import { MeetingRefreshButton } from "@/components/MeetingRefreshButton";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -55,9 +59,91 @@ function getFileTypeBadgeColor(type: string): string {
   return "bg-gray-100 text-gray-700";
 }
 
+function AttachmentCard({
+  attachment,
+  meetingId,
+  agendaId,
+}: {
+  attachment: ItemAttachment;
+  meetingId: number;
+  agendaId: number;
+}) {
+  const viewUrl = `/api/attachment/${attachment.id}?agendaId=${agendaId}`;
+  const downloadUrl = `/api/attachment/${attachment.id}?agendaId=${agendaId}&download=true&name=${encodeURIComponent(attachment.fileName)}`;
+  const chatUrl = `/meeting/${meetingId}/attachment/${attachment.id}?name=${encodeURIComponent(attachment.fileName)}`;
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
+      <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <svg className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z" />
+            <path d="M8 12h8v2H8zM8 15h8v2H8z" />
+          </svg>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-medium text-gray-900 leading-tight">{attachment.fileName}</h3>
+            {attachment.fileSize > 0 && (
+              <span className="text-xs text-gray-400">
+                {(attachment.fileSize / 1024).toFixed(0)} KB
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-2 sm:flex-col sm:flex-shrink-0">
+          <Link
+            href={chatUrl}
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            Chat
+          </Link>
+          <a
+            href={viewUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            View
+          </a>
+          <a
+            href={downloadUrl}
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Recursively collect all items that have at least one published attachment. */
+function collectItemsWithAttachments(items: MeetingItem[]): MeetingItem[] {
+  const result: MeetingItem[] = [];
+  for (const item of items) {
+    const publishedAttachments = (item.attachmentsList ?? []).filter((a) => a.isPublished);
+    if (publishedAttachments.length > 0) {
+      result.push({ ...item, attachmentsList: publishedAttachments });
+    }
+    if (item.childItems?.length) {
+      result.push(...collectItemsWithAttachments(item.childItems));
+    }
+  }
+  return result;
+}
+
 function FileCard({ file, meetingId }: { file: CivicFile; meetingId: number }) {
   const viewUrl = `/api/file/${file.fileId}`;
-  const downloadUrl = `/api/file/${file.fileId}?download=true`;
+  const downloadUrl = `/api/file/${file.fileId}?download=true&name=${encodeURIComponent(file.name)}`;
   const chatUrl = `/meeting/${meetingId}/file/${file.fileId}?name=${encodeURIComponent(file.name)}`;
 
   return (
@@ -74,7 +160,7 @@ function FileCard({ file, meetingId }: { file: CivicFile; meetingId: number }) {
               </span>
               {file.publishOn && (
                 <span className="text-xs text-gray-400 whitespace-nowrap">
-                  Posted {new Date(file.publishOn).toLocaleDateString()}
+                  Posted {new Date(file.publishOn).toLocaleDateString("en-US", { timeZone: "America/Denver" })}
                 </span>
               )}
             </div>
@@ -139,6 +225,15 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
 
   // Get files (upserts into DB so metadata API can cache size/page count)
   const files = await getEventFiles(eventId);
+
+  // Fetch meeting details for agenda items with per-item attachments
+  const meetingDetails = event.agendaId != null
+    ? await getMeetingDetails(event.agendaId).catch(() => null)
+    : null;
+  const agendaId = event.agendaId;
+  const itemsWithAttachments = meetingDetails
+    ? collectItemsWithAttachments(meetingDetails.items ?? [])
+    : [];
 
   const location = formatEventLocation(event);
 
@@ -216,39 +311,80 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
               </p>
             </div>
           )}
+
+          {/* Sync status + manual refresh */}
+          <div className="mt-4 pt-3 border-t border-gray-100">
+            <MeetingRefreshButton eventId={event.id} cachedAt={event.cachedAt} />
+          </div>
         </div>
 
-        {/* Attachments */}
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Attachments ({files.length})
-          </h2>
-
-          {files.length === 0 ? (
-            <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
-              <svg
-                className="w-12 h-12 text-gray-300 mx-auto mb-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              <p className="text-gray-500">No attachments available</p>
-            </div>
-          ) : (
+        {/* Meeting Documents (top-level: Agenda, Agenda Packet, Minutes, Video) */}
+        {files.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Meeting Documents ({files.length})
+            </h2>
             <div className="space-y-3">
               {files.map((file) => (
                 <FileCard key={file.fileId} file={file} meetingId={eventId} />
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* Agenda Items with per-item attachments */}
+        {itemsWithAttachments.length > 0 && agendaId != null ? (
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Agenda Items ({itemsWithAttachments.length} with documents)
+            </h2>
+            <div className="space-y-4">
+              {itemsWithAttachments.map((item) => (
+                <div key={item.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                    <p className="text-sm font-medium text-gray-900 leading-snug"
+                       dangerouslySetInnerHTML={{
+                         __html: [
+                           item.agendaObjectItemOutlineNumber,
+                           item.agendaObjectItemName,
+                         ]
+                           .filter(Boolean)
+                           .join(" "),
+                       }}
+                    />
+                  </div>
+                  <div className="p-3 space-y-2">
+                    {(item.attachmentsList ?? []).map((att: ItemAttachment) => (
+                      <AttachmentCard
+                        key={att.id}
+                        attachment={att}
+                        meetingId={eventId}
+                        agendaId={agendaId}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : itemsWithAttachments.length === 0 && files.length === 0 ? (
+          <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+            <svg
+              className="w-12 h-12 text-gray-300 mx-auto mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            <p className="text-gray-500">No documents available</p>
+          </div>
+        ) : null}
       </div>
     </main>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { LatestBusinessCard } from "@/components/LatestBusinessCard";
 import { CommitteeMeetingList } from "@/components/CommitteeMeetingList";
@@ -21,6 +21,15 @@ function saveScroll() {
 
 export function GoverningBodyScrollRestore() {
   const hasRestored = useRef(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 150);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const onContentLoaded = useCallback(() => {
     if (typeof window === "undefined" || hasRestored.current) return;
@@ -55,7 +64,33 @@ export function GoverningBodyScrollRestore() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <>
+      {/* Sticky Header */}
+      <div
+        className={`fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm transition-transform duration-300 ${
+          isScrolled ? "translate-y-0" : "-translate-y-full"
+        }`}
+      >
+        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 truncate">
+            <div className="w-8 h-8 bg-indigo-100 rounded-md flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+            <span className="font-semibold text-gray-900 truncate">{committee.displayName}</span>
+          </div>
+          <div className="shrink-0">
+            <FollowCategoryButton
+              categoryName={committee.categoryName}
+              displayName={committee.displayName}
+              variant="compact"
+            />
+          </div>
+        </div>
+      </div>
+
+      <main className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <Link
           href="/"
@@ -103,6 +138,7 @@ export function GoverningBodyScrollRestore() {
           />
         </div>
       </div>
-    </main>
+      </main>
+    </>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import type { CivicEvent } from "@/lib/types";
-import { formatEventLocation } from "@/lib/utils";
+import { formatEventLocation, formatShortEventLocation, buildMapsUrl } from "@/lib/utils";
 
 /** Map pin icon (Heroicons outline style). Exported for use in search results with highlighting. */
 export function MapPinIcon({ className }: { className?: string }) {
@@ -42,6 +42,10 @@ interface EventLocationProps {
   truncate?: boolean;
   /** Render as inline (default) or block */
   block?: boolean;
+  /** Format of the location text */
+  format?: "short" | "full";
+  /** When false, never renders as an <a> tag — use when already inside a link (e.g. MeetingCard) */
+  linkable?: boolean;
 }
 
 export function EventLocation({
@@ -50,28 +54,40 @@ export function EventLocation({
   iconClassName = "w-4 h-4 text-gray-400 shrink-0 mt-0.5",
   truncate = false,
   block = false,
+  format = "full",
+  linkable = true,
 }: EventLocationProps) {
-  const location = formatEventLocation(event);
+  const location = format === "short" ? formatShortEventLocation(event) : formatEventLocation(event);
+  const fullLocation = formatEventLocation(event);
   if (!location) return null;
 
-  const content = (
-    <>
-      <MapPinIcon className={iconClassName} />
-      <span
-        className={`min-w-0 ${block ? "block" : ""} ${truncate ? "truncate" : ""}`.trim()}
-        title={truncate ? location : undefined}
-      >
-        {location}
-      </span>
-    </>
-  );
+  const mapsUrl = buildMapsUrl(event);
+
+  const textClassName = `min-w-0 ${block ? "block" : ""} ${truncate ? "truncate" : ""}`.trim();
+  const sharedClassName = `text-sm text-gray-500 flex items-start gap-1.5 min-w-0 ${truncate ? "truncate" : ""} ${className}`.trim();
 
   return (
-    <p
-      className={`text-sm text-gray-500 flex items-start gap-1.5 min-w-0 ${truncate ? "truncate" : ""} ${className}`.trim()}
-      aria-label="Location"
-    >
-      {content}
+    <p className={sharedClassName} aria-label="Location">
+      <MapPinIcon className={iconClassName} />
+      {mapsUrl && linkable ? (
+        <a
+          href={mapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className={`${textClassName} hover:underline`}
+          title={truncate ? fullLocation : undefined}
+        >
+          {location}
+        </a>
+      ) : (
+        <span
+          className={textClassName}
+          title={truncate ? fullLocation : undefined}
+        >
+          {location}
+        </span>
+      )}
     </p>
   );
 }

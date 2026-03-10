@@ -3,7 +3,7 @@
  * Reuses the same cache directory and fetch logic as the file API route.
  */
 
-import { getFileUrl } from "@/lib/civicclerk";
+import { getFileUrl, getAttachmentFreshUrl } from "@/lib/civicclerk";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 
@@ -53,6 +53,40 @@ export async function getPdfBuffer(fileId: number): Promise<Buffer | null> {
     } catch (e) {
       console.warn(`Failed to cache file ${fileId}:`, e);
     }
+  }
+  return data;
+}
+
+function getAttachmentCachePath(attachmentId: number): string {
+  return join(FILE_CACHE_DIR, `attachment-${attachmentId}.pdf`);
+}
+
+/**
+ * Get PDF buffer for an agenda item attachment.
+ * Checks disk cache first; if not cached, fetches via a fresh SAS URL from the meeting API.
+ */
+export async function getAttachmentPdfBuffer(attachmentId: number, agendaId: number): Promise<Buffer | null> {
+  const cachePath = getAttachmentCachePath(attachmentId);
+  if (existsSync(cachePath)) {
+    try {
+      return readFileSync(cachePath);
+    } catch (e) {
+      console.warn(`Failed to read cached attachment ${attachmentId}:`, e);
+    }
+  }
+
+  const freshUrl = await getAttachmentFreshUrl(agendaId, attachmentId);
+  if (!freshUrl) return null;
+
+  const response = await fetch(freshUrl);
+  if (!response.ok) throw new Error(`Azure Blob returned ${response.status} for attachment ${attachmentId}`);
+
+  const data = Buffer.from(await response.arrayBuffer());
+  try {
+    ensureCacheDir();
+    writeFileSync(cachePath, data);
+  } catch (e) {
+    console.warn(`Failed to cache attachment ${attachmentId}:`, e);
   }
   return data;
 }

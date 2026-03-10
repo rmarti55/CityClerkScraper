@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { DocumentSearchResult, MatchingFile, MatchingItem } from "@/lib/types";
-import { formatEventDate, formatEventTime, formatEventLocation } from "@/lib/utils";
+import { formatEventDate, formatEventTime, formatEventLocation, buildMapsUrl } from "@/lib/utils";
 import { MapPinIcon } from "./EventLocation";
 import { MeetingStatusBadges } from "./MeetingStatusBadges";
 
@@ -53,6 +53,7 @@ function DocumentResultCard({
     return `/meeting/${event.id}?${params.toString()}`;
   })();
   const locationStr = formatEventLocation(event);
+  const mapsUrl = buildMapsUrl(event);
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -70,7 +71,20 @@ function DocumentResultCard({
             {locationStr && (
               <p className="text-sm text-gray-500 flex items-start gap-1.5 mt-1 min-w-0 truncate" aria-label="Location">
                 <MapPinIcon className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                <span className="truncate" title={locationStr}>{locationStr}</span>
+                {mapsUrl ? (
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="truncate hover:underline"
+                    title={locationStr}
+                  >
+                    {locationStr}
+                  </a>
+                ) : (
+                  <span className="truncate" title={locationStr}>{locationStr}</span>
+                )}
               </p>
             )}
           </div>

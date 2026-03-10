@@ -1,6 +1,7 @@
 "use client";
 
 import { useEvents } from "@/context/EventsContext";
+import { getNowInDenver } from "@/lib/datetime";
 
 interface MonthPickerProps {
   hasActiveFilter?: boolean;
@@ -92,10 +93,7 @@ export function MonthPicker({ hasActiveFilter = false }: MonthPickerProps) {
   };
 
   const goToToday = () => {
-    const now = new Date();
-    const todayYear = now.getFullYear();
-    const todayMonth = now.getMonth() + 1;
-    const todayDate = now.toISOString().split("T")[0]; // "YYYY-MM-DD"
+    const { year: todayYear, month: todayMonth, dateKey: todayDate } = getNowInDenver();
 
     if (currentYear === todayYear && currentMonth === todayMonth) {
       // Already on current month - just scroll to today's date

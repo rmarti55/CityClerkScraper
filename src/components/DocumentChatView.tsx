@@ -9,12 +9,23 @@ interface Message {
 }
 
 interface DocumentChatViewProps {
-  fileId: number;
   meetingId: number;
   fileName?: string;
+  // File mode (existing publishedFiles)
+  fileId?: number;
+  // Attachment mode (per-item attachments)
+  attachmentId?: number;
+  agendaId?: number;
 }
 
-export function DocumentChatView({ fileId, meetingId, fileName }: DocumentChatViewProps) {
+export function DocumentChatView({ fileId, meetingId, fileName, attachmentId, agendaId }: DocumentChatViewProps) {
+  const isAttachment = attachmentId != null && agendaId != null;
+  const pdfSrc = isAttachment
+    ? `/api/attachment/${attachmentId}?agendaId=${agendaId}`
+    : `/api/file/${fileId}`;
+  const chatEndpoint = isAttachment
+    ? `/api/attachment/${attachmentId}/chat?agendaId=${agendaId}`
+    : `/api/file/${fileId}/chat`;
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,7 +47,7 @@ export function DocumentChatView({ fileId, meetingId, fileName }: DocumentChatVi
     setError(null);
 
     try {
-      const res = await fetch(`/api/file/${fileId}/chat`, {
+      const res = await fetch(chatEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -65,7 +76,7 @@ export function DocumentChatView({ fileId, meetingId, fileName }: DocumentChatVi
   }
 
   return (
-    <div className="flex flex-col h-full max-h-[calc(100vh-8rem)]">
+    <div className="flex flex-col h-[calc(100vh-8rem)]">
       <div className="flex items-center gap-2 mb-3">
         <Link
           href={`/meeting/${meetingId}`}
@@ -87,7 +98,7 @@ export function DocumentChatView({ fileId, meetingId, fileName }: DocumentChatVi
           </div>
           <div className="flex-1 min-h-0">
             <iframe
-              src={`/api/file/${fileId}`}
+              src={pdfSrc}
               title="PDF"
               className="w-full h-full min-h-[300px]"
             />

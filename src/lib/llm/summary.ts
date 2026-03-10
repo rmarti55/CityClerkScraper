@@ -38,6 +38,7 @@ export async function generateCommitteeSummary(
         year: 'numeric',
         month: 'long',
         day: 'numeric',
+        timeZone: 'America/Denver',
       });
       
       let info = `Meeting ${i + 1}: ${meeting.eventName} on ${date}`;

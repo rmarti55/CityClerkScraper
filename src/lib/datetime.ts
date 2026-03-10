@@ -47,3 +47,22 @@ export function getEventDateKeyInDenver(isoString: string): string {
   }
   return dt.toFormat("yyyy-MM-dd");
 }
+
+/**
+ * Today's date as "YYYY-MM-DD" in America/Denver.
+ * Use this instead of new Date().toISOString().split("T")[0] which returns UTC
+ * and breaks after ~5 PM Mountain when UTC has already rolled to the next day.
+ */
+export function getTodayInDenver(): string {
+  return DateTime.now().setZone(EVENT_TIMEZONE).toFormat("yyyy-MM-dd");
+}
+
+/**
+ * Current year and month in America/Denver.
+ * Use this instead of new Date().getFullYear() / getMonth() for determining
+ * which month to display, since those use the browser/server local timezone.
+ */
+export function getNowInDenver(): { year: number; month: number; dateKey: string } {
+  const dt = DateTime.now().setZone(EVENT_TIMEZONE);
+  return { year: dt.year, month: dt.month, dateKey: dt.toFormat("yyyy-MM-dd") };
+}

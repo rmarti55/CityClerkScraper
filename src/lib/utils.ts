@@ -38,6 +38,22 @@ export function formatEventTime(dateString: string): string {
   });
 }
 
+/**
+ * Returns a human-readable relative time string (e.g. "2h ago", "just now").
+ * Designed for showing when meeting data was last synced from the API.
+ */
+export function formatRelativeTime(isoString: string): string {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 const VENUE_KEYS = [
   "venueName",
   "venueAddress",
@@ -67,4 +83,29 @@ export function formatEventLocation(
     : stateZip;
   const parts = [venueName, venueAddress, cityStateZip].filter(Boolean);
   return parts.join(" ");
+}
+
+/**
+ * Format event venue for short display (e.g. mobile cards).
+ * Prioritizes venueName, falls back to venueAddress.
+ */
+export function formatShortEventLocation(
+  event: VenuePick
+): string {
+  if (event.venueName) return event.venueName;
+  if (event.venueAddress) return event.venueAddress;
+  return formatEventLocation(event);
+}
+
+/**
+ * Build a Google Maps URL from venue address fields.
+ * Uses address/city/state/zip only (not venueName, which is typically a room name).
+ * Returns null when there is no usable address data.
+ */
+export function buildMapsUrl(event: VenuePick): string | null {
+  const { venueAddress, venueCity, venueState, venueZip } = event;
+  const addressParts = [venueAddress, venueCity, venueState, venueZip].filter(Boolean);
+  if (addressParts.length === 0) return null;
+  const query = addressParts.join(", ");
+  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}`;
 }

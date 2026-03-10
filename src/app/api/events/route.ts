@@ -3,6 +3,7 @@ import { db, events } from '@/lib/db';
 import { asc, inArray } from 'drizzle-orm';
 import type { CivicEvent } from '@/lib/types';
 import { getEventsWithFileCounts } from '@/lib/civicclerk';
+import { getNowInDenver } from '@/lib/datetime';
 
 /** Always run fresh so dashboard gets API data for the requested month. */
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,7 @@ function rowToCivicEvent(e: {
   venueZip: string | null;
   fileCount: number | null;
   fileNames: string | null;
+  cachedAt: Date | null;
 }): CivicEvent {
   return {
     id: e.id,
@@ -45,6 +47,7 @@ function rowToCivicEvent(e: {
     venueZip: e.venueZip ?? undefined,
     fileCount: e.fileCount ?? 0,
     fileNames: e.fileNames ?? undefined,
+    cachedAt: e.cachedAt ? e.cachedAt.toISOString() : undefined,
   };
 }
 
@@ -85,7 +88,6 @@ export async function GET(request: NextRequest) {
 
   // Main path: month-scoped, API-first. Client sends month=YYYY-MM (defaults to current month).
   const monthParam = request.nextUrl.searchParams.get('month')?.trim();
-  const now = new Date();
   let year: number;
   let month: number;
   if (monthParam && MONTH_REGEX.test(monthParam)) {
@@ -93,8 +95,9 @@ export async function GET(request: NextRequest) {
     year = parseInt(y!, 10);
     month = parseInt(m!, 10);
   } else {
-    year = now.getFullYear();
-    month = now.getMonth() + 1;
+    const denver = getNowInDenver();
+    year = denver.year;
+    month = denver.month;
   }
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const nextMonth = month === 12 ? 1 : month + 1;
