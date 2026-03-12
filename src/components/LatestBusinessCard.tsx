@@ -224,7 +224,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
                 {membersScrapedAt && (
                   <span className="text-[10px] text-gray-400">
                     Updated {new Date(membersScrapedAt).toLocaleDateString('en-US', {
-                      month: 'short', day: 'numeric', year: 'numeric',
+                      month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Denver',
                     })}
                   </span>
                 )}

@@ -384,7 +384,10 @@ export async function getEventById(id: number): Promise<CivicEvent | null> {
     } catch {
       // Non-fatal: response still has venue
     }
-    return event;
+    return {
+      ...event,
+      startDateTime: parseEventStartDateTime(event.startDateTime).toISOString(),
+    };
   } catch (apiError) {
     // API failed - fall back to stale cache if available
     console.warn('API unavailable, falling back to stale cache:', apiError);
@@ -795,6 +798,7 @@ export async function refreshEventById(id: number): Promise<CivicEvent | null> {
 
   return {
     ...event,
+    startDateTime: parseEventStartDateTime(event.startDateTime).toISOString(),
     fileCount,
     fileNames,
     cachedAt: now.toISOString(),
@@ -1030,7 +1034,7 @@ export async function searchCivicClerk(query: string): Promise<DocumentSearchRes
       eventName: stripHighlight(ev.name ?? ''),
       eventDescription: '',
       eventDate: dateStr,
-      startDateTime: meetingDate,
+      startDateTime: meetingDate ? parseEventStartDateTime(meetingDate).toISOString() : '',
       agendaId: null,
       agendaName: ev.categoryName ?? '',
       categoryName: ev.categoryName ?? '',
@@ -1230,13 +1234,16 @@ export async function searchEvents(
 
     const total = parseInt(countResult[0]?.total || '0', 10);
 
-    // Map database results to CivicEvent format
-    // Note: Neon returns timestamps as strings, so we need to handle both cases
     const events: CivicEvent[] = results.map((row: Record<string, unknown>) => {
-      const startDateTime = row.start_date_time;
-      const isoDateTime = startDateTime instanceof Date 
-        ? startDateTime.toISOString() 
-        : String(startDateTime);
+      const rawTs = row.start_date_time;
+      let isoDateTime: string;
+      if (rawTs instanceof Date) {
+        isoDateTime = rawTs.toISOString();
+      } else {
+        const str = String(rawTs).trim();
+        const d = new Date(str.includes('T') ? str : str.replace(' ', 'T') + 'Z');
+        isoDateTime = isNaN(d.getTime()) ? str : d.toISOString();
+      }
       
       return {
         id: row.id as number,

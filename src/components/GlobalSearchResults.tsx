@@ -85,16 +85,26 @@ function GlobalSearchResultCard({
     <p className="text-sm text-gray-500 flex items-start gap-1.5 mt-2 min-w-0 truncate" aria-label="Location">
       <MapPinIcon className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
       {mapsUrl ? (
-        <a
-          href={mapsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="truncate hover:underline"
+        <span
+          role="link"
+          tabIndex={0}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.open(mapsUrl, "_blank", "noopener,noreferrer");
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              window.open(mapsUrl, "_blank", "noopener,noreferrer");
+            }
+          }}
+          className="truncate hover:underline cursor-pointer"
           title={locationStr}
         >
           {locationTextContent}
-        </a>
+        </span>
       ) : (
         <span className="truncate" title={locationStr}>
           {locationTextContent}

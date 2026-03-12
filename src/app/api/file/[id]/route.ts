@@ -157,7 +157,17 @@ export async function GET(
       saveToLocalCache(fileId, fileData);
       stat = getCacheStat(fileId);
       if (!stat) {
-        return NextResponse.json({ error: "Failed to cache file" }, { status: 500 });
+        const disposition = isDownload
+          ? `attachment; filename="${filename}"`
+          : `inline; filename="${filename}"`;
+        return new NextResponse(new Uint8Array(fileData), {
+          status: 200,
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Length": fileData.length.toString(),
+            "Content-Disposition": disposition,
+          },
+        });
       }
     }
 

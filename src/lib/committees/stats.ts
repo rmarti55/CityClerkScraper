@@ -1,5 +1,6 @@
 import { db, events } from '@/lib/db';
 import { and, gte, lte, eq, desc, asc } from 'drizzle-orm';
+import { DateTime } from 'luxon';
 
 const DENVER_TZ = 'America/Denver';
 
@@ -14,20 +15,14 @@ export interface CommitteeStats {
 const ORDINALS = ['1st', '2nd', '3rd', '4th', '5th'];
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-function getWeekOfMonth(date: Date): number {
-  // Week of month (1-based): which occurrence of this weekday in the month
-  const dayOfMonth = date.getDate();
-  return Math.ceil(dayOfMonth / 7);
-}
-
 function detectPattern(dates: Date[]): string | null {
   if (dates.length < 3) return null;
 
-  // Count occurrences of each (weekday, week-of-month) pair
   const patternCounts: Record<string, number> = {};
   for (const date of dates) {
-    const weekday = date.getDay();
-    const week = getWeekOfMonth(date);
+    const weekday = getDenverWeekday(date);
+    const dayOfMonth = getDenverDayOfMonth(date);
+    const week = Math.ceil(dayOfMonth / 7);
     const key = `${week}|${weekday}`;
     patternCounts[key] = (patternCounts[key] ?? 0) + 1;
   }
@@ -63,17 +58,19 @@ function classifyMeetingType(eventName: string): string {
   return 'Regular Session';
 }
 
-function toLocalDate(dt: Date): Date {
-  // Convert UTC timestamp to Denver local date for day-of-week analysis
-  const localStr = dt.toLocaleString('en-US', { timeZone: DENVER_TZ });
-  return new Date(localStr);
+function getDenverWeekday(dt: Date): number {
+  return DateTime.fromJSDate(dt, { zone: DENVER_TZ }).weekday % 7;
+}
+
+function getDenverDayOfMonth(dt: Date): number {
+  return DateTime.fromJSDate(dt, { zone: DENVER_TZ }).day;
 }
 
 export async function computeCommitteeStats(categoryName: string): Promise<CommitteeStats> {
-  const now = new Date();
-  const oneYearAgo = new Date(now);
-  oneYearAgo.setFullYear(now.getFullYear() - 1);
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const nowDenver = DateTime.now().setZone(DENVER_TZ);
+  const now = nowDenver.toJSDate();
+  const oneYearAgo = nowDenver.minus({ years: 1 }).toJSDate();
+  const startOfYear = nowDenver.startOf('year').toJSDate();
 
   // Fetch all events for this committee in the past year + upcoming
   const allEvents = await db
@@ -102,8 +99,7 @@ export async function computeCommitteeStats(categoryName: string): Promise<Commi
     meetingTypeCounts[type] = (meetingTypeCounts[type] ?? 0) + 1;
   }
 
-  // Frequency pattern — use past events (local dates for weekday accuracy)
-  const pastDates = pastEvents.map(e => toLocalDate(new Date(e.startDateTime)));
+  const pastDates = pastEvents.map(e => new Date(e.startDateTime));
   const frequencyPattern = detectPattern(pastDates);
 
   // Last meeting
