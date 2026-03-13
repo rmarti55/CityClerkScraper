@@ -8,6 +8,7 @@ import { FollowCategoryButton } from "@/components/FollowCategoryButton";
 import { MeetingCard } from "@/components/MeetingCard";
 import { useLoginModal } from "@/context/LoginModalContext";
 import type { CivicEvent } from "@/lib/types";
+import { getCommitteeByCategoryName } from "@/lib/committees";
 
 export default function MyFollowsPage() {
   const { data: session, status } = useSession();
@@ -150,9 +151,8 @@ export default function MyFollowsPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Followed categories</h2>
             <ul className="space-y-3">
               {categoryNames.map((name) => {
-                const slug =
-                  name === "Governing Body" ? "governing-body" : name.toLowerCase().replace(/\s+/g, "-");
-                const href = slug === "governing-body" ? "/governing-body" : `/`;
+                const committee = getCommitteeByCategoryName(name);
+                const href = committee ? `/${committee.slug}` : `/`;
                 return (
                   <li
                     key={name}

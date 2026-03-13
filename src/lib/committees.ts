@@ -18,13 +18,13 @@ export const COMMITTEES: Record<string, CommitteeConfig> = {
     displayName: 'Governing Body',
     description: 'City Council meetings, resolutions, and official business',
   },
+  'public-works': {
+    slug: 'public-works',
+    categoryName: 'Public Works and Utilities Committee',
+    displayName: 'Public Works and Utilities',
+    description: 'Infrastructure, utilities, and public works projects',
+  },
   // Add more committees here as needed:
-  // 'public-works': {
-  //   slug: 'public-works',
-  //   categoryName: 'Public Works Committee',
-  //   displayName: 'Public Works',
-  //   description: 'Infrastructure, utilities, and public works projects',
-  // },
   // 'finance': {
   //   slug: 'finance',
   //   categoryName: 'Finance Committee',

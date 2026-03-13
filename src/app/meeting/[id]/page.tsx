@@ -15,6 +15,7 @@ import { FileMetadata } from "@/components/FileMetadata";
 import { EventLocation } from "@/components/EventLocation";
 import { MeetingStatusBadges } from "@/components/MeetingStatusBadges";
 import { MeetingRefreshButton } from "@/components/MeetingRefreshButton";
+import { ShareAgendaItemButton } from "@/components/ShareAgendaItemButton";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -82,11 +83,7 @@ function AttachmentCard({
           </svg>
           <div className="flex-1 min-w-0">
             <h3 className="font-medium text-gray-900 leading-tight">{attachment.fileName}</h3>
-            {attachment.fileSize > 0 && (
-              <span className="text-xs text-gray-400">
-                {(attachment.fileSize / 1024).toFixed(0)} KB
-              </span>
-            )}
+            <FileMetadata attachmentId={attachment.id} agendaId={agendaId} />
           </div>
         </div>
         <div className="flex gap-2 sm:flex-col sm:flex-shrink-0">
@@ -237,6 +234,12 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
 
   const location = formatEventLocation(event);
 
+  const meetingInfo = [
+    `From: ${event.eventName}`,
+    `${formatEventDate(event.startDateTime)} at ${formatEventTime(event.startDateTime)}`,
+    location,
+  ].filter(Boolean).join("\n");
+
   // Build back link: use "from" (e.g. governing-body) when present, else preserve home search/category
   const buildBackHref = () => {
     if (fromPath && typeof fromPath === "string" && fromPath.trim()) {
@@ -341,8 +344,8 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
             <div className="space-y-4">
               {itemsWithAttachments.map((item) => (
                 <div key={item.id} className="border border-gray-200 rounded-lg overflow-hidden">
-                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                    <p className="text-sm font-medium text-gray-900 leading-snug"
+                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-start gap-2">
+                    <p className="text-sm font-medium text-gray-900 leading-snug flex-1"
                        dangerouslySetInnerHTML={{
                          __html: [
                            item.agendaObjectItemOutlineNumber,
@@ -351,6 +354,15 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
                            .filter(Boolean)
                            .join(" "),
                        }}
+                    />
+                    <ShareAgendaItemButton
+                      title={[item.agendaObjectItemOutlineNumber, item.agendaObjectItemName].filter(Boolean).join(" ")}
+                      meetingInfo={meetingInfo}
+                      shareUrl={
+                        item.attachmentsList?.[0]
+                          ? `/api/attachment/${item.attachmentsList[0].id}?agendaId=${agendaId}`
+                          : `/meeting/${eventId}`
+                      }
                     />
                   </div>
                   <div className="p-3 space-y-2">

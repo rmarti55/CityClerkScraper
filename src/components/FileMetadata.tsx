@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 
-interface FileMetadataProps {
-  fileId: number;
-}
+type FileMetadataProps =
+  | { fileId: number; attachmentId?: undefined; agendaId?: undefined }
+  | { fileId?: undefined; attachmentId: number; agendaId: number };
 
 interface Metadata {
   size: number;
@@ -31,17 +31,25 @@ function LoadingDots() {
   );
 }
 
-export function FileMetadata({ fileId }: FileMetadataProps) {
+export function FileMetadata(props: FileMetadataProps) {
   const [metadata, setMetadata] = useState<Metadata | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  const url = props.fileId != null
+    ? `/api/file/${props.fileId}/metadata`
+    : `/api/attachment/${props.attachmentId}/metadata?agendaId=${props.agendaId}`;
+
+  const cacheKey = props.fileId != null
+    ? `file-${props.fileId}`
+    : `att-${props.attachmentId}`;
 
   useEffect(() => {
     let cancelled = false;
 
     async function fetchMetadata() {
       try {
-        const response = await fetch(`/api/file/${fileId}/metadata`);
+        const response = await fetch(url);
         if (!response.ok) {
           throw new Error("Failed to fetch metadata");
         }
@@ -51,7 +59,7 @@ export function FileMetadata({ fileId }: FileMetadataProps) {
           setLoading(false);
         }
       } catch (err) {
-        console.error("Error fetching file metadata:", err);
+        console.error("Error fetching metadata:", err);
         if (!cancelled) {
           setError(true);
           setLoading(false);
@@ -64,10 +72,10 @@ export function FileMetadata({ fileId }: FileMetadataProps) {
     return () => {
       cancelled = true;
     };
-  }, [fileId]);
+  }, [cacheKey, url]);
 
   if (error) {
-    return null; // Silently fail - don't show anything if we can't get metadata
+    return null;
   }
 
   if (loading) {
