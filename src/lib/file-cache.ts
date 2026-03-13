@@ -7,7 +7,9 @@ import { getFileUrl, getAttachmentFreshUrl } from "@/lib/civicclerk";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 
-const FILE_CACHE_DIR = join(process.cwd(), "file-cache");
+const FILE_CACHE_DIR = process.env.VERCEL
+  ? join("/tmp", "file-cache")
+  : join(process.cwd(), "file-cache");
 
 function ensureCacheDir() {
   if (!existsSync(FILE_CACHE_DIR)) {

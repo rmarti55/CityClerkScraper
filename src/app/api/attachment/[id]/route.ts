@@ -10,7 +10,9 @@ import {
 import { join } from "path";
 import { Readable } from "stream";
 
-const FILE_CACHE_DIR = join(process.cwd(), "file-cache");
+const FILE_CACHE_DIR = process.env.VERCEL
+  ? join("/tmp", "file-cache")
+  : join(process.cwd(), "file-cache");
 
 function ensureCacheDir() {
   if (!existsSync(FILE_CACHE_DIR)) {
@@ -163,7 +165,17 @@ export async function GET(
       saveToLocalCache(attachmentId, fileData);
       stat = getCacheStat(attachmentId);
       if (!stat) {
-        return NextResponse.json({ error: "Failed to cache attachment" }, { status: 500 });
+        const disposition = isDownload
+          ? `attachment; filename="${filename}"`
+          : `inline; filename="${filename}"`;
+        return new NextResponse(new Uint8Array(fileData), {
+          status: 200,
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Length": fileData.length.toString(),
+            "Content-Disposition": disposition,
+          },
+        });
       }
     }
 
