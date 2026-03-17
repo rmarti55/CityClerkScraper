@@ -1,5 +1,14 @@
 # Timezone wrong on dashboard, correct on details — investigation
 
+> **Status: Resolved.** The timezone bugs described below have been fixed:
+> - `src/lib/datetime.ts` now uses Luxon with `America/Denver` for all date/time operations
+> - `parseEventStartDateTime()` is used consistently on write and read paths
+> - `getMeetingTimeStatus()`, `isEventToday()`, `isEventHappeningNow()` provide Denver-aware status
+> - `getTodayInDenver()`, `getNowInDenver()`, `getEventDateKeyInDenver()` replace naive UTC logic
+> - Client cache key was bumped to drop stale data
+>
+> The investigation below is preserved as historical context.
+
 ## What you're seeing
 
 - **Dashboard (list):** "Community Input Session" → **Fri, Jan 9, 2026 at 1:00 AM** (wrong)

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { CivicEvent } from "@/lib/types";
 import { formatEventDate, formatEventTime, formatEventLocation, isEventCanceled, buildMapsUrl } from "@/lib/utils";
+import { getMeetingTimeStatus } from "@/lib/datetime";
 import { MapPinIcon } from "./EventLocation";
 
 interface MobileSearchModalProps {
@@ -54,10 +55,8 @@ function SearchResultItem({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const hasFiles = (event.fileCount ?? 0) > 0;
-  const eventDate = new Date(event.startDateTime);
-  const now = new Date();
-  const isFuture = eventDate >= now;
   const isCanceled = isEventCanceled(event);
+  const status = getMeetingTimeStatus(event.startDateTime);
 
   const returnTo = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
   const meetingHref = `/meeting/${event.id}?q=${encodeURIComponent(query)}&from=${encodeURIComponent(returnTo)}`;
@@ -118,7 +117,21 @@ function SearchResultItem({
               Canceled
             </span>
           )}
-          {isFuture && (
+          {status === "happening-now" && (
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium bg-emerald-200 text-emerald-800 rounded">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              Happening Now
+            </span>
+          )}
+          {status === "today" && (
+            <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded">
+              Today at {formatEventTime(event.startDateTime)}
+            </span>
+          )}
+          {status === "upcoming" && (
             <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded">
               Upcoming
             </span>
@@ -405,7 +418,7 @@ export function MobileSearchModal({
         {!showRecentSearches && !showResults && (
           <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
             <svg
-              className="w-16 h-16 text-gray-300 mb-4"
+              className="w-16 h-16 text-gray-400 mb-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -417,7 +430,7 @@ export function MobileSearchModal({
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
-            <p className="text-gray-500 text-lg">Search for meetings</p>
+            <p className="text-lg text-gray-500">Search for meetings</p>
             <p className="text-gray-400 text-sm mt-1">
               Find agendas, minutes, and more
             </p>
@@ -464,7 +477,7 @@ export function MobileSearchModal({
             {!isSearching && searchResults.length === 0 && !searchError && (
               <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
                 <svg
-                  className="w-12 h-12 text-gray-300 mb-4"
+                  className="w-12 h-12 text-gray-400 mb-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"

@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { getTodayInDenver, getNowInDenver, getEventDateKeyInDenver } from "./datetime";
+import {
+  getTodayInDenver,
+  getNowInDenver,
+  getEventDateKeyInDenver,
+  isEventToday,
+  isEventHappeningNow,
+  getMeetingTimeStatus,
+} from "./datetime";
 
 // ---------------------------------------------------------------------------
 // Helpers for simulating getEventsForMonth logic (Bug 5 fix)
@@ -144,5 +151,153 @@ describe("getEventsForMonth filter using Denver calendar date (Bug 5)", () => {
 
     expect(february).toHaveLength(1);
     expect(february[0]!.startDateTime).toBe("2026-02-10T17:00:00.000Z");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isEventToday — Denver-safe "today" check
+// ---------------------------------------------------------------------------
+describe("isEventToday()", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("returns true for a meeting today even when UTC has rolled to the next day", () => {
+    // Clock: 10 PM MST March 5 = 05:00 UTC March 6
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-06T05:00:00.000Z").getTime());
+
+    // Meeting at 5 PM MST March 5 = 00:00 UTC March 6
+    expect(isEventToday("2026-03-06T00:00:00.000Z")).toBe(true);
+  });
+
+  it("returns false for a meeting yesterday", () => {
+    // Clock: 9 AM MST March 6 = 16:00 UTC March 6
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-06T16:00:00.000Z").getTime());
+
+    // Meeting at 5 PM MST March 5 = 00:00 UTC March 6
+    expect(isEventToday("2026-03-06T00:00:00.000Z")).toBe(false);
+  });
+
+  it("returns false for a meeting tomorrow", () => {
+    // Clock: 9 AM MST March 5 = 16:00 UTC March 5
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-05T16:00:00.000Z").getTime());
+
+    // Meeting at 5 PM MST March 6 = 00:00 UTC March 7
+    expect(isEventToday("2026-03-07T00:00:00.000Z")).toBe(false);
+  });
+
+  it("returns true for a late-night meeting (11 PM MST) on the correct Denver day", () => {
+    // Clock: 11:30 PM MST Jan 31 = 06:30 UTC Feb 1
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-02-01T06:30:00.000Z").getTime());
+
+    // Meeting at 11 PM MST Jan 31 = 06:00 UTC Feb 1
+    expect(isEventToday("2026-02-01T06:00:00.000Z")).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isEventHappeningNow — within the 2-hour assumed duration window
+// ---------------------------------------------------------------------------
+describe("isEventHappeningNow()", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("returns true when current time is at the meeting start", () => {
+    // Meeting at 5 PM MST March 5 = 00:00 UTC March 6
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-06T00:00:00.000Z").getTime());
+    expect(isEventHappeningNow("2026-03-06T00:00:00.000Z")).toBe(true);
+  });
+
+  it("returns true 1 hour into the meeting", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-06T01:00:00.000Z").getTime());
+    expect(isEventHappeningNow("2026-03-06T00:00:00.000Z")).toBe(true);
+  });
+
+  it("returns false exactly at the 2-hour mark (end of assumed duration)", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-06T02:00:00.000Z").getTime());
+    expect(isEventHappeningNow("2026-03-06T00:00:00.000Z")).toBe(false);
+  });
+
+  it("returns false before the meeting starts", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-05T23:59:59.000Z").getTime());
+    expect(isEventHappeningNow("2026-03-06T00:00:00.000Z")).toBe(false);
+  });
+
+  it("returns false for a meeting that ended hours ago", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-06T05:00:00.000Z").getTime());
+    expect(isEventHappeningNow("2026-03-06T00:00:00.000Z")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getMeetingTimeStatus — all four states
+// ---------------------------------------------------------------------------
+describe("getMeetingTimeStatus()", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('returns "happening-now" during the meeting window', () => {
+    // Clock: 5:30 PM MST March 5 = 00:30 UTC March 6
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-06T00:30:00.000Z").getTime());
+
+    // Meeting at 5 PM MST March 5 = 00:00 UTC March 6
+    expect(getMeetingTimeStatus("2026-03-06T00:00:00.000Z")).toBe("happening-now");
+  });
+
+  it('returns "today" for a meeting later today that has not started', () => {
+    // Clock: 9 AM MST March 5 = 16:00 UTC March 5
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-05T16:00:00.000Z").getTime());
+
+    // Meeting at 5 PM MST March 5 = 00:00 UTC March 6
+    expect(getMeetingTimeStatus("2026-03-06T00:00:00.000Z")).toBe("today");
+  });
+
+  it('returns "past" for a meeting today whose 2h window has passed', () => {
+    // Clock: 10 PM MST March 5 = 05:00 UTC March 6
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-06T05:00:00.000Z").getTime());
+
+    // Meeting at 5 PM MST March 5 = 00:00 UTC March 6 — ended at 7 PM, now 10 PM
+    expect(getMeetingTimeStatus("2026-03-06T00:00:00.000Z")).toBe("past");
+  });
+
+  it('returns "upcoming" for a meeting on a future date', () => {
+    // Clock: 9 AM MST March 5 = 16:00 UTC March 5
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-05T16:00:00.000Z").getTime());
+
+    // Meeting at 5 PM MST March 10 = 00:00 UTC March 11
+    expect(getMeetingTimeStatus("2026-03-11T00:00:00.000Z")).toBe("upcoming");
+  });
+
+  it('returns "past" for a meeting on a previous date', () => {
+    // Clock: 9 AM MST March 5 = 16:00 UTC March 5
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-05T16:00:00.000Z").getTime());
+
+    // Meeting at 5 PM MST March 1 = 00:00 UTC March 2
+    expect(getMeetingTimeStatus("2026-03-02T00:00:00.000Z")).toBe("past");
+  });
+
+  it("handles UTC boundary: 11 PM MST meeting shows as today, not tomorrow", () => {
+    // Clock: 8 PM MST Jan 31 = 03:00 UTC Feb 1
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-02-01T03:00:00.000Z").getTime());
+
+    // Meeting at 11 PM MST Jan 31 = 06:00 UTC Feb 1
+    expect(getMeetingTimeStatus("2026-02-01T06:00:00.000Z")).toBe("today");
   });
 });

@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>City Clerk Dashboard — Header Redesign Mockup</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Lato:wght@400;700&display=swap');
+  body { font-family: 'Lato', sans-serif; }
+  h1, h2, h3, .font-heading { font-family: 'Space Grotesk', sans-serif; }
+
+  /* Tab underline animation */
+  .tab-indicator {
+    transition: left 0.25s ease, width 0.25s ease;
+  }
+
+  /* Scrollable tabs with hidden scrollbar */
+  .tabs-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tabs-scroll::-webkit-scrollbar { display: none; }
+
+  /* Active tab */
+  .tab-active {
+    color: #4338ca;
+    font-weight: 600;
+  }
+  .tab-inactive {
+    color: #6b7280;
+    font-weight: 500;
+  }
+  .tab-inactive:hover {
+    color: #374151;
+  }
+
+  /* Sticky header show/hide */
+  .sticky-header {
+    transition: transform 0.3s ease, opacity 0.2s ease;
+  }
+  .sticky-header-hidden {
+    transform: translateY(-100%);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .sticky-header-visible {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  /* Fade edges on scrollable tabs */
+  .tabs-container {
+    position: relative;
+  }
+  .tabs-container::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 32px;
+    background: linear-gradient(to right, transparent, white);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Mockup section labels */
+  .mockup-label {
+    font-family: 'Space Grotesk', sans-serif;
+    background: #eef2ff;
+    color: #4338ca;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    display: inline-block;
+    margin-bottom: 16px;
+  }
+
+  .mockup-section {
+    border: 2px dashed #c7d2fe;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 40px;
+    background: #fafbff;
+  }
+</style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<!-- ============================================================ -->
+<!-- MOCKUP INTRO -->
+<!-- ============================================================ -->
+<div class="max-w-5xl mx-auto px-4 py-8">
+  <h1 class="text-3xl font-bold text-gray-900 font-heading mb-2">Header Redesign: Tab Navigation</h1>
+  <p class="text-gray-600 mb-2">Replacing the cramped single-row header with a clean tab-based navigation system.</p>
+  <p class="text-sm text-gray-500 mb-8">Scroll down to see: Desktop sticky header, Mobile sticky header, Full page desktop, Full page mobile.</p>
+
+  <!-- ============================================================ -->
+  <!-- MOCKUP 1: DESKTOP STICKY HEADER -->
+  <!-- ============================================================ -->
+  <div class="mockup-section">
+    <span class="mockup-label">1. Desktop Sticky Header (≥640px)</span>
+    <p class="text-sm text-gray-500 mb-4">Two clean rows: tabs on top, contextual controls below. Appears when you scroll past the main header.</p>
+
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+      <!-- Row 1: Tab bar -->
+      <div class="border-b border-gray-100">
+        <div class="max-w-4xl mx-auto px-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-0 -mb-px">
+              <button class="tab-active px-4 py-3 text-sm border-b-2 border-indigo-600 whitespace-nowrap transition-colors">
+                All Meetings
+              </button>
+              <button class="tab-inactive px-4 py-3 text-sm border-b-2 border-transparent hover:border-gray-300 whitespace-nowrap transition-colors flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                Governing Body
+              </button>
+              <button class="tab-inactive px-4 py-3 text-sm border-b-2 border-transparent hover:border-gray-300 whitespace-nowrap transition-colors flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Public Works
+              </button>
+            </div>
+            <!-- Login on the right -->
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-semibold">R</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Contextual controls for "All Meetings" tab -->
+      <div class="bg-white/95 backdrop-blur-sm">
+        <div class="max-w-4xl mx-auto px-4 py-2">
+          <div class="flex items-center gap-3">
+            <!-- Month picker -->
+            <div class="flex items-center gap-0.5 flex-shrink-0">
+              <button class="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <span class="text-sm font-semibold text-gray-900 min-w-[7rem] text-center">March 2026</span>
+              <button class="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Filter -->
+            <button class="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              Filter
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <!-- Search -->
+            <div class="relative flex-1 min-w-0 max-w-md">
+              <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input type="text" placeholder="Search meetings..." class="block w-full pl-8 pr-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+            </div>
+
+            <!-- Today -->
+            <button class="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex-shrink-0">
+              Today
+            </button>
+          </div>
+          <div class="text-xs text-gray-500 mt-1">
+            40 meetings · 28 with attachments · 55 total files
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MOCKUP 1b: DESKTOP — "Governing Body" TAB ACTIVE -->
+  <!-- ============================================================ -->
+  <div class="mockup-section">
+    <span class="mockup-label">1b. Desktop Sticky — "Governing Body" Tab Active</span>
+    <p class="text-sm text-gray-500 mb-4">When a committee tab is selected, the controls row adapts: no category filter needed, and stats reflect that committee.</p>
+
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+      <!-- Row 1: Tab bar -->
+      <div class="border-b border-gray-100">
+        <div class="max-w-4xl mx-auto px-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-0 -mb-px">
+              <button class="tab-inactive px-4 py-3 text-sm border-b-2 border-transparent hover:border-gray-300 whitespace-nowrap transition-colors">
+                All Meetings
+              </button>
+              <button class="tab-active px-4 py-3 text-sm border-b-2 border-indigo-600 whitespace-nowrap transition-colors flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                Governing Body
+              </button>
+              <button class="tab-inactive px-4 py-3 text-sm border-b-2 border-transparent hover:border-gray-300 whitespace-nowrap transition-colors flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Public Works
+              </button>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-semibold">R</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Controls for Governing Body -->
+      <div class="bg-indigo-50/50">
+        <div class="max-w-4xl mx-auto px-4 py-2">
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-0.5 flex-shrink-0">
+              <button class="p-1.5 rounded-lg hover:bg-indigo-100 transition-colors">
+                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <span class="text-sm font-semibold text-indigo-900 min-w-[7rem] text-center">March 2026</span>
+              <button class="p-1.5 rounded-lg hover:bg-indigo-100 transition-colors">
+                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+
+            <div class="relative flex-1 min-w-0 max-w-md">
+              <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input type="text" placeholder="Search Governing Body meetings..." class="block w-full pl-8 pr-3 py-1.5 text-sm text-gray-900 placeholder-indigo-400 bg-white border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+            </div>
+
+            <button class="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors flex-shrink-0">
+              Today
+            </button>
+
+            <!-- Follow button for committee -->
+            <button class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 border border-indigo-200 hover:bg-indigo-100 rounded-lg transition-colors flex-shrink-0">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              Follow
+            </button>
+          </div>
+          <div class="text-xs text-indigo-600/70 mt-1">
+            12 meetings · 10 with attachments · 24 total files
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MOCKUP 2: MOBILE STICKY HEADER -->
+  <!-- ============================================================ -->
+  <div class="mockup-section">
+    <span class="mockup-label">2. Mobile Sticky Header (&lt;640px)</span>
+    <p class="text-sm text-gray-500 mb-4">Horizontally scrollable tabs with compact controls. Tabs scroll naturally on small screens.</p>
+
+    <div class="mx-auto" style="max-width: 375px;">
+      <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+        <!-- Row 1: Scrollable tabs + avatar -->
+        <div class="border-b border-gray-100">
+          <div class="flex items-center">
+            <div class="tabs-container flex-1 min-w-0">
+              <div class="tabs-scroll flex items-center gap-0 -mb-px px-3">
+                <button class="tab-active px-3 py-2.5 text-xs border-b-2 border-indigo-600 whitespace-nowrap transition-colors min-h-[44px]">
+                  All
+                </button>
+                <button class="tab-inactive px-3 py-2.5 text-xs border-b-2 border-transparent whitespace-nowrap transition-colors min-h-[44px] flex items-center gap-1">
+                  <span class="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0"></span>
+                  Governing Body
+                </button>
+                <button class="tab-inactive px-3 py-2.5 text-xs border-b-2 border-transparent whitespace-nowrap transition-colors min-h-[44px] flex items-center gap-1">
+                  <span class="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"></span>
+                  Public Works
+                </button>
+              </div>
+            </div>
+            <div class="flex-shrink-0 px-3">
+              <div class="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-semibold">R</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2: Month + Filter + Today -->
+        <div class="px-3 py-1.5">
+          <div class="flex items-center gap-1">
+            <button class="p-1.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg">
+              <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <span class="text-xs font-semibold text-gray-900 min-w-[4rem] text-center">Mar '26</span>
+            <button class="p-1.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg">
+              <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            <button class="flex items-center gap-1 px-2 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg min-h-[44px]">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              Filter
+            </button>
+            <div class="flex-1"></div>
+            <button class="px-2 py-1.5 text-xs font-medium text-indigo-600 rounded-lg min-h-[44px]">
+              Today
+            </button>
+          </div>
+        </div>
+
+        <!-- Row 3: Search -->
+        <div class="px-3 pb-2">
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input type="text" placeholder="Search meetings..." class="block w-full pl-8 pr-3 py-2 text-sm text-gray-900 placeholder-gray-400 bg-gray-50 border border-gray-200 rounded-lg">
+          </div>
+          <div class="text-xs text-gray-500 mt-1.5 px-0.5">
+            40 mtgs · 28 w/ files · 55 files
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MOCKUP 2b: MOBILE — Governing Body tab active -->
+  <!-- ============================================================ -->
+  <div class="mockup-section">
+    <span class="mockup-label">2b. Mobile Sticky — "Governing Body" Tab Active</span>
+    <p class="text-sm text-gray-500 mb-4">Committee tab active on mobile. Subtle brand color tint, follow button integrated.</p>
+
+    <div class="mx-auto" style="max-width: 375px;">
+      <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+        <!-- Row 1: Scrollable tabs -->
+        <div class="border-b border-gray-100">
+          <div class="flex items-center">
+            <div class="tabs-container flex-1 min-w-0">
+              <div class="tabs-scroll flex items-center gap-0 -mb-px px-3">
+                <button class="tab-inactive px-3 py-2.5 text-xs border-b-2 border-transparent whitespace-nowrap transition-colors min-h-[44px]">
+                  All
+                </button>
+                <button class="tab-active px-3 py-2.5 text-xs border-b-2 border-indigo-600 whitespace-nowrap transition-colors min-h-[44px] flex items-center gap-1">
+                  <span class="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0"></span>
+                  Governing Body
+                </button>
+                <button class="tab-inactive px-3 py-2.5 text-xs border-b-2 border-transparent whitespace-nowrap transition-colors min-h-[44px] flex items-center gap-1">
+                  <span class="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"></span>
+                  Public Works
+                </button>
+              </div>
+            </div>
+            <div class="flex-shrink-0 px-3 flex items-center gap-2">
+              <!-- Follow icon on mobile -->
+              <button class="p-1.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-indigo-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+              </button>
+              <div class="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-semibold">R</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2: Month + Today (no category filter needed) -->
+        <div class="px-3 py-1.5 bg-indigo-50/50">
+          <div class="flex items-center gap-1">
+            <button class="p-1.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg">
+              <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <span class="text-xs font-semibold text-indigo-900 min-w-[4rem] text-center">Mar '26</span>
+            <button class="p-1.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg">
+              <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            <div class="flex-1"></div>
+            <button class="px-2 py-1.5 text-xs font-medium text-indigo-600 rounded-lg min-h-[44px]">
+              Today
+            </button>
+          </div>
+        </div>
+
+        <!-- Row 3: Search -->
+        <div class="px-3 py-2 bg-indigo-50/30">
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+              <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input type="text" placeholder="Search Governing Body..." class="block w-full pl-8 pr-3 py-2 text-sm text-gray-900 placeholder-indigo-400 bg-white border border-indigo-200 rounded-lg">
+          </div>
+          <div class="text-xs text-indigo-600/70 mt-1.5 px-0.5">
+            12 mtgs · 10 w/ files · 24 files
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MOCKUP 3: FULL PAGE — DESKTOP -->
+  <!-- ============================================================ -->
+  <div class="mockup-section">
+    <span class="mockup-label">3. Full Page Layout — Desktop</span>
+    <p class="text-sm text-gray-500 mb-4">How the tabs integrate into the full page. The tab bar lives below the page header and above the month/search controls. When you scroll, the sticky header (Mockup 1) takes over.</p>
+
+    <div class="bg-gray-50 rounded-xl overflow-hidden border border-gray-200" style="max-width: 896px; margin: 0 auto;">
+      <div class="max-w-4xl mx-auto px-4 py-8">
+        <!-- Page header -->
+        <div class="mb-6 flex items-start justify-between">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900 font-heading">City of Santa Fe Agendas & Minutes</h1>
+            <p class="text-gray-500 mt-1">Meeting calendar, agendas, packets, and minutes</p>
+          </div>
+          <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-semibold">R</div>
+        </div>
+
+        <!-- Tab bar (replaces the old "quick access" chips) -->
+        <div class="border-b border-gray-200 mb-6">
+          <div class="flex items-center gap-0 -mb-px">
+            <button class="tab-active px-4 py-3 text-sm border-b-2 border-indigo-600 whitespace-nowrap transition-colors">
+              All Meetings
+            </button>
+            <button class="tab-inactive px-4 py-3 text-sm border-b-2 border-transparent hover:border-gray-300 whitespace-nowrap transition-colors flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              Governing Body
+            </button>
+            <button class="tab-inactive px-4 py-3 text-sm border-b-2 border-transparent hover:border-gray-300 whitespace-nowrap transition-colors flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Public Works
+            </button>
+          </div>
+        </div>
+
+        <!-- Month picker -->
+        <div class="flex items-center justify-between gap-4 mb-6">
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <button class="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <span class="text-lg font-semibold text-gray-900 min-w-[8rem] text-center font-heading">March 2026</span>
+            <button class="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+          <button class="px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+            Today
+          </button>
+        </div>
+
+        <!-- Search + Filter row -->
+        <div class="flex items-center gap-3 mb-4">
+          <div class="relative flex-1">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input type="text" placeholder="Search meetings, agendas, minutes..." class="block w-full pl-10 pr-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <button class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            Filter by Category
+          </button>
+        </div>
+
+        <!-- Stats -->
+        <div class="text-sm text-gray-500 mb-6">
+          40 meetings · 28 with attachments · 55 total files
+        </div>
+
+        <!-- Placeholder meeting cards -->
+        <div class="space-y-3">
+          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Monday, March 16</div>
+          <div class="bg-white border border-gray-200 rounded-lg p-4">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="font-medium text-gray-900">Governing Body Regular Meeting</div>
+                <div class="text-sm text-gray-500 mt-0.5">6:00 PM · City Hall Council Chambers</div>
+              </div>
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">Today</span>
+            </div>
+            <div class="flex items-center gap-2 mt-2">
+              <span class="text-xs text-gray-500">3 files</span>
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-indigo-50 text-indigo-600">Governing Body</span>
+            </div>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-lg p-4">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="font-medium text-gray-900">Public Works and Utilities Committee</div>
+                <div class="text-sm text-gray-500 mt-0.5">3:00 PM · City Hall Room 250</div>
+              </div>
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">Today</span>
+            </div>
+            <div class="flex items-center gap-2 mt-2">
+              <span class="text-xs text-gray-500">2 files</span>
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-amber-50 text-amber-600">Public Works</span>
+            </div>
+          </div>
+
+          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-6">Wednesday, March 18</div>
+          <div class="bg-white border border-gray-200 rounded-lg p-4 opacity-60">
+            <div class="font-medium text-gray-900">Finance Committee Meeting</div>
+            <div class="text-sm text-gray-500 mt-0.5">2:00 PM · City Hall Room 250</div>
+            <div class="flex items-center gap-2 mt-2">
+              <span class="text-xs text-gray-500">1 file</span>
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600">Finance</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MOCKUP 4: FULL PAGE — MOBILE -->
+  <!-- ============================================================ -->
+  <div class="mockup-section">
+    <span class="mockup-label">4. Full Page Layout — Mobile (375px)</span>
+    <p class="text-sm text-gray-500 mb-4">Mobile full-page view with scrollable tabs. Compact but fully functional.</p>
+
+    <div class="mx-auto bg-gray-50 rounded-xl overflow-hidden border border-gray-200" style="max-width: 375px;">
+      <div class="px-4 py-6">
+        <!-- Page header -->
+        <div class="mb-4 flex items-start justify-between">
+          <div class="flex-1 min-w-0">
+            <h1 class="text-lg font-bold text-gray-900 font-heading leading-tight">City of Santa Fe<br>Agendas & Minutes</h1>
+            <p class="text-xs text-gray-500 mt-1">Meetings, agendas, packets, and minutes</p>
+          </div>
+          <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 ml-3">R</div>
+        </div>
+
+        <!-- Tab bar — scrollable -->
+        <div class="border-b border-gray-200 mb-4 -mx-4">
+          <div class="tabs-scroll flex items-center gap-0 -mb-px px-4">
+            <button class="tab-active px-3 py-2.5 text-sm border-b-2 border-indigo-600 whitespace-nowrap transition-colors min-h-[44px]">
+              All Meetings
+            </button>
+            <button class="tab-inactive px-3 py-2.5 text-sm border-b-2 border-transparent whitespace-nowrap transition-colors min-h-[44px] flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0"></span>
+              Governing Body
+            </button>
+            <button class="tab-inactive px-3 py-2.5 text-sm border-b-2 border-transparent whitespace-nowrap transition-colors min-h-[44px] flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"></span>
+              Public Works
+            </button>
+          </div>
+        </div>
+
+        <!-- Month picker -->
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-1">
+            <button class="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg">
+              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <span class="text-base font-semibold text-gray-900 font-heading">March 2026</span>
+            <button class="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg">
+              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+          <button class="px-3 py-2 text-sm font-medium text-indigo-600 rounded-lg min-h-[44px]">
+            Today
+          </button>
+        </div>
+
+        <!-- Search -->
+        <div class="relative mb-3">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <input type="text" placeholder="Search meetings, agendas, minutes..." class="block w-full pl-9 pr-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 bg-white border border-gray-200 rounded-lg min-h-[44px]">
+        </div>
+
+        <!-- Filter + Stats row -->
+        <div class="flex items-center justify-between mb-5">
+          <button class="flex items-center gap-1.5 px-3 py-2 text-xs text-gray-600 bg-white border border-gray-200 rounded-lg min-h-[44px]">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            Filter by Category
+          </button>
+          <span class="text-xs text-gray-500">40 mtgs · 28 w/ files</span>
+        </div>
+
+        <!-- Placeholder meeting cards -->
+        <div class="space-y-3">
+          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Mon, Mar 16</div>
+          <div class="bg-white border border-gray-200 rounded-lg p-3">
+            <div class="font-medium text-gray-900 text-sm">Governing Body Regular Meeting</div>
+            <div class="text-xs text-gray-500 mt-0.5">6:00 PM · Council Chambers</div>
+            <div class="flex items-center gap-2 mt-2">
+              <span class="text-xs text-gray-500">3 files</span>
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-indigo-50 text-indigo-600">Governing Body</span>
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700 ml-auto">Today</span>
+            </div>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-lg p-3">
+            <div class="font-medium text-gray-900 text-sm">Public Works Committee</div>
+            <div class="text-xs text-gray-500 mt-0.5">3:00 PM · Room 250</div>
+            <div class="flex items-center gap-2 mt-2">
+              <span class="text-xs text-gray-500">2 files</span>
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-amber-50 text-amber-600">Public Works</span>
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700 ml-auto">Today</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MOCKUP 5: SCALABILITY — More tabs -->
+  <!-- ============================================================ -->
+  <div class="mockup-section">
+    <span class="mockup-label">5. Scalability — Many Committees</span>
+    <p class="text-sm text-gray-500 mb-4">As more committees are added, tabs scroll horizontally. This design scales to 5+ committees without breaking.</p>
+
+    <div class="mx-auto" style="max-width: 375px;">
+      <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+        <div class="border-b border-gray-100">
+          <div class="flex items-center">
+            <div class="tabs-container flex-1 min-w-0">
+              <div class="tabs-scroll flex items-center gap-0 -mb-px px-3">
+                <button class="tab-active px-3 py-2.5 text-xs border-b-2 border-indigo-600 whitespace-nowrap transition-colors min-h-[44px]">
+                  All
+                </button>
+                <button class="tab-inactive px-3 py-2.5 text-xs border-b-2 border-transparent whitespace-nowrap transition-colors min-h-[44px] flex items-center gap-1">
+                  <span class="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0"></span>
+                  Governing Body
+                </button>
+                <button class="tab-inactive px-3 py-2.5 text-xs border-b-2 border-transparent whitespace-nowrap transition-colors min-h-[44px] flex items-center gap-1">
+                  <span class="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"></span>
+                  Public Works
+                </button>
+                <button class="tab-inactive px-3 py-2.5 text-xs border-b-2 border-transparent whitespace-nowrap transition-colors min-h-[44px] flex items-center gap-1">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>
+                  Finance
+                </button>
+                <button class="tab-inactive px-3 py-2.5 text-xs border-b-2 border-transparent whitespace-nowrap transition-colors min-h-[44px] flex items-center gap-1">
+                  <span class="w-2 h-2 rounded-full bg-purple-500 flex-shrink-0"></span>
+                  Quality of Life
+                </button>
+                <button class="tab-inactive px-3 py-2.5 text-xs border-b-2 border-transparent whitespace-nowrap transition-colors min-h-[44px] flex items-center gap-1">
+                  <span class="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0"></span>
+                  Planning
+                </button>
+              </div>
+            </div>
+            <div class="flex-shrink-0 px-3">
+              <div class="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-semibold">R</div>
+            </div>
+          </div>
+        </div>
+        <div class="px-3 py-2">
+          <div class="flex items-center gap-1">
+            <button class="p-1.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg">
+              <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <span class="text-xs font-semibold text-gray-900 min-w-[4rem] text-center">Mar '26</span>
+            <button class="p-1.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg">
+              <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            <button class="flex items-center gap-1 px-2 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg min-h-[44px]">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              Filter
+            </button>
+            <div class="flex-1"></div>
+            <button class="px-2 py-1.5 text-xs font-medium text-indigo-600 rounded-lg min-h-[44px]">
+              Today
+            </button>
+          </div>
+        </div>
+        <div class="px-3 pb-2">
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input type="text" placeholder="Search meetings..." class="block w-full pl-8 pr-3 py-2 text-sm text-gray-900 placeholder-gray-400 bg-gray-50 border border-gray-200 rounded-lg">
+          </div>
+          <div class="text-xs text-gray-500 mt-1.5 px-0.5">
+            40 mtgs · 28 w/ files · 55 files
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- DESIGN NOTES -->
+  <!-- ============================================================ -->
+  <div class="mockup-section">
+    <span class="mockup-label">Design Notes</span>
+
+    <div class="space-y-4 text-sm text-gray-700">
+      <div>
+        <h3 class="font-semibold text-gray-900 font-heading mb-1">Key Changes from Current Design</h3>
+        <ul class="list-disc list-inside space-y-1 text-gray-600">
+          <li><strong>Tabs replace inline links:</strong> "All Meetings", "Governing Body", "Public Works" become proper tab selectors instead of navigation links to separate pages.</li>
+          <li><strong>Two-row structure:</strong> Row 1 = tabs (what you're viewing), Row 2 = controls (how you're viewing it). Clear separation of concerns.</li>
+          <li><strong>"All Meetings" tab:</strong> Shows the current home page content with month picker, search, category filter, and stats.</li>
+          <li><strong>Committee tabs:</strong> Inline the committee content (currently on /governing-body, /public-works) into the same page. No page navigation needed.</li>
+          <li><strong>Contextual controls:</strong> When a committee tab is active, the filter dropdown is hidden (already filtered), search placeholder updates, and a Follow button appears.</li>
+        </ul>
+      </div>
+
+      <div>
+        <h3 class="font-semibold text-gray-900 font-heading mb-1">Mobile Optimizations</h3>
+        <ul class="list-disc list-inside space-y-1 text-gray-600">
+          <li>Tabs scroll horizontally with hidden scrollbar and fade-edge hint.</li>
+          <li>All touch targets remain 44px minimum.</li>
+          <li>Compact month display ("Mar '26") in sticky header.</li>
+          <li>Three-row sticky layout: tabs, controls, search — each row has a clear purpose.</li>
+          <li>Color dots replace full SVG icons for committee tabs on mobile (saves space).</li>
+        </ul>
+      </div>
+
+      <div>
+        <h3 class="font-semibold text-gray-900 font-heading mb-1">Scalability</h3>
+        <ul class="list-disc list-inside space-y-1 text-gray-600">
+          <li>Horizontal scroll means unlimited tabs without layout breakage.</li>
+          <li>Tabs are driven by the COMMITTEES config — adding a new committee automatically adds a tab.</li>
+          <li>The "All Meetings" tab always stays first as the default view.</li>
+        </ul>
+      </div>
+
+      <div>
+        <h3 class="font-semibold text-gray-900 font-heading mb-1">Implementation Approach</h3>
+        <ul class="list-disc list-inside space-y-1 text-gray-600">
+          <li><strong>Option A (URL-based):</strong> Tabs change URL params (?tab=all, ?tab=governing-body). Committee pages (/governing-body, /public-works) redirect to home with the tab param. Preserves shareability.</li>
+          <li><strong>Option B (Client-state):</strong> Tabs are pure client state. Faster switching, no URL change. Committee pages still exist as separate routes but the tab UI provides quick switching.</li>
+          <li>Recommended: <strong>Option A</strong> — URL-based tabs give you shareable links, back-button support, and SSR-friendly routing.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Interactive tab switching demo -->
+<script>
+document.querySelectorAll('.mockup-section').forEach(section => {
+  const tabs = section.querySelectorAll('button[class*="tab-"]');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const parent = tab.closest('.flex, .tabs-scroll');
+      if (!parent) return;
+      parent.querySelectorAll('button[class*="tab-"]').forEach(t => {
+        t.classList.remove('tab-active');
+        t.classList.add('tab-inactive');
+        t.classList.remove('border-indigo-600');
+        t.classList.add('border-transparent');
+      });
+      tab.classList.remove('tab-inactive');
+      tab.classList.add('tab-active');
+      tab.classList.remove('border-transparent');
+      tab.classList.add('border-indigo-600');
+    });
+  });
+});
+</script>
+
+</body>
+</html>

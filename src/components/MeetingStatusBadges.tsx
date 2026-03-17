@@ -1,5 +1,6 @@
 import type { CivicEvent } from "@/lib/types";
-import { isEventCanceled } from "@/lib/utils";
+import { isEventCanceled, formatEventTime } from "@/lib/utils";
+import { getMeetingTimeStatus } from "@/lib/datetime";
 
 const FILE_ICON = (
   <svg
@@ -29,8 +30,8 @@ interface MeetingStatusBadgesProps {
 
 /**
  * Single source of truth for meeting status badges.
- * Card: file count, Canceled, Upcoming.
- * Detail: Canceled, Upcoming when meeting is in the future (attachment count is shown in Attachments section).
+ * Card: file count, Canceled, Happening Now / Today / Upcoming.
+ * Detail: Canceled, Happening Now / Today / Upcoming (attachment count is shown in Attachments section).
  */
 export function MeetingStatusBadges({
   event,
@@ -40,7 +41,7 @@ export function MeetingStatusBadges({
 }: MeetingStatusBadgesProps) {
   const hasFiles = fileCount > 0;
   const isCanceled = isEventCanceled(event);
-  const isFuture = new Date(event.startDateTime) > new Date();
+  const status = getMeetingTimeStatus(event.startDateTime);
 
   const badgePadding = variant === "detail" ? "py-1" : "py-0.5";
   const rounded = variant === "detail" ? "rounded" : "rounded whitespace-nowrap";
@@ -64,7 +65,25 @@ export function MeetingStatusBadges({
           Canceled
         </span>
       )}
-      {isFuture && (
+      {status === "happening-now" && (
+        <span
+          className={`inline-flex items-center gap-1.5 px-2 ${badgePadding} text-xs font-medium bg-emerald-200 text-emerald-800 ${rounded}`}
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+          </span>
+          Happening Now
+        </span>
+      )}
+      {status === "today" && (
+        <span
+          className={`px-2 ${badgePadding} text-xs font-medium bg-green-100 text-green-700 ${rounded}`}
+        >
+          Today at {formatEventTime(event.startDateTime)}
+        </span>
+      )}
+      {status === "upcoming" && (
         <span
           className={`px-2 ${badgePadding} text-xs font-medium bg-amber-100 text-amber-700 ${rounded}`}
         >

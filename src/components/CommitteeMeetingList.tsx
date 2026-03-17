@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { CivicEvent } from "@/lib/types";
+import { getMeetingTimeStatus } from "@/lib/datetime";
 import { useCommitteeCache } from "@/context/CommitteeContext";
 import { MeetingCard } from "./MeetingCard";
 import { MeetingListSkeleton } from "./skeletons/MeetingCardSkeleton";
@@ -112,7 +113,7 @@ export function CommitteeMeetingList({
           </svg>
           <span className="font-medium">Unable to load meetings</span>
         </div>
-        <p className="text-sm text-gray-600">{error}</p>
+        <p className="text-sm text-gray-700">{error}</p>
       </div>
     );
   }
@@ -120,7 +121,7 @@ export function CommitteeMeetingList({
   if (meetings.length === 0) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-        <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
         <p className="text-gray-500">No meetings found</p>
@@ -128,17 +129,18 @@ export function CommitteeMeetingList({
     );
   }
 
-  // Separate upcoming and past meetings
-  const now = new Date();
-  const upcomingMeetings = meetings.filter(m => new Date(m.startDateTime) >= now);
-  const pastMeetings = meetings.filter(m => new Date(m.startDateTime) < now);
+  const upcomingMeetings = meetings.filter(m => {
+    const s = getMeetingTimeStatus(m.startDateTime);
+    return s === "happening-now" || s === "today" || s === "upcoming";
+  });
+  const pastMeetings = meetings.filter(m => getMeetingTimeStatus(m.startDateTime) === "past");
 
   return (
     <div className="space-y-6">
       {/* Upcoming meetings */}
       {upcomingMeetings.length > 0 && (
         <div>
-          <h3 className="text-sm font-medium text-amber-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-amber-700 uppercase tracking-wide mb-3 flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -146,7 +148,7 @@ export function CommitteeMeetingList({
           </h3>
           <div className="space-y-3">
             {upcomingMeetings.map((meeting) => (
-              <MeetingCard key={meeting.id} event={meeting} backPath={`/${committeeSlug}`} />
+              <MeetingCard key={meeting.id} event={meeting} backPath={`/?tab=${committeeSlug}`} />
             ))}
           </div>
         </div>
@@ -155,7 +157,7 @@ export function CommitteeMeetingList({
       {/* Past meetings */}
       {pastMeetings.length > 0 && (
         <div>
-          <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
@@ -163,7 +165,7 @@ export function CommitteeMeetingList({
           </h3>
           <div className="space-y-3">
             {pastMeetings.map((meeting) => (
-              <MeetingCard key={meeting.id} event={meeting} backPath={`/${committeeSlug}`} />
+              <MeetingCard key={meeting.id} event={meeting} backPath={`/?tab=${committeeSlug}`} />
             ))}
           </div>
         </div>

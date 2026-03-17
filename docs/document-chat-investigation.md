@@ -1,6 +1,13 @@
 # Document Chat Feature – Full Investigation
 
-This document captures the investigation for adding a “chat with this document” feature on meeting attachment cards, using OpenRouter for the LLM and the CivicClerk API / cached PDFs for document content. **No code changes**—investigation and recommended solution only.
+> **Status: Implemented.** This feature has been built and is live. Key implementation files:
+> - API routes: `src/app/api/file/[id]/chat/route.ts`, `src/app/api/file/[id]/text/route.ts`, `src/app/api/attachment/[id]/chat/route.ts`
+> - UI: `src/components/DocumentChatView.tsx`
+> - Embeddings: `src/lib/llm/embeddings.ts`
+> - PDF text extraction: uses `unpdf` (Scenario C from the probe — API does not provide usable text)
+> - Viewer pages: `src/app/meeting/[id]/file/[fileId]/page.tsx`, `src/app/meeting/[id]/attachment/[attachmentId]/page.tsx`
+>
+> The investigation below is preserved as historical context for the design decisions.
 
 ---
 
@@ -150,4 +157,4 @@ Documents are large (e.g. 84+ page packets); we do **not** send the full doc in 
 5. **RAG + Chat API**: `POST /api/file/[id]/chat` — resolve chunks+vectors, embed query, retrieve top-k, build system prompt from chunks, `chatCompletion`.
 6. **Viewer page**: PDF + chat UI; “Chat” on attachment cards.
 
-No code in this repo was modified; this document is the investigation and the reference plan for the RAG-based document chat solution.
+This document was the investigation and reference plan for the RAG-based document chat solution. The feature has since been fully implemented (see status note at top).

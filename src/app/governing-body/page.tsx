@@ -1,5 +1,5 @@
+import { redirect } from "next/navigation";
 import { Metadata } from "next";
-import { GoverningBodyScrollRestore } from "@/components/GoverningBodyScrollRestore";
 import { COMMITTEES } from "@/lib/committees";
 import { SITE_NAME } from "@/lib/branding";
 
@@ -11,5 +11,5 @@ export const metadata: Metadata = {
 };
 
 export default function GoverningBodyPage() {
-  return <GoverningBodyScrollRestore />;
+  redirect("/?tab=governing-body");
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
 
 interface NotificationPreferences {
@@ -82,7 +81,7 @@ export default function ProfilePage() {
   if (status === "loading" || loading) {
     return (
       <main className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="animate-pulse space-y-4">
             <div className="h-8 bg-gray-200 rounded w-48" />
             <div className="h-24 bg-gray-200 rounded" />
@@ -95,19 +94,10 @@ export default function ProfilePage() {
   if (!session?.user) {
     return (
       <main className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-6"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Back to meetings
-          </Link>
+        <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-            <h1 className="text-xl font-bold text-gray-900 mb-2">Alert settings</h1>
-            <p className="text-gray-600">Sign in to manage your email and reminder preferences.</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Alert settings</h1>
+            <p className="text-gray-700">Sign in to manage your email and reminder preferences.</p>
           </div>
         </div>
       </main>
@@ -116,17 +106,7 @@ export default function ProfilePage() {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <Link
-          href="/my-follows"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-6"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to My Follow
-        </Link>
-
+      <div className="max-w-4xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Alert settings</h1>
         <p className="text-gray-500 mb-8">
           Choose how you want to be notified about followed categories and meetings.

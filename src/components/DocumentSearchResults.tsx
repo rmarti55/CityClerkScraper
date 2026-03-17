@@ -105,7 +105,7 @@ function DocumentResultCard({
             <MatchingFileRow key={`f-${f.fileId}-${f.name}`} file={f} eventId={event.id} />
           ))}
           {matchingItems.map((it) => (
-            <li key={`i-${it.id}`} className="flex items-start gap-2 text-gray-600">
+            <li key={`i-${it.id}`} className="flex items-start gap-2 text-gray-700">
               <span className="text-gray-400 shrink-0">•</span>
               {it.highlightedName ? (
                 <HighlightedSnippet html={it.highlightedName} />
@@ -147,7 +147,7 @@ function MatchingFileRow({ file, eventId }: { file: MatchingFile; eventId: numbe
         )}
       </div>
       {file.snippets && file.snippets.length > 0 && (
-        <ul className="ml-6 mt-0.5 space-y-0.5 text-gray-600">
+        <ul className="ml-6 mt-0.5 space-y-0.5 text-gray-700">
           {file.snippets.slice(0, 3).map((s, i) => (
             <li key={i} className="text-xs">
               <HighlightedSnippet html={s} />
@@ -213,7 +213,7 @@ export function DocumentSearchResults({
     return (
       <div className="text-center py-12">
         <svg
-          className="w-12 h-12 text-gray-300 mx-auto mb-4"
+          className="w-12 h-12 text-gray-400 mx-auto mb-4"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

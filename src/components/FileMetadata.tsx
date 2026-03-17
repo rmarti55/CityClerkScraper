@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import useSWR from "swr";
 
 type FileMetadataProps =
   | { fileId: number; attachmentId?: undefined; agendaId?: undefined }
@@ -31,54 +31,27 @@ function LoadingDots() {
   );
 }
 
-export function FileMetadata(props: FileMetadataProps) {
-  const [metadata, setMetadata] = useState<Metadata | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+const fetcher = (url: string) => fetch(url).then((res) => {
+  if (!res.ok) throw new Error("Failed to fetch metadata");
+  return res.json() as Promise<Metadata>;
+});
 
+export function FileMetadata(props: FileMetadataProps) {
   const url = props.fileId != null
     ? `/api/file/${props.fileId}/metadata`
     : `/api/attachment/${props.attachmentId}/metadata?agendaId=${props.agendaId}`;
 
-  const cacheKey = props.fileId != null
-    ? `file-${props.fileId}`
-    : `att-${props.attachmentId}`;
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchMetadata() {
-      try {
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error("Failed to fetch metadata");
-        }
-        const data = await response.json();
-        if (!cancelled) {
-          setMetadata(data);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error("Error fetching metadata:", err);
-        if (!cancelled) {
-          setError(true);
-          setLoading(false);
-        }
-      }
-    }
-
-    fetchMetadata();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [cacheKey, url]);
+  const { data: metadata, error, isLoading } = useSWR<Metadata>(url, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    dedupingInterval: 60_000,
+  });
 
   if (error) {
     return null;
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <span className="text-xs text-gray-400 inline-flex items-center gap-1">
         <LoadingDots />

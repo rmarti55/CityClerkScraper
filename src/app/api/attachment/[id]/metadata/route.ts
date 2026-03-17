@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAttachmentPdfBuffer } from "@/lib/file-cache";
 import { PDFDocument } from "pdf-lib";
+import { db, attachmentMetadata } from "@/lib/db";
+import { eq } from "drizzle-orm";
 
 async function getPdfPageCount(data: Buffer): Promise<number | null> {
   try {
@@ -36,6 +38,24 @@ export async function GET(
     );
   }
 
+  // Check DB cache first
+  try {
+    const cached = await db
+      .select()
+      .from(attachmentMetadata)
+      .where(eq(attachmentMetadata.attachmentId, attachmentId))
+      .limit(1);
+
+    if (cached.length > 0 && cached[0].fileSize != null) {
+      return NextResponse.json({
+        size: cached[0].fileSize,
+        pageCount: cached[0].pageCount,
+      });
+    }
+  } catch (dbError) {
+    console.warn("DB cache read failed for attachment metadata:", dbError);
+  }
+
   try {
     const pdfBuffer = await getAttachmentPdfBuffer(attachmentId, agendaId);
 
@@ -48,6 +68,25 @@ export async function GET(
 
     const size = pdfBuffer.length;
     const pageCount = await getPdfPageCount(pdfBuffer);
+
+    // Persist to DB for future requests
+    try {
+      await db.insert(attachmentMetadata).values({
+        attachmentId,
+        agendaId,
+        fileSize: size,
+        pageCount,
+      }).onConflictDoUpdate({
+        target: attachmentMetadata.attachmentId,
+        set: {
+          fileSize: size,
+          pageCount,
+          cachedAt: new Date(),
+        },
+      });
+    } catch (dbError) {
+      console.warn("Failed to cache attachment metadata in DB:", dbError);
+    }
 
     return NextResponse.json({ size, pageCount });
   } catch (error) {

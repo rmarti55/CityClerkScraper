@@ -184,7 +184,7 @@ export function SearchableContent({
             className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
               searchMode === "meetings"
                 ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
+                : "text-gray-700 hover:text-gray-900"
             }`}
           >
             Meetings
@@ -195,7 +195,7 @@ export function SearchableContent({
             className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
               searchMode === "documents"
                 ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
+                : "text-gray-700 hover:text-gray-900"
             }`}
           >
             Documents
@@ -228,7 +228,7 @@ export function SearchableContent({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <p className="text-lg font-medium text-gray-700 mb-2">No records available</p>
+          <p className="text-lg font-semibold text-gray-700 mb-2">No records available</p>
           <p className="text-gray-500 max-w-md mx-auto">
             Meeting records prior to June 2024 are not available in this system. 
             The City of Santa Fe migrated to a new platform at that time.

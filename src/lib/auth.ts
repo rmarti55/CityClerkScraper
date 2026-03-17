@@ -5,6 +5,7 @@ import { users, accounts, sessions, verificationTokens } from "./db/schema";
 import { sendMagicLinkEmail } from "@/emails/magic-link";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,

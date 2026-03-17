@@ -7,15 +7,16 @@ import {
   formatEventDate,
   formatEventTime,
   CivicFile,
-  MeetingItem,
-  ItemAttachment,
 } from "@/lib/civicclerk";
 import { formatEventLocation } from "@/lib/utils";
 import { FileMetadata } from "@/components/FileMetadata";
 import { EventLocation } from "@/components/EventLocation";
 import { MeetingStatusBadges } from "@/components/MeetingStatusBadges";
 import { MeetingRefreshButton } from "@/components/MeetingRefreshButton";
-import { ShareAgendaItemButton } from "@/components/ShareAgendaItemButton";
+import { collectItemsWithAttachments } from "@/lib/agenda-items";
+import { generateAgendaSummaries } from "@/lib/llm/agenda-summary";
+import { AgendaSummary } from "@/components/AgendaSummary";
+import { AgendaItemsList } from "@/components/AgendaItemsList";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -58,84 +59,6 @@ function getFileTypeBadgeColor(type: string): string {
   if (t.includes("minutes")) return "bg-purple-100 text-purple-700";
   if (t.includes("video")) return "bg-red-100 text-red-700";
   return "bg-gray-100 text-gray-700";
-}
-
-function AttachmentCard({
-  attachment,
-  meetingId,
-  agendaId,
-}: {
-  attachment: ItemAttachment;
-  meetingId: number;
-  agendaId: number;
-}) {
-  const viewUrl = `/api/attachment/${attachment.id}?agendaId=${agendaId}`;
-  const downloadUrl = `/api/attachment/${attachment.id}?agendaId=${agendaId}&download=true&name=${encodeURIComponent(attachment.fileName)}`;
-  const chatUrl = `/meeting/${meetingId}/attachment/${attachment.id}?name=${encodeURIComponent(attachment.fileName)}`;
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
-      <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
-        <div className="flex items-start gap-3 flex-1 min-w-0">
-          <svg className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z" />
-            <path d="M8 12h8v2H8zM8 15h8v2H8z" />
-          </svg>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-gray-900 leading-tight">{attachment.fileName}</h3>
-            <FileMetadata attachmentId={attachment.id} agendaId={agendaId} />
-          </div>
-        </div>
-        <div className="flex gap-2 sm:flex-col sm:flex-shrink-0">
-          <Link
-            href={chatUrl}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-            Chat
-          </Link>
-          <a
-            href={viewUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-            View
-          </a>
-          <a
-            href={downloadUrl}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Download
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** Recursively collect all items that have at least one published attachment. */
-function collectItemsWithAttachments(items: MeetingItem[]): MeetingItem[] {
-  const result: MeetingItem[] = [];
-  for (const item of items) {
-    const publishedAttachments = (item.attachmentsList ?? []).filter((a) => a.isPublished);
-    if (publishedAttachments.length > 0) {
-      result.push({ ...item, attachmentsList: publishedAttachments });
-    }
-    if (item.childItems?.length) {
-      result.push(...collectItemsWithAttachments(item.childItems));
-    }
-  }
-  return result;
 }
 
 function FileCard({ file, meetingId }: { file: CivicFile; meetingId: number }) {
@@ -207,7 +130,7 @@ function FileCard({ file, meetingId }: { file: CivicFile; meetingId: number }) {
 
 export default async function MeetingPage({ params, searchParams }: PageProps) {
   const { id } = await params;
-  const { q: searchQuery, category: categoryId, from: fromPath } = await searchParams;
+  await searchParams;
   const eventId = parseInt(id);
 
   if (isNaN(eventId)) {
@@ -232,47 +155,23 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
     ? collectItemsWithAttachments(meetingDetails.items ?? [])
     : [];
 
+  const summaries = (process.env.OPENROUTER_API_KEY && meetingDetails?.items?.length)
+    ? await generateAgendaSummaries(meetingDetails.items).catch(() => null)
+    : null;
+
   const location = formatEventLocation(event);
+  const formattedDate = formatEventDate(event.startDateTime);
+  const formattedTime = formatEventTime(event.startDateTime);
 
   const meetingInfo = [
     `From: ${event.eventName}`,
-    `${formatEventDate(event.startDateTime)} at ${formatEventTime(event.startDateTime)}`,
+    `${formattedDate} at ${formattedTime}`,
     location,
   ].filter(Boolean).join("\n");
 
-  // Build back link: use "from" (e.g. governing-body) when present, else preserve home search/category
-  const buildBackHref = () => {
-    if (fromPath && typeof fromPath === "string" && fromPath.trim()) {
-      const path = fromPath.trim().replace(/^\//, "");
-      if (path) return `/${path}`;
-    }
-    const params = new URLSearchParams();
-    if (searchQuery) {
-      params.set("q", searchQuery);
-    }
-    if (categoryId) {
-      params.set("category", categoryId);
-    }
-    const queryString = params.toString();
-    return queryString ? `/?${queryString}` : "/";
-  };
-  const backHref = buildBackHref();
-
   return (
     <main className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Back link - scroll={false} so home page restore can scroll to date (today) instead of being overwritten */}
-        <Link
-          href={backHref}
-          scroll={false}
-          className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to meetings
-        </Link>
-
+      <div className="max-w-4xl mx-auto px-4 py-6">
         {/* Meeting header */}
         <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
@@ -282,11 +181,11 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-gray-500">Date:</span>{" "}
-              <span className="text-gray-900">{formatEventDate(event.startDateTime)}</span>
+              <span className="text-gray-900">{formattedDate}</span>
             </div>
             <div>
               <span className="text-gray-500">Time:</span>{" "}
-              <span className="text-gray-900">{formatEventTime(event.startDateTime)}</span>
+              <span className="text-gray-900">{formattedTime}</span>
             </div>
             {location && (
               <div className="sm:col-span-2">
@@ -309,7 +208,7 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
 
           {event.eventDescription && (
             <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="text-gray-600 text-sm whitespace-pre-wrap">
+              <p className="text-gray-700 text-sm whitespace-pre-wrap">
                 {event.eventDescription}
               </p>
             </div>
@@ -338,51 +237,19 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
         {/* Agenda Items with per-item attachments */}
         {itemsWithAttachments.length > 0 && agendaId != null ? (
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Agenda Items ({itemsWithAttachments.length} with documents)
-            </h2>
-            <div className="space-y-4">
-              {itemsWithAttachments.map((item) => (
-                <div key={item.id} className="border border-gray-200 rounded-lg overflow-hidden">
-                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-start gap-2">
-                    <p className="text-sm font-medium text-gray-900 leading-snug flex-1"
-                       dangerouslySetInnerHTML={{
-                         __html: [
-                           item.agendaObjectItemOutlineNumber,
-                           item.agendaObjectItemName,
-                         ]
-                           .filter(Boolean)
-                           .join(" "),
-                       }}
-                    />
-                    <ShareAgendaItemButton
-                      title={[item.agendaObjectItemOutlineNumber, item.agendaObjectItemName].filter(Boolean).join(" ")}
-                      meetingInfo={meetingInfo}
-                      shareUrl={
-                        item.attachmentsList?.[0]
-                          ? `/api/attachment/${item.attachmentsList[0].id}?agendaId=${agendaId}`
-                          : `/meeting/${eventId}`
-                      }
-                    />
-                  </div>
-                  <div className="p-3 space-y-2">
-                    {(item.attachmentsList ?? []).map((att: ItemAttachment) => (
-                      <AttachmentCard
-                        key={att.id}
-                        attachment={att}
-                        meetingId={eventId}
-                        agendaId={agendaId}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <AgendaSummary eventId={eventId} />
+            <AgendaItemsList
+              items={itemsWithAttachments}
+              agendaId={agendaId}
+              eventId={eventId}
+              meetingInfo={meetingInfo}
+              summaries={summaries}
+            />
           </div>
         ) : itemsWithAttachments.length === 0 && files.length === 0 ? (
           <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
             <svg
-              className="w-12 h-12 text-gray-300 mx-auto mb-4"
+              className="w-12 h-12 text-gray-400 mx-auto mb-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

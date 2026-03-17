@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
-import { Space_Grotesk } from "next/font/google";
+import { Suspense } from "react";
+import { Lato } from "next/font/google";
 import "./globals.css";
 import { SITE_NAME, SITE_DESCRIPTION } from "@/lib/branding";
-import { EventsProvider } from "@/context/EventsContext";
 import { AuthProvider } from "@/context/AuthContext";
-import { CommitteeProvider } from "@/context/CommitteeContext";
 import { FollowsProvider } from "@/context/FollowsContext";
 import { LoginModalProvider } from "@/context/LoginModalContext";
 import { ToastProvider } from "@/context/ToastContext";
+import { MeetingsProviders } from "@/components/MeetingsProviders";
+import { AppHeader } from "@/components/AppHeader";
 
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
+const lato = Lato({
+  variable: "--font-lato",
   subsets: ["latin"],
+  weight: ["300", "400", "700", "900"],
 });
 
 export const metadata: Metadata = {
@@ -27,15 +29,18 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${spaceGrotesk.variable} antialiased`}
+        className={`${lato.variable} antialiased`}
       >
         <AuthProvider>
           <FollowsProvider>
           <LoginModalProvider>
             <ToastProvider>
-              <EventsProvider>
-                <CommitteeProvider>{children}</CommitteeProvider>
-              </EventsProvider>
+              <MeetingsProviders>
+                <Suspense>
+                  <AppHeader />
+                </Suspense>
+                {children}
+              </MeetingsProviders>
             </ToastProvider>
           </LoginModalProvider>
           </FollowsProvider>

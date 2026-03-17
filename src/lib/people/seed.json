@@ -1,0 +1,112 @@
+[
+  {
+    "name": "Michael J. Garcia",
+    "title": "Mayor",
+    "department": "Governing Body",
+    "email": "mayor@santafenm.gov",
+    "phone": "505-955-6337",
+    "photoUrl": null,
+    "sourceType": "manual",
+    "sourceUrl": "https://santafenm.gov/elected-officials/mayor-michael-j-garcia"
+  },
+  {
+    "name": "Alma Castro",
+    "title": "District 1 Councilor",
+    "department": "Governing Body",
+    "email": "agcastro@santafenm.gov",
+    "phone": "505-531-7612",
+    "photoUrl": null,
+    "sourceType": "manual",
+    "sourceUrl": "https://santafenm.gov/elected-officials"
+  },
+  {
+    "name": "Patricia Feghali",
+    "title": "District 1 Councilor",
+    "department": "Governing Body",
+    "email": "pcfeghali@santafenm.gov",
+    "phone": "505-955-6813",
+    "photoUrl": null,
+    "sourceType": "manual",
+    "sourceUrl": "https://santafenm.gov/elected-officials"
+  },
+  {
+    "name": "Elizabeth Barrett",
+    "title": "District 2 Councilor",
+    "department": "Governing Body",
+    "email": "eabarrett@santafenm.gov",
+    "phone": "505-469-4693",
+    "photoUrl": null,
+    "sourceType": "manual",
+    "sourceUrl": "https://santafenm.gov/elected-officials"
+  },
+  {
+    "name": "Paul C. Bustamante",
+    "title": "District 2 Councilor",
+    "department": "Governing Body",
+    "email": "pcbustamante@santafenm.gov",
+    "phone": "505-955-6816",
+    "photoUrl": null,
+    "sourceType": "manual",
+    "sourceUrl": "https://santafenm.gov/elected-officials"
+  },
+  {
+    "name": "Pilar F.H. Faulkner",
+    "title": "District 3 Councilor",
+    "department": "Governing Body",
+    "email": "pfhfaulkner@santafenm.gov",
+    "phone": "505-955-6818",
+    "photoUrl": null,
+    "sourceType": "manual",
+    "sourceUrl": "https://santafenm.gov/elected-officials"
+  },
+  {
+    "name": "Lee Garcia",
+    "title": "District 3 Councilor",
+    "department": "Governing Body",
+    "email": "lagarcia@santafenm.gov",
+    "phone": "505-955-6814",
+    "photoUrl": null,
+    "sourceType": "manual",
+    "sourceUrl": "https://santafenm.gov/elected-officials"
+  },
+  {
+    "name": "Jamie Cassutt",
+    "title": "District 4 Councilor",
+    "department": "Governing Body",
+    "email": "jcassutt@santafenm.gov",
+    "phone": "505-955-6817",
+    "photoUrl": null,
+    "sourceType": "manual",
+    "sourceUrl": "https://santafenm.gov/elected-officials"
+  },
+  {
+    "name": "Amanda Chavez",
+    "title": "District 4 Councilor",
+    "department": "Governing Body",
+    "email": "acchavez@santafenm.gov",
+    "phone": "505-955-6811",
+    "photoUrl": null,
+    "sourceType": "manual",
+    "sourceUrl": "https://santafenm.gov/elected-officials"
+  },
+  {
+    "name": "Sam Burnett",
+    "title": "Interim Public Works Director",
+    "department": "Public Works",
+    "email": "jsburnett@santafenm.gov",
+    "phone": null,
+    "photoUrl": null,
+    "sourceType": "manual",
+    "sourceUrl": null
+  },
+  {
+    "name": "Tim Farrell",
+    "title": "Interim Facilities Division Director",
+    "department": "Facilities Management",
+    "email": "tfarrell@santafenm.gov",
+    "phone": null,
+    "photoUrl": null,
+    "sourceType": "manual",
+    "sourceUrl": null
+  }
+]

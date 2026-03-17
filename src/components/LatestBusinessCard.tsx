@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import type { CommitteeStats } from "@/lib/committees/stats";
 import type { CommitteeLink } from "@/lib/committees/links";
+import { PersonLink } from "./PersonLink";
 
 interface LatestBusinessCardProps {
   committeeSlug: string;
@@ -65,7 +66,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
           </svg>
           <span className="font-medium">Unable to load overview</span>
         </div>
-        <p className="text-sm text-gray-600">{error}</p>
+        <p className="text-sm text-gray-700">{error}</p>
       </div>
     );
   }
@@ -90,7 +91,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
         <div className="space-y-6">
           {/* ── Section 1: Meeting Stats ── */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-indigo-500 mb-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-indigo-500 mb-2">
               Meeting Schedule
             </h3>
             <div className="flex flex-wrap gap-2">
@@ -133,7 +134,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
             {(stats.lastMeeting || stats.nextMeeting) && (
               <div className="mt-3 bg-white rounded-lg border border-indigo-100 p-2.5 flex flex-col gap-1.5 text-xs">
                 {stats.lastMeeting && (
-                  <div className="flex items-start gap-1.5 text-gray-600">
+                  <div className="flex items-start gap-1.5 text-gray-700">
                     <span className="shrink-0 text-gray-400 mt-0.5">
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -146,7 +147,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
                   </div>
                 )}
                 {stats.nextMeeting && (
-                  <div className="flex items-start gap-1.5 text-gray-600">
+                  <div className="flex items-start gap-1.5 text-gray-700">
                     <span className="shrink-0 text-indigo-400 mt-0.5">
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3-3 3m-4-3h7M3 12a9 9 0 1018 0A9 9 0 003 12z" />
@@ -168,7 +169,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
           {/* ── Section 3: Links ── */}
           {links.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-indigo-500 mb-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-indigo-500 mb-2">
                 Resources
               </h3>
               <ul className="flex flex-wrap gap-x-4 gap-y-2">
@@ -188,7 +189,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
                       {isInternal ? (
                         <Link
                           href={link.url}
-                          className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 hover:underline bg-indigo-50/50 px-2 py-1 rounded-md border border-indigo-100/50"
+                          className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 hover:underline bg-indigo-50/50 px-2 py-1 rounded-md border border-indigo-100/50"
                         >
                           {icon}
                           {link.label}
@@ -198,7 +199,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
                           href={link.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 hover:underline bg-indigo-50/50 px-2 py-1 rounded-md border border-indigo-100/50"
+                          className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 hover:underline bg-indigo-50/50 px-2 py-1 rounded-md border border-indigo-100/50"
                         >
                           {icon}
                           {link.label}
@@ -218,7 +219,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
           {members.length > 0 && (
             <div>
               <div className="flex items-baseline justify-between mb-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-indigo-500">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-indigo-500">
                   Members
                 </h3>
                 {membersScrapedAt && (
@@ -232,7 +233,9 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
               <div className="flex flex-wrap gap-1.5">
                 {members.map(m => (
                   <div key={m.name} className="inline-flex items-center gap-1.5 bg-white border border-gray-200 px-2 py-1 rounded-md text-xs">
-                    <span className="text-gray-700 font-medium">{m.name}</span>
+                    <PersonLink name={m.name}>
+                      <span className="text-gray-700 font-medium">{m.name}</span>
+                    </PersonLink>
                     {m.role && m.role !== 'Member' && (
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
                         m.role === 'Chair'
@@ -242,8 +245,8 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
                           : m.role === 'Mayor Pro Tem'
                           ? 'bg-orange-100 text-orange-700'
                           : m.role === 'Alternate'
-                          ? 'bg-gray-100 text-gray-600'
-                          : 'bg-gray-100 text-gray-600'
+                          ? 'bg-gray-100 text-gray-700'
+                          : 'bg-gray-100 text-gray-700'
                       }`}>
                         {m.role}
                       </span>
@@ -257,7 +260,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
           {/* ── Section 2 empty state ── */}
           {members.length === 0 && (
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-indigo-500 mb-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-indigo-500 mb-2">
                 Members
               </h3>
               <p className="text-xs text-gray-400 italic">
@@ -289,7 +292,7 @@ function StatPill({ label, value, icon }: StatPillProps) {
         {icon}
         <span className="text-[10px] font-medium uppercase tracking-wide">{label}</span>
       </div>
-      <span className="text-xs font-semibold text-gray-800 leading-snug">{value}</span>
+      <span className="text-xs font-semibold text-gray-900 leading-snug">{value}</span>
     </div>
   );
 }

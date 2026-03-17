@@ -66,3 +66,37 @@ export function getNowInDenver(): { year: number; month: number; dateKey: string
   const dt = DateTime.now().setZone(EVENT_TIMEZONE);
   return { year: dt.year, month: dt.month, dateKey: dt.toFormat("yyyy-MM-dd") };
 }
+
+// ---------------------------------------------------------------------------
+// Meeting time-status helpers (Today / Happening Now / Upcoming / Past)
+// ---------------------------------------------------------------------------
+
+const ASSUMED_MEETING_DURATION_HOURS = 2;
+
+export function isEventToday(startDateTimeIso: string): boolean {
+  const eventDateKey = getEventDateKeyInDenver(startDateTimeIso);
+  const todayKey = getTodayInDenver();
+  return eventDateKey === todayKey;
+}
+
+export function isEventHappeningNow(startDateTimeIso: string): boolean {
+  const now = DateTime.now().setZone(EVENT_TIMEZONE);
+  const start = DateTime.fromISO(startDateTimeIso.trim(), { zone: EVENT_TIMEZONE });
+  if (!start.isValid) return false;
+  const end = start.plus({ hours: ASSUMED_MEETING_DURATION_HOURS });
+  return now >= start && now < end;
+}
+
+export type MeetingTimeStatus = "happening-now" | "today" | "upcoming" | "past";
+
+export function getMeetingTimeStatus(startDateTimeIso: string): MeetingTimeStatus {
+  if (isEventHappeningNow(startDateTimeIso)) return "happening-now";
+  if (isEventToday(startDateTimeIso)) {
+    const now = DateTime.now().setZone(EVENT_TIMEZONE);
+    const start = DateTime.fromISO(startDateTimeIso.trim(), { zone: EVENT_TIMEZONE });
+    if (start.isValid && now < start) return "today";
+    return "past";
+  }
+  const eventDate = new Date(startDateTimeIso);
+  return eventDate > new Date() ? "upcoming" : "past";
+}

@@ -1,7 +1,6 @@
 import { Metadata } from "next";
 import fs from "fs";
 import path from "path";
-import Link from "next/link";
 import { SITE_NAME } from "@/lib/branding";
 
 export const metadata: Metadata = {
@@ -67,7 +66,7 @@ function renderInlineMarkdown(text: string): string {
     .replace(/\*(.+?)\*/g, "<em>$1</em>")
     .replace(
       /\[([^\]]+)\]\(([^)]+)\)/g,
-      '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:text-indigo-800 underline">$1</a>'
+      '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:text-indigo-700 underline">$1</a>'
     );
 }
 
@@ -150,28 +149,7 @@ export default function ProceduralRulesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Back nav */}
-        <Link
-          href="/governing-body"
-          className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 mb-6"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-          Back to Governing Body
-        </Link>
-
+      <div className="max-w-4xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -185,7 +163,7 @@ export default function ProceduralRulesPage() {
               href={OFFICIAL_PDF_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded-lg"
+              className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg"
             >
               <svg
                 className="w-4 h-4"
@@ -206,7 +184,7 @@ export default function ProceduralRulesPage() {
               href={OFFICIAL_PAGE_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-800 bg-gray-100 px-3 py-1.5 rounded-lg"
+              className="inline-flex items-center gap-1.5 text-sm text-gray-700 hover:text-gray-900 bg-gray-100 px-3 py-1.5 rounded-lg"
             >
               <svg
                 className="w-4 h-4"
@@ -228,7 +206,7 @@ export default function ProceduralRulesPage() {
 
         {/* Table of Contents */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-indigo-500 mb-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-indigo-500 mb-3">
             Table of Contents
           </h2>
           <nav className="space-y-1">
@@ -236,7 +214,7 @@ export default function ProceduralRulesPage() {
               <a
                 key={i}
                 href={`#section-${i}`}
-                className="block text-sm text-gray-600 hover:text-indigo-600 py-0.5"
+                className="block text-sm text-gray-700 hover:text-indigo-600 py-0.5"
               >
                 {section.title}
               </a>
@@ -256,7 +234,7 @@ export default function ProceduralRulesPage() {
               section.level === 2
                 ? "text-lg font-bold text-gray-900 mt-8 mb-3 pt-6 border-t border-gray-100 first:mt-0 first:pt-0 first:border-0"
                 : section.level === 3
-                  ? "text-base font-semibold text-gray-800 mt-5 mb-2"
+                  ? "text-base font-semibold text-gray-900 mt-5 mb-2"
                   : "text-sm font-semibold text-gray-700 mt-4 mb-1.5";
 
             const heading =
@@ -284,7 +262,7 @@ export default function ProceduralRulesPage() {
             href={OFFICIAL_PAGE_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline hover:text-gray-600"
+            className="underline hover:text-gray-500"
           >
             check the official City of Santa Fe page
           </a>{" "}

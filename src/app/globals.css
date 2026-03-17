@@ -1,6 +1,31 @@
 @import "tailwindcss";
 
 /* =============================================================================
+   TYPOGRAPHY SCALE
+   Size + weight roles:
+     Page title:      text-2xl font-bold
+     Section heading: text-lg font-semibold
+     Card title:      text-base font-semibold
+     Subsection label:text-sm font-semibold uppercase tracking-wide
+     Body:            text-sm (normal weight)
+     Label:           text-sm font-medium
+     Small/metadata:  text-xs (normal weight)
+     Badge:           text-xs font-medium
+
+   Gray hierarchy (4 levels only):
+     Primary:   text-gray-900  — headings, card titles, primary text
+     Secondary: text-gray-700  — body, descriptions, nav links, labels
+     Tertiary:  text-gray-500  — secondary info, timestamps, back links
+     Muted:     text-gray-400  — metadata, disabled, separators, icons
+
+   Semantic colors:
+     Link:    text-indigo-600  hover:text-indigo-700
+     Error:   text-red-600
+     Success: text-green-700
+     Warning: text-amber-700
+   ============================================================================= */
+
+/* =============================================================================
    INTERACTION MEDIA VARIANTS
    These detect device capabilities (touch, hover) rather than just screen size.
    - pointer-coarse: touch/finger input (imprecise) - use for touch target sizing
@@ -24,10 +49,11 @@
   --breakpoint-lg: 1024px;
 }
 
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-space-grotesk);
+  --font-sans: var(--font-lato);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -40,7 +66,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-lato), ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Scroll highlight animation for Today button */
@@ -61,21 +87,14 @@ body {
   border-radius: 0.5rem;
 }
 
-/* Sticky header animations */
-.sticky-header {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
-              opacity 0.25s ease-out;
-  will-change: transform, opacity;
+/* Scrollable tab bar (hidden scrollbar, horizontal scroll) */
+.tabs-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.tabs-scroll::-webkit-scrollbar {
+  display: none;
 }
 
-.sticky-header-hidden {
-  transform: translateY(-100%);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.sticky-header-visible {
-  transform: translateY(0);
-  opacity: 1;
-  pointer-events: auto;
-}
+/* App header is always-visible fixed; no show/hide animations needed */

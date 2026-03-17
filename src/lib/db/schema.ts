@@ -151,6 +151,26 @@ export const committeeMembers = pgTable('committee_members', {
   categoryIdx: index('committee_members_category_idx').on(table.categoryName),
 }));
 
+// People directory — deduplicated contacts for city officials and staff
+export const people = pgTable('people', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
+  title: text('title'),
+  department: text('department'),
+  email: text('email').unique(),
+  phone: text('phone'),
+  photoUrl: text('photo_url'),
+  sourceType: text('source_type'), // 'scraped' | 'agenda' | 'manual'
+  sourceUrl: text('source_url'),
+  isActive: text('is_active').default('true'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  departmentIdx: index('people_department_idx').on(table.department),
+  nameIdx: index('people_name_idx').on(table.name),
+}));
+
 // LLM-generated committee summaries (cached)
 export const committeeSummaries = pgTable('committee_summaries', {
   id: serial('id').primaryKey(),
@@ -162,6 +182,23 @@ export const committeeSummaries = pgTable('committee_summaries', {
 }, (table) => ({
   categoryIdx: uniqueIndex('committee_summaries_category_idx').on(table.categoryName),
 }));
+
+// Cached AI-generated agenda item summaries (per meeting)
+export const agendaSummaries = pgTable('agenda_summaries', {
+  eventId: integer('event_id').primaryKey(),
+  agendaId: integer('agenda_id').notNull(),
+  summaryJson: text('summary_json').notNull(),
+  generatedAt: timestamp('generated_at').defaultNow(),
+});
+
+// Cached attachment metadata (size + page count)
+export const attachmentMetadata = pgTable('attachment_metadata', {
+  attachmentId: integer('attachment_id').primaryKey(),
+  agendaId: integer('agenda_id').notNull(),
+  fileSize: integer('file_size'),
+  pageCount: integer('page_count'),
+  cachedAt: timestamp('cached_at').defaultNow(),
+});
 
 // Type exports for use in application
 export type Event = typeof events.$inferSelect;
@@ -188,3 +225,9 @@ export type CommitteeSummary = typeof committeeSummaries.$inferSelect;
 export type NewCommitteeSummary = typeof committeeSummaries.$inferInsert;
 export type CommitteeMember = typeof committeeMembers.$inferSelect;
 export type NewCommitteeMember = typeof committeeMembers.$inferInsert;
+export type Person = typeof people.$inferSelect;
+export type NewPerson = typeof people.$inferInsert;
+export type AgendaSummary = typeof agendaSummaries.$inferSelect;
+export type NewAgendaSummary = typeof agendaSummaries.$inferInsert;
+export type AttachmentMetadataRow = typeof attachmentMetadata.$inferSelect;
+export type NewAttachmentMetadata = typeof attachmentMetadata.$inferInsert;

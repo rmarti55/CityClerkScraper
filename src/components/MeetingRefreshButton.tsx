@@ -44,12 +44,12 @@ export function MeetingRefreshButton({ eventId, cachedAt: initialCachedAt }: Mee
         <span>Last synced {formatRelativeTime(cachedAt)}</span>
       )}
       {isRefreshing && <span>Syncing…</span>}
-      {error && <span className="text-red-500 text-xs">{error}</span>}
+      {error && <span className="text-red-600 text-xs">{error}</span>}
       <button
         type="button"
         onClick={handleRefresh}
         disabled={isRefreshing}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50"
         title="Sync latest data from CivicClerk"
       >
         <svg

@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import Link from "next/link";
 import { useEvents } from "@/context/EventsContext";
-import { SITE_NAME, SITE_DESCRIPTION } from "@/lib/branding";
-import { getTodayInDenver, getNowInDenver } from "@/lib/datetime";
+import { getNowInDenver } from "@/lib/datetime";
+import { COMMITTEES } from "@/lib/committees";
 import { MonthPicker } from "./MonthPicker";
 import { SearchableContent } from "./SearchableContent";
-import { StickyHeader } from "./StickyHeader";
+import { TabValue } from "./TabBar";
 import { MeetingListSkeleton } from "./skeletons/MeetingCardSkeleton";
 import { Category, useCategories } from "@/hooks/useCategories";
-import { LoginButton } from "./LoginButton";
+import { CommitteeMeetingList } from "./CommitteeMeetingList";
+import { FollowCategoryButton } from "./FollowCategoryButton";
 
 function ErrorState({ error }: { error: string }) {
   return (
@@ -31,8 +31,8 @@ function ErrorState({ error }: { error: string }) {
           />
         </svg>
         <div>
-          <h3 className="font-medium text-red-800">Failed to Load Meetings</h3>
-          <p className="text-sm text-red-700 mt-1">{error}</p>
+          <h3 className="font-medium text-red-600">Failed to Load Meetings</h3>
+          <p className="text-sm text-red-600 mt-1">{error}</p>
         </div>
       </div>
     </div>
@@ -58,22 +58,28 @@ export function HomePage() {
     refresh,
   } = useEvents();
 
-  // Refetch whenever user lands on dashboard (e.g. open app or "Back to meetings") so list and file counts stay fresh
   useEffect(() => {
     refresh();
   }, [refresh]);
 
-  // Fetch categories to restore filter from URL
   const { categories } = useCategories();
 
-  // Search state lifted up to share with sticky header
+  // Tab state from URL
+  const activeTab: TabValue = (() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam && (tabParam === "all" || COMMITTEES[tabParam])) {
+      return tabParam === "all" ? "all" : tabParam;
+    }
+    return "all";
+  })();
+
+  // Search state
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
   const [isSearching, setIsSearching] = useState(false);
   
-  // Category filter state - initialized from URL if present
+  // Category filter state
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   
-  // Restore category filter from URL when categories are loaded
   useEffect(() => {
     const categoryIdParam = searchParams.get("category");
     if (categoryIdParam && categories.length > 0) {
@@ -85,7 +91,7 @@ export function HomePage() {
     }
   }, [categories, searchParams]);
 
-  // Restore calendar view from URL (back/forward, shared links)
+  // Restore calendar view from URL
   useEffect(() => {
     const monthParam = searchParams.get("month");
     if (monthParam && MONTH_PARAM_REGEX.test(monthParam)) {
@@ -103,11 +109,9 @@ export function HomePage() {
     }
   }, [searchParams, setCurrentMonth, setScrollToDate]);
 
-  // Compute whether filters are active (for hiding Today button)
   const hasActiveFilter = searchQuery.trim().length >= 2 || selectedCategory !== null;
 
-  // Sync calendar view to URL so back from meeting detail returns to same view.
-  // When scrollToDate is cleared after scroll, keep date= in URL so "Back to meetings" restores scroll.
+  // Sync calendar view to URL
   useEffect(() => {
     const monthStr = `${currentYear}-${String(currentMonth).padStart(2, "0")}`;
     const currentMonthParam = searchParams.get("month");
@@ -119,185 +123,90 @@ export function HomePage() {
     if (scrollToDate) {
       params.set("date", scrollToDate);
     }
-    // When scrollToDate is null (e.g. after scroll complete), leave date in URL so Back restores scroll
     const queryString = params.toString();
     router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
   }, [currentYear, currentMonth, scrollToDate, pathname, router, searchParams]);
 
-  // Open on today: set scroll target when viewing current month with no active filter (desktop and mobile)
+  // Open on today
   useEffect(() => {
     if (hasActiveFilter) return;
+    if (activeTab !== "all") return;
     const { year: todayYear, month: todayMonth, dateKey: todayDate } = getNowInDenver();
     if (currentYear === todayYear && currentMonth === todayMonth) {
       setScrollToDate(todayDate);
     }
-  }, [hasActiveFilter, currentYear, currentMonth, setScrollToDate]);
+  }, [hasActiveFilter, activeTab, currentYear, currentMonth, setScrollToDate]);
 
-  // Scroll detection for sticky header
-  const [showStickyHeader, setShowStickyHeader] = useState(false);
-  const controlsRef = useRef<HTMLDivElement>(null);
-
-  // Get events for the current month from client-side cache
   const events = getEventsForMonth(currentYear, currentMonth);
 
-  // Summary stats for sticky header (same formula as MeetingList)
-  const meetingCount = events.length;
-  const withAttachmentsCount = events.filter((e) => (e.fileCount || 0) > 0).length;
-  const totalFilesCount = events.reduce((sum, e) => sum + (e.fileCount || 0), 0);
-
-  // Scroll detection effect
-  useEffect(() => {
-    const handleScroll = () => {
-      if (controlsRef.current) {
-        const rect = controlsRef.current.getBoundingClientRect();
-        // Show sticky header when the controls section is scrolled out of view
-        // We use a small buffer to trigger slightly before it's completely gone
-        setShowStickyHeader(rect.bottom < 0);
-      }
-    };
-
-    // Use passive listener for better scroll performance
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    
-    // Initial check
-    handleScroll();
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
-
-  // Today button handler for sticky header
-  const handleTodayClick = useCallback(() => {
-    const { year: todayYear, month: todayMonth, dateKey: todayDate } = getNowInDenver();
-
-    if (currentYear === todayYear && currentMonth === todayMonth) {
-      // Already on current month - scroll to today's date
-      const allDateElements = document.querySelectorAll('[id^="date-"]');
-      let targetElement: Element | null = null;
-
-      const sortedElements = Array.from(allDateElements).sort((a, b) => {
-        const dateA = a.id.replace("date-", "");
-        const dateB = b.id.replace("date-", "");
-        return dateA.localeCompare(dateB);
-      });
-
-      for (const el of sortedElements) {
-        const elDate = el.id.replace("date-", "");
-        if (elDate >= todayDate) {
-          targetElement = el;
-          break;
-        }
-      }
-
-      if (!targetElement && sortedElements.length > 0) {
-        targetElement = sortedElements[sortedElements.length - 1];
-      }
-
-      if (targetElement) {
-        const yOffset = -100;
-        const y = targetElement.getBoundingClientRect().top + window.pageYOffset + yOffset;
-        window.scrollTo({ top: y, behavior: "auto" });
-
-        targetElement.classList.add("scroll-highlight");
-        setTimeout(() => {
-          targetElement?.classList.remove("scroll-highlight");
-        }, 2000);
-      }
-    } else {
-      // Navigate to current month with scroll param
-      setCurrentMonth(todayYear, todayMonth);
-      setScrollToDate(todayDate);
-    }
-  }, [currentYear, currentMonth, setCurrentMonth, setScrollToDate]);
+  const isCommitteeTab = activeTab !== "all";
+  const committee = isCommitteeTab ? COMMITTEES[activeTab] : null;
 
   return (
     <main className="min-h-screen bg-gray-50">
-      {/* Sticky header - appears on scroll */}
-      <StickyHeader
-        selectedMonth={currentMonth}
-        selectedYear={currentYear}
-        onTodayClick={handleTodayClick}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        isSearching={isSearching}
-        isVisible={showStickyHeader}
-        hasActiveFilter={hasActiveFilter}
-        meetingCount={meetingCount}
-        withAttachmentsCount={withAttachmentsCount}
-        totalFilesCount={totalFilesCount}
-        selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
-      />
+      <div className="max-w-4xl mx-auto px-4 py-6">
+        {/* Tab content */}
+        {activeTab === "all" ? (
+          <>
+            <MonthPicker hasActiveFilter={hasActiveFilter} />
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8 flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {SITE_NAME}
-            </h1>
-            <p className="text-gray-500 mt-1">
-              {SITE_DESCRIPTION}
-            </p>
-          </div>
-          <LoginButton />
-        </div>
-
-        {/* Quick access to committees */}
-        <div className="mb-6 flex flex-wrap gap-2">
-          <Link
-            href="/governing-body"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-indigo-700 font-medium text-sm transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-            Governing Body
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
-          <Link
-            href="/public-works"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg text-amber-700 font-medium text-sm transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Public Works
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
-        </div>
-
-        {/* Controls section - ref for scroll detection */}
-        <div ref={controlsRef}>
-          {/* Month picker */}
-          <MonthPicker hasActiveFilter={hasActiveFilter} />
-        </div>
-
-        {/* Meeting list */}
-        {isLoading ? (
-          <MeetingListSkeleton count={5} />
-        ) : error ? (
-          <ErrorState error={error} />
-        ) : (
-          <SearchableContent
-            events={events}
-            year={currentYear}
-            month={currentMonth}
-            scrollToDate={scrollToDate ?? undefined}
-            searchQuery={searchQuery}
-            onSearchQueryChange={setSearchQuery}
-            onSearchingChange={setIsSearching}
-            selectedCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
+            {isLoading ? (
+              <MeetingListSkeleton count={5} />
+            ) : error ? (
+              <ErrorState error={error} />
+            ) : (
+              <SearchableContent
+                events={events}
+                year={currentYear}
+                month={currentMonth}
+                scrollToDate={scrollToDate ?? undefined}
+                searchQuery={searchQuery}
+                onSearchQueryChange={setSearchQuery}
+                onSearchingChange={setIsSearching}
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+              />
+            )}
+          </>
+        ) : committee ? (
+          <CommitteeTabContent
+            committeeSlug={activeTab}
+            committee={committee}
           />
-        )}
+        ) : null}
       </div>
     </main>
+  );
+}
+
+function CommitteeTabContent({
+  committeeSlug,
+  committee,
+}: {
+  committeeSlug: string;
+  committee: (typeof COMMITTEES)[string];
+}) {
+  return (
+    <div>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">{committee.displayName}</h2>
+          <p className="text-gray-500 text-sm mt-0.5">{committee.description}</p>
+        </div>
+        <FollowCategoryButton
+          categoryName={committee.categoryName}
+          displayName={committee.displayName}
+          variant="default"
+        />
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <CommitteeMeetingList
+          categoryName={committee.categoryName}
+          committeeSlug={committeeSlug}
+          limit={15}
+        />
+      </div>
+    </div>
   );
 }
