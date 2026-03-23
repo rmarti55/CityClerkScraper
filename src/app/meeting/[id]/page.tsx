@@ -24,6 +24,7 @@ import { DocumentCardWrapper } from "@/components/DocumentCardWrapper";
 import { SaveDocumentButton } from "@/components/SaveDocumentButton";
 import { DocumentViewerProvider } from "@/context/DocumentViewerContext";
 import { MeetingDetailLayout } from "@/components/MeetingDetailLayout";
+import { MeetingTranscript } from "@/components/MeetingTranscript";
 import { SITE_NAME } from "@/lib/branding";
 
 interface PageProps {
@@ -295,6 +296,8 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
             <MeetingRefreshButton eventId={event.id} cachedAt={event.cachedAt} />
           </div>
         </div>
+
+        <MeetingTranscript eventId={eventId} />
 
         <Suspense fallback={<MeetingContentSkeleton />}>
           <MeetingContent eventId={eventId} event={event} />

@@ -9,9 +9,9 @@ export function MeetingDetailLayout({ children }: { children: ReactNode }) {
   const isOpen = viewerState.pdfUrl !== null;
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className={isOpen ? "h-screen overflow-hidden bg-gray-50" : "min-h-screen bg-gray-50"}>
       {/* Single-column on mobile always; split on desktop when viewer is open */}
-      <div className={isOpen ? "lg:flex lg:h-screen lg:overflow-hidden" : ""}>
+      <div className={isOpen ? "lg:flex lg:h-[calc(100vh-84px)] lg:overflow-hidden" : ""}>
         <div
           className={
             isOpen
@@ -22,7 +22,7 @@ export function MeetingDetailLayout({ children }: { children: ReactNode }) {
           {children}
         </div>
         {isOpen && (
-          <div className="lg:w-1/2 lg:shrink-0">
+          <div className="lg:w-1/2 lg:shrink-0 lg:h-full lg:overflow-hidden">
             <InlineDocumentViewer />
           </div>
         )}

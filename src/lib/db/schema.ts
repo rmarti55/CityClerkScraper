@@ -207,6 +207,44 @@ export const savedDocuments = pgTable('saved_documents', {
   userDocIdx: uniqueIndex('saved_docs_user_doc_idx').on(table.userId, table.documentType, table.documentId),
 }));
 
+// YouTube / CivicClerk video links to events
+export const meetingVideos = pgTable('meeting_videos', {
+  id: serial('id').primaryKey(),
+  eventId: integer('event_id').notNull(),
+  youtubeVideoId: text('youtube_video_id'),
+  youtubeTitle: text('youtube_title'),
+  youtubePublishedAt: timestamp('youtube_published_at'),
+  youtubeThumbnailUrl: text('youtube_thumbnail_url'),
+  duration: text('duration'),
+  source: text('source').notNull(), // 'youtube' | 'civicclerk'
+  matchConfidence: integer('match_confidence'),
+  matchedAt: timestamp('matched_at').defaultNow(),
+  externalMediaUrl: text('external_media_url'),
+}, (table) => ({
+  eventIdx: index('meeting_videos_event_idx').on(table.eventId),
+  youtubeIdx: uniqueIndex('meeting_videos_youtube_idx').on(table.youtubeVideoId),
+}));
+
+// AI-processed meeting transcripts
+export const meetingTranscripts = pgTable('meeting_transcripts', {
+  id: serial('id').primaryKey(),
+  videoId: integer('video_id').notNull(),
+  eventId: integer('event_id').notNull(),
+  rawTranscript: text('raw_transcript'),
+  cleanedTranscript: text('cleaned_transcript'),
+  summaryJson: text('summary_json'),
+  speakersJson: text('speakers_json'),
+  topicsJson: text('topics_json'),
+  model: text('model'),
+  status: text('status').notNull().default('pending'), // pending | extracting | processing | completed | failed
+  errorMessage: text('error_message'),
+  generatedAt: timestamp('generated_at').defaultNow(),
+}, (table) => ({
+  videoIdx: uniqueIndex('meeting_transcripts_video_idx').on(table.videoId),
+  eventIdx: index('meeting_transcripts_event_idx').on(table.eventId),
+  statusIdx: index('meeting_transcripts_status_idx').on(table.status),
+}));
+
 // Cached attachment metadata (size + page count)
 export const attachmentMetadata = pgTable('attachment_metadata', {
   attachmentId: integer('attachment_id').primaryKey(),
@@ -249,3 +287,7 @@ export type AttachmentMetadataRow = typeof attachmentMetadata.$inferSelect;
 export type NewAttachmentMetadata = typeof attachmentMetadata.$inferInsert;
 export type SavedDocument = typeof savedDocuments.$inferSelect;
 export type NewSavedDocument = typeof savedDocuments.$inferInsert;
+export type MeetingVideo = typeof meetingVideos.$inferSelect;
+export type NewMeetingVideo = typeof meetingVideos.$inferInsert;
+export type MeetingTranscript = typeof meetingTranscripts.$inferSelect;
+export type NewMeetingTranscript = typeof meetingTranscripts.$inferInsert;
