@@ -18,7 +18,7 @@ export function AppHeader() {
   const getActiveTab = (): TabValue => {
     if (pathname === "/" || pathname === "") {
       const tabParam = searchParams.get("tab");
-      if (tabParam && COMMITTEES[tabParam]) return tabParam;
+      if (tabParam && (COMMITTEES[tabParam] || tabParam === "following" || tabParam === "saved-docs")) return tabParam;
       return "all";
     }
     if (pathname === "/people") return "people";
@@ -34,6 +34,8 @@ export function AppHeader() {
     (tab: TabValue) => {
       if (tab === "all") {
         router.push("/");
+      } else if (tab === "people") {
+        router.push("/people");
       } else {
         router.push(`/?tab=${tab}`);
       }
@@ -58,8 +60,8 @@ export function AppHeader() {
   })();
 
   const subPageInfo = (() => {
-    if (pathname === "/my-follows") return { title: "My Follow", backHref: "/" };
-    if (pathname === "/profile") return { title: "Alert Settings", backHref: "/my-follows" };
+    if (pathname === "/my-follows") return { title: "Following", backHref: "/?tab=following" };
+    if (pathname === "/profile") return { title: "Alert Settings", backHref: "/?tab=following" };
     if (pathname.includes("/procedural-rules")) return { title: "Procedural Rules", backHref: "/?tab=governing-body" };
     if (pathname === "/people") return { title: "People Directory", backHref: "/" };
     if (pathname.startsWith("/auth/")) return null;

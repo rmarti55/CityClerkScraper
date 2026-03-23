@@ -125,6 +125,10 @@ export function HomePage() {
   const isCommitteeTab = activeTab !== "all";
   const committee = isCommitteeTab ? COMMITTEES[activeTab] : null;
 
+  if (activeTab === "saved-docs") {
+    return <SavedDocsTabContent />;
+  }
+
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-6">
@@ -146,6 +150,8 @@ export function HomePage() {
               />
             )}
           </>
+        ) : activeTab === "following" ? (
+          <FollowingTabContent />
         ) : committee ? (
           <CommitteeTabContent
             committeeSlug={activeTab}
