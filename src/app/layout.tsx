@@ -5,9 +5,11 @@ import "./globals.css";
 import { SITE_NAME, SITE_DESCRIPTION } from "@/lib/branding";
 import { AuthProvider } from "@/context/AuthContext";
 import { FollowsProvider } from "@/context/FollowsContext";
+import { SavedDocsProvider } from "@/context/SavedDocsContext";
 import { LoginModalProvider } from "@/context/LoginModalContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { MeetingsProviders } from "@/components/MeetingsProviders";
+import { SearchProvider } from "@/context/SearchContext";
 import { AppHeader } from "@/components/AppHeader";
 
 const lato = Lato({
@@ -33,16 +35,20 @@ export default function RootLayout({
       >
         <AuthProvider>
           <FollowsProvider>
+          <SavedDocsProvider>
           <LoginModalProvider>
             <ToastProvider>
               <MeetingsProviders>
                 <Suspense>
-                  <AppHeader />
+                  <SearchProvider>
+                    <AppHeader />
+                    {children}
+                  </SearchProvider>
                 </Suspense>
-                {children}
               </MeetingsProviders>
             </ToastProvider>
           </LoginModalProvider>
+          </SavedDocsProvider>
           </FollowsProvider>
         </AuthProvider>
       </body>

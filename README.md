@@ -19,9 +19,11 @@ Built because the official CivicClerk portal is terrible.
 - **PDF preview** - View PDFs inline or download files
 - **File & attachment viewers** - Dedicated pages for viewing files and agenda item attachments
 - **File metadata** - See file sizes and PDF page counts before downloading
+- **Inline document viewer** - Split-pane PDF viewer on large screens with integrated chat; no page navigation needed
 - **Share agenda items** - Share button for individual agenda items
-- **Sticky header** - Quick access to search and navigation while scrolling
-- **Meeting sticky header** - Contextual sticky header on meeting detail pages with back navigation
+- **Zoom/virtual meeting links** - Auto-extracted Zoom, Teams, and Google Meet links displayed as banner on meeting pages
+- **Tab-based navigation** - Top-level tabs for All Meetings, each committee, and People directory
+- **App header** - Unified sticky header with tabs, search, category filter, and contextual back navigation
 - **URL-synced search** - Search state persists in URL for sharing
 - **Meeting status badges** - "Happening Now", "Today at [time]", "Upcoming", "Canceled", file counts, and "Has Agenda" at a glance
 - **Event location** - Display meeting location and address
@@ -32,12 +34,13 @@ Built because the official CivicClerk portal is terrible.
 - **Login modal** - In-app login without leaving the page
 - **Follows** - Follow categories (e.g. Governing Body, Planning Commission) and favorite individual meetings; My Follows page
 - **Notification preferences** - User-configurable notification settings
-- **Committee pages** - Dedicated pages for Governing Body and Public Works with scroll-restore and committee-specific meeting lists
+- **People directory** - Browse city officials and staff by department with search, person popovers linked from agenda sponsors
+- **Committee pages** - Dedicated pages for Governing Body and Public Works with committee-specific meeting lists
 - **Committee summaries** - LLM-generated summaries (OpenRouter) for committee pages, with 24h cache
 - **Latest business** - Summary/snippet on committee pages (latest business card)
 - **Email digest** - Optional daily digest for followed categories (cron + Resend)
 - **Toast notifications** - In-app toast notification system
-- **Admin tools** - Committee member scraping endpoint
+- **Admin tools** - Committee member scraping and people directory sync endpoints
 
 ## Tech Stack
 
@@ -49,6 +52,7 @@ Built because the official CivicClerk portal is terrible.
 - [Neon Serverless PostgreSQL](https://neon.tech/)
 - [NextAuth v5 (Auth.js)](https://authjs.dev/) with [Drizzle adapter](https://authjs.dev/reference/adapter/drizzle) for magic-link auth
 - [Resend](https://resend.com/) for transactional email (magic link and digest)
+- [SWR](https://swr.vercel.app/) for client-side data fetching and caching
 - [Fuse.js 7.1.0](https://www.fusejs.io/) for client-side fuzzy search
 - [Luxon 3.5](https://moment.github.io/luxon/) for timezone-aware date/time handling (America/Denver)
 - [pdf-lib 1.17.1](https://pdf-lib.js.org/) for PDF metadata extraction
@@ -144,6 +148,9 @@ Internal API endpoints used by the frontend:
 | `/api/attachment/[id]/metadata` | GET | Returns attachment metadata |
 | `/api/attachment/[id]/chat` | POST | RAG-based chat over an attachment |
 | `/api/meeting/[id]/agenda-summary` | GET | AI-generated agenda item summaries (cached 1h) |
+| `/api/meeting/[id]/zoom-link` | GET | Auto-extracted Zoom/Teams/Meet link for a meeting |
+| `/api/people` | GET | List/search people directory (query, department filter) |
+| `/api/people/[slug]` | GET | Single person by slug |
 | `/api/committees/[slug]/summary` | GET | Cached LLM committee summary; optional `?refresh=true` |
 | `/api/committees/[slug]/overview` | GET | Committee overview data |
 | `/api/auth/[...nextauth]` | * | NextAuth handlers (sign in, callback, session) |
@@ -152,6 +159,7 @@ Internal API endpoints used by the frontend:
 | `/api/notifications/preferences` | GET/PATCH | User notification preferences |
 | `/api/cron/notifications` | GET | Cron: send daily digest (protected by `CRON_SECRET`) |
 | `/api/admin/committees/[slug]/scrape-members` | POST | Admin: scrape committee members from external source |
+| `/api/admin/people/sync` | POST | Admin: sync people directory from agendas, scraper, and seed data |
 
 ### Search API
 
@@ -234,13 +242,41 @@ GET /api/meeting/456/agenda-summary
 
 Returns AI-generated summaries for each agenda item in a meeting. Uses OpenRouter (Claude 3.5 Haiku). Cached for 1 hour with stale-while-revalidate of 2 hours. Returns 503 if `OPENROUTER_API_KEY` is not configured.
 
+### Zoom Link API
+
+```
+GET /api/meeting/456/zoom-link
+```
+
+Returns an auto-extracted Zoom, Teams, or Google Meet link for a meeting. Scans PDF annotations and text from agenda documents. Result is cached on the event record.
+
+### People API
+
+```
+GET /api/people?q=martinez&department=City%20Council
+```
+
+Parameters:
+- `q` - Search query (optional, searches name, title, department, email)
+- `department` - Filter by department (optional)
+
+Returns active people sorted by department then name.
+
+```
+GET /api/people/john-doe
+```
+
+Returns a single person by slug, or 404.
+
 ## Architecture
 
 ```
 src/
 ├── app/                    # Next.js App Router
 │   ├── api/               # API routes
-│   │   ├── admin/committees/[slug]/scrape-members/  # Admin: scrape members
+│   │   ├── admin/
+│   │   │   ├── committees/[slug]/scrape-members/  # Admin: scrape members
+│   │   │   └── people/sync/      # Admin: sync people directory
 │   │   ├── attachment/[id]/       # Attachment proxy
 │   │   │   ├── metadata/         # Attachment metadata
 │   │   │   └── chat/             # RAG chat over attachment
@@ -260,18 +296,24 @@ src/
 │   │   │   └── chat/             # RAG chat over file
 │   │   ├── follows/categories/   # User category follows
 │   │   ├── meeting/[id]/
-│   │   │   └── agenda-summary/   # AI agenda summaries
+│   │   │   ├── agenda-summary/   # AI agenda summaries
+│   │   │   └── zoom-link/        # Auto-extracted Zoom/Teams/Meet link
 │   │   ├── notifications/preferences/  # Notification prefs
+│   │   ├── people/               # People directory list/search
+│   │   │   └── [slug]/           # Single person by slug
 │   │   └── search/               # Server-side search
 │   │       └── documents/        # Document content search
 │   ├── auth/error/        # Auth error page
 │   ├── auth/verify/       # Magic link verification
 │   ├── governing-body/    # Governing Body committee page
 │   │   └── procedural-rules/  # Procedural rules page
-│   ├── meeting/[id]/      # Meeting detail page
-│   │   ├── file/[fileId]/       # File viewer page
-│   │   └── attachment/[attachmentId]/  # Attachment viewer page
+│   ├── meeting/
+│   │   ├── layout.tsx           # Scroll-reset layout for meeting routes
+│   │   └── [id]/               # Meeting detail page
+│   │       ├── file/[fileId]/       # File viewer page
+│   │       └── attachment/[attachmentId]/  # Attachment viewer page
 │   ├── my-follows/        # User's follows and favorites
+│   ├── people/            # People directory page
 │   ├── profile/           # User profile page
 │   ├── public-works/      # Public Works committee page
 │   ├── layout.tsx         # Root layout
@@ -279,47 +321,58 @@ src/
 ├── components/            # React components
 │   ├── skeletons/         # Loading skeleton components
 │   ├── AgendaItemContent.tsx      # Parsed agenda item display (sponsors, committee review)
+│   ├── AgendaItemsList.tsx        # Collapsible agenda items with attachments and AI summaries
 │   ├── AgendaSummary.tsx          # AI "Agenda at a Glance" summary
+│   ├── AppHeader.tsx              # Unified app header with tabs, search, back navigation
 │   ├── CategoryFilter.tsx         # Category dropdown filter
 │   ├── CategoryFilterModal.tsx    # Mobile category picker
 │   ├── CategoryFilterResults.tsx  # Filtered results display
 │   ├── CommitteeMeetingList.tsx   # Committee meeting list (upcoming/past split)
-│   ├── DocumentChatView.tsx       # RAG document chat UI
+│   ├── DocumentCardWrapper.tsx    # Highlighted card wrapper for active document
+│   ├── DocumentChatView.tsx       # RAG document chat UI (file/attachment viewer pages)
 │   ├── DocumentSearchResults.tsx  # Document search results display
 │   ├── EventLocation.tsx          # Meeting location display
 │   ├── FileMetadata.tsx           # File size & page count display
 │   ├── FollowCategoryButton.tsx   # Follow category action
 │   ├── GlobalSearchResults.tsx    # Global search results display
-│   ├── GoverningBodyScrollRestore.tsx  # Scroll restore on committee page
-│   ├── HomePage.tsx               # Main home page
+│   ├── HomePage.tsx               # Main home page with tab routing
+│   ├── InlineDocumentChat.tsx     # Chat panel for inline document viewer
+│   ├── InlineDocumentViewer.tsx   # Split-pane PDF + chat viewer (large screens)
 │   ├── LatestBusinessCard.tsx     # Summary on committee page
 │   ├── LoginButton.tsx            # Sign in / account dropdown
 │   ├── LoginModal.tsx             # In-app login modal
 │   ├── MeetingCard.tsx            # Meeting card display
+│   ├── MeetingDetailLayout.tsx    # Responsive meeting page layout (single/split column)
 │   ├── MeetingList.tsx            # Meeting list with grouping
 │   ├── MeetingRefreshButton.tsx   # Refresh single meeting data
 │   ├── MeetingStatusBadges.tsx    # Happening Now, Today, Upcoming, etc.
-│   ├── MeetingStickyHeader.tsx    # Sticky header on meeting detail pages
+│   ├── MeetingsProviders.tsx      # Composed EventsProvider + CommitteeProvider
 │   ├── MobileSearchModal.tsx      # Mobile search UI
 │   ├── MonthPicker.tsx            # Month/year navigation
 │   ├── Pagination.tsx             # Pagination controls
-│   ├── PublicWorksScrollRestore.tsx  # Scroll restore on Public Works page
+│   ├── PeopleDirectory.tsx        # People directory with search and department filter
+│   ├── PersonLink.tsx             # Inline person link with popover
+│   ├── PersonPopover.tsx          # Person detail popover (title, dept, contact)
 │   ├── SearchBar.tsx              # Search input
 │   ├── SearchableContent.tsx      # Search + history + global results
 │   ├── SearchResults.tsx          # Search results display
 │   ├── ShareAgendaItemButton.tsx  # Share individual agenda items
-│   └── StickyHeader.tsx           # Sticky header on scroll
+│   ├── TabBar.tsx                 # Top-level navigation tabs
+│   ├── ViewDocumentButton.tsx     # Opens document in inline viewer or new tab
+│   └── ZoomLinkBanner.tsx         # Zoom/Teams/Meet link banner on meeting pages
 ├── context/               # React context providers
-│   ├── AuthContext.tsx        # SessionProvider wrapper
-│   ├── CommitteeContext.tsx   # Committee summary cache
-│   ├── EventsContext.tsx      # Global events state
-│   ├── FollowsContext.tsx     # Favorites and category follows state
-│   ├── LoginModalContext.tsx  # Login modal open state
-│   └── ToastContext.tsx       # Toast notification system
+│   ├── AuthContext.tsx            # SessionProvider wrapper
+│   ├── CommitteeContext.tsx       # Committee summary cache
+│   ├── DocumentViewerContext.tsx  # Inline document viewer state (open/close PDF, chat endpoint)
+│   ├── EventsContext.tsx          # Global events state
+│   ├── FollowsContext.tsx         # Favorites and category follows state
+│   ├── LoginModalContext.tsx      # Login modal open state
+│   ├── SearchContext.tsx          # Search query, category, history, mobile search state
+│   └── ToastContext.tsx           # Toast notification system
 ├── hooks/                 # Custom React hooks
 │   ├── useCategories.ts       # Fetch & cache categories
-│   ├── useCategoryFilter.ts   # Category filtering with pagination
 │   ├── useDeviceCapabilities.ts  # Mobile, touch, hover
+│   ├── useDocumentSearch.ts   # Debounced document content search
 │   ├── useFollows.ts          # Favorites and category follows
 │   ├── useGlobalSearch.ts     # Server-side search
 │   ├── useSearch.ts           # Client-side Fuse.js search
@@ -328,20 +381,42 @@ src/
     ├── agenda-item-parser.ts  # Parse CivicClerk agenda text (sponsors, committees)
     ├── agenda-items.ts        # Collect agenda items with attachments
     ├── auth.ts                # NextAuth config
+    ├── branding.ts            # Site name and description constants
     ├── breakpoints.ts         # Media queries and touch targets
-    ├── civicclerk.ts          # API client & caching logic
     ├── committees.ts          # Committee config and slugs
     ├── datetime.ts            # Date/time parsing (Luxon, America/Denver)
+    ├── document-rag.ts        # RAG pipeline: chunking, embeddings, retrieval (TTL-cached)
+    ├── document-text.ts       # PDF text extraction and chunking (unpdf)
+    ├── file-cache.ts          # Disk-based PDF cache (file-cache/ or /tmp on Vercel)
+    ├── notifications.ts       # Daily digest and meeting reminder email logic
     ├── types.ts               # TypeScript types (e.g. CivicEvent)
     ├── utils.ts               # Utility functions
+    ├── zoom-link.ts           # Zoom/Teams/Meet link extraction from PDFs
+    ├── civicclerk/            # CivicClerk API client (modular)
+    │   ├── index.ts           # Barrel re-exports
+    │   ├── api.ts             # Core API fetch helpers
+    │   ├── backfill.ts        # Historical data backfill
+    │   ├── cache.ts           # Age-based cache logic
+    │   ├── events.ts          # Event fetching and mapping
+    │   ├── files.ts           # File URL resolution and metadata
+    │   ├── search.ts          # CivicClerk search integration
+    │   └── types.ts           # CivicClerk-specific types
+    ├── committees/            # Committee-specific logic
+    │   ├── links.ts           # Committee external links
+    │   ├── scrapers.ts        # Committee member scraping
+    │   └── stats.ts           # Committee meeting statistics
     ├── db/                    # Database layer
     │   ├── index.ts           # Drizzle connection
     │   └── schema.ts          # Database schema
-    └── llm/                   # AI/LLM integrations
-        ├── openrouter.ts      # OpenRouter API client
-        ├── embeddings.ts      # OpenRouter embeddings for RAG
-        ├── summary.ts         # Committee summary generation
-        └── agenda-summary.ts  # Agenda item summary generation
+    ├── llm/                   # AI/LLM integrations
+    │   ├── openrouter.ts      # OpenRouter API client
+    │   ├── embeddings.ts      # OpenRouter embeddings for RAG
+    │   ├── summary.ts         # Committee summary generation
+    │   └── agenda-summary.ts  # Agenda item summary generation
+    └── people/                # People directory data
+        ├── scrapers.ts        # Elected official scraping (santafenm.gov)
+        ├── seed.json          # Manual seed data for people
+        └── sync.ts            # People sync: agendas + scraper + seed → DB
 ```
 
 ## Caching Strategy

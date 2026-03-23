@@ -192,6 +192,21 @@ export const agendaSummaries = pgTable('agenda_summaries', {
   generatedAt: timestamp('generated_at').defaultNow(),
 });
 
+// User saved documents (bookmarked files and attachments)
+export const savedDocuments = pgTable('saved_documents', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  documentType: text('document_type').notNull(), // 'file' | 'attachment'
+  documentId: integer('document_id').notNull(),
+  eventId: integer('event_id').notNull(),
+  agendaId: integer('agenda_id'),
+  documentName: text('document_name').notNull(),
+  documentCategory: text('document_category'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  userDocIdx: uniqueIndex('saved_docs_user_doc_idx').on(table.userId, table.documentType, table.documentId),
+}));
+
 // Cached attachment metadata (size + page count)
 export const attachmentMetadata = pgTable('attachment_metadata', {
   attachmentId: integer('attachment_id').primaryKey(),
@@ -232,3 +247,5 @@ export type AgendaSummary = typeof agendaSummaries.$inferSelect;
 export type NewAgendaSummary = typeof agendaSummaries.$inferInsert;
 export type AttachmentMetadataRow = typeof attachmentMetadata.$inferSelect;
 export type NewAttachmentMetadata = typeof attachmentMetadata.$inferInsert;
+export type SavedDocument = typeof savedDocuments.$inferSelect;
+export type NewSavedDocument = typeof savedDocuments.$inferInsert;

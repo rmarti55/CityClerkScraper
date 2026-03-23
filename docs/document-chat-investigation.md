@@ -2,10 +2,13 @@
 
 > **Status: Implemented.** This feature has been built and is live. Key implementation files:
 > - API routes: `src/app/api/file/[id]/chat/route.ts`, `src/app/api/file/[id]/text/route.ts`, `src/app/api/attachment/[id]/chat/route.ts`
-> - UI: `src/components/DocumentChatView.tsx`
+> - UI: `src/components/DocumentChatView.tsx` (full-page viewer), `src/components/InlineDocumentChat.tsx` + `src/components/InlineDocumentViewer.tsx` (split-pane inline viewer on large screens)
+> - RAG pipeline: `src/lib/document-rag.ts` (chunking, embeddings, retrieval with TTL cache), `src/lib/document-text.ts` (PDF text extraction)
 > - Embeddings: `src/lib/llm/embeddings.ts`
 > - PDF text extraction: uses `unpdf` (Scenario C from the probe — API does not provide usable text)
+> - PDF caching: `src/lib/file-cache.ts` (disk-based cache)
 > - Viewer pages: `src/app/meeting/[id]/file/[fileId]/page.tsx`, `src/app/meeting/[id]/attachment/[attachmentId]/page.tsx`
+> - Context: `src/context/DocumentViewerContext.tsx` (manages inline viewer state)
 >
 > The investigation below is preserved as historical context for the design decisions.
 
@@ -18,7 +21,7 @@
 - **URL**: `GET https://santafenm.api.civicclerk.com/v1/Meetings/GetMeetingFile(fileId=<id>,plainText=false)`
 - **Headers**: `Accept: application/json`
 - **Response**: JSON with `blobUri` (Azure Blob URL). App then fetches that URL and receives **PDF bytes**.
-- **Implementation**: [src/app/api/file/[id]/route.ts](src/app/api/file/[id]/route.ts) and [src/lib/civicclerk.ts](src/lib/civicclerk.ts) (`getFileUrl(fileId)`).
+- **Implementation**: [src/app/api/file/[id]/route.ts](src/app/api/file/[id]/route.ts) and [src/lib/civicclerk/files.ts](src/lib/civicclerk/files.ts) (`getFileUrl(fileId)`).
 
 Docs only state that `GetMeetingFile(fileId, plainText)` exists ([docs/civicclerk-api-endpoints-investigation.md](civicclerk-api-endpoints-investigation.md)); **behavior when `plainText=true` is unknown**.
 

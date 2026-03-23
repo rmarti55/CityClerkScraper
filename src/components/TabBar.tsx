@@ -91,6 +91,38 @@ export function TabBar({ activeTab, onTabChange, compact = false }: TabBarProps)
         <span className={`sm:hidden w-2 h-2 rounded-full flex-shrink-0 bg-teal-500`} />
         People
       </Link>
+
+      {/* Following tab */}
+      <button
+        type="button"
+        onClick={() => onTabChange("following")}
+        className={`${tabBase} gap-1.5 ${activeTab === "following" ? activeClass : inactiveClass}`}
+        style={{ minHeight: compact ? 44 : undefined }}
+      >
+        <span className="hidden sm:inline-flex">
+          <svg className="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+          </svg>
+        </span>
+        <span className="sm:hidden w-2 h-2 rounded-full flex-shrink-0 bg-rose-500" />
+        Following
+      </button>
+
+      {/* Saved docs tab */}
+      <button
+        type="button"
+        onClick={() => onTabChange("saved-docs")}
+        className={`${tabBase} gap-1.5 ${activeTab === "saved-docs" ? activeClass : inactiveClass}`}
+        style={{ minHeight: compact ? 44 : undefined }}
+      >
+        <span className="hidden sm:inline-flex">
+          <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+          </svg>
+        </span>
+        <span className="sm:hidden w-2 h-2 rounded-full flex-shrink-0 bg-amber-500" />
+        Saved
+      </button>
     </div>
   );
 }

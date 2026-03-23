@@ -9,6 +9,9 @@ import { normalizeOutlineNumber } from "@/lib/agenda-items";
 import { FileMetadata } from "@/components/FileMetadata";
 import { ShareAgendaItemButton } from "@/components/ShareAgendaItemButton";
 import { AgendaItemContent } from "@/components/AgendaItemContent";
+import { ViewDocumentButton } from "@/components/ViewDocumentButton";
+import { DocumentCardWrapper } from "@/components/DocumentCardWrapper";
+import { SaveDocumentButton } from "@/components/SaveDocumentButton";
 
 function AttachmentCard({
   attachment,
@@ -24,7 +27,7 @@ function AttachmentCard({
   const chatUrl = `/meeting/${meetingId}/attachment/${attachment.id}?name=${encodeURIComponent(attachment.fileName)}`;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 hover:border-gray-300 transition-colors">
+    <DocumentCardWrapper pdfUrl={viewUrl}>
       <div className="flex items-center gap-3">
         <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
           <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z" />
@@ -37,6 +40,13 @@ function AttachmentCard({
           </div>
         </div>
         <div className="flex items-center gap-0.5 flex-shrink-0">
+          <SaveDocumentButton
+            documentType="attachment"
+            documentId={attachment.id}
+            eventId={meetingId}
+            agendaId={agendaId}
+            documentName={attachment.fileName}
+          />
           <Link
             href={chatUrl}
             title="Chat with AI"
@@ -46,18 +56,7 @@ function AttachmentCard({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
           </Link>
-          <a
-            href={viewUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="View"
-            className="p-1.5 text-gray-900 hover:bg-gray-100 rounded transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-          </a>
+          <ViewDocumentButton url={viewUrl} title={attachment.fileName} />
           <a
             href={downloadUrl}
             title="Download"
@@ -69,7 +68,7 @@ function AttachmentCard({
           </a>
         </div>
       </div>
-    </div>
+    </DocumentCardWrapper>
   );
 }
 

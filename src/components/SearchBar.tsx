@@ -13,6 +13,7 @@ interface SearchBarProps {
   onSelectRecentSearch?: (term: string) => void;
   onRemoveRecentSearch?: (term: string) => void;
   onMobileSearchOpen?: () => void;
+  compact?: boolean;
 }
 
 export function SearchBar({
@@ -25,6 +26,7 @@ export function SearchBar({
   onSelectRecentSearch,
   onRemoveRecentSearch,
   onMobileSearchOpen,
+  compact = false,
 }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -180,7 +182,7 @@ export function SearchBar({
           onFocus={handleFocus}
           onBlur={handleBlur}
           placeholder={placeholder}
-          className="block w-full pl-10 pr-10 py-3 text-gray-900 placeholder-gray-400 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
+          className={`block w-full pl-10 pr-10 text-gray-900 placeholder-gray-400 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow ${compact ? "py-1.5 text-sm" : "py-3"}`}
         />
 
         {/* Clear button - only show on desktop or when there's text */}

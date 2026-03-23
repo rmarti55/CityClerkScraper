@@ -30,3 +30,31 @@ One-off migration from an **old** auth schema to Auth.js (NextAuth v5). Use only
 For **new installs**, use Drizzle only: `npx drizzle-kit push`. Do not run `migrate-auth` on a fresh database; the Drizzle migrations (e.g. `0002_add-auth-tables`) define the auth tables.
 
 Loads `.env.local` for `DATABASE_URL`. Ensure the database is reachable before running.
+
+## refresh-event-times.ts
+
+**Run:** `tsx scripts/refresh-event-times.ts [--start YYYY-MM-DD] [--end YYYY-MM-DD]`
+
+Re-fetches `startDateTime` from the CivicClerk API for existing events and updates the database with correctly parsed Denver-timezone timestamps. Use after deploying timezone fixes to correct legacy rows without re-running a full backfill. Optional `--start`/`--end` flags limit the date range.
+
+## Probe / investigation scripts
+
+These are one-off CLI probes used during development to inspect CivicClerk API behavior. They are not wired into `package.json` scripts — run them directly with `tsx`.
+
+### probe-event-location.ts
+
+**Run:** `tsx scripts/probe-event-location.ts [eventId]`
+
+Inspects the CivicClerk API response for a single event, logging top-level keys, venue fields, and `eventLocation` structure. Defaults to the first event in a fixed date window if no ID is provided.
+
+### probe-event-times.ts
+
+**Run:** `tsx scripts/probe-event-times.ts [startDate] [endDate]`
+
+Fetches events between two dates and prints raw `startDateTime` values from the API for debugging timezone issues.
+
+### probe-search-api.ts
+
+**Run:** `tsx scripts/probe-search-api.ts`
+
+Probes the CivicClerk `/v1/Search` endpoint with several query styles and OData filter patterns, printing response shape and `$metadata` snippets to discover API behavior.

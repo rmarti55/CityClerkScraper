@@ -37,7 +37,7 @@ So the list and the details page are using different sources of truth for the sa
 ### Meeting details (correct time)
 
 - **Source:** [src/app/meeting/[id]/page.tsx](src/app/meeting/[id]/page.tsx) calls `getEventById(eventId)`.
-- **getEventById** ([src/lib/civicclerk.ts](src/lib/civicclerk.ts)):
+- **getEventById** ([src/lib/civicclerk/events.ts](src/lib/civicclerk/events.ts)):
   - If **DB cache is fresh** → returns `mapCachedEvent(cachedEvent)` (DB `startDateTime` → `.toISOString()`). So you see whatever is stored in the DB (correct if that row was ever written with `parseEventStartDateTime`).
   - If **DB cache is stale** → fetches CivicClerk API and does **`return response.json()`** with **no parsing**. So in that case the details page would get the **raw API** `startDateTime` (wrong) and would show the wrong time too.
 
@@ -49,7 +49,7 @@ So for the same event to be **wrong on list** and **right on details**, the list
 
 ### 1. `getEventById` returns raw API when cache is stale
 
-**File:** [src/lib/civicclerk.ts](src/lib/civicclerk.ts) around line 309.
+**File:** [src/lib/civicclerk/events.ts](src/lib/civicclerk/events.ts) (formerly `civicclerk.ts`).
 
 When the DB cache is not fresh, we do:
 
@@ -69,7 +69,7 @@ Paths that **read events from the DB** and return them to the client:
 
 - **GET /api/events?eventIds=1,2,3** ([src/app/api/events/route.ts](src/app/api/events/route.ts)) — used by My Follow; reads from `events` and maps with `rowToCivicEvent` (`.startDateTime.toISOString()`).
 - **GET /api/events/by-category** ([src/app/api/events/by-category/route.ts](src/app/api/events/by-category/route.ts)) — reads from `events`, maps with `e.startDateTime.toISOString()`.
-- **GET /api/search** — uses [src/lib/civicclerk.ts](src/lib/civicclerk.ts) `searchEvents()`: raw SQL, then maps `row.start_date_time` to ISO string.
+- **GET /api/search** — uses [src/lib/civicclerk/search.ts](src/lib/civicclerk/search.ts) `searchEvents()`: raw SQL, then maps `row.start_date_time` to ISO string.
 
 So any **old rows** that were written **before** we consistently used `parseEventStartDateTime` on write could have a wrong `start_date_time` (e.g. “UTC” that was really local). When we read those and call `.toISOString()`, we send that wrong value to the client, so the UI shows the wrong time. That’s the “trash coming from the database”: not the config, but **legacy rows** with incorrect timestamps.
 

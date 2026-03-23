@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -18,10 +19,24 @@ import { collectItemsWithAttachments } from "@/lib/agenda-items";
 import { AgendaSummary } from "@/components/AgendaSummary";
 import { AgendaItemsList } from "@/components/AgendaItemsList";
 import { ZoomLinkBanner } from "@/components/ZoomLinkBanner";
+import { ViewDocumentButton } from "@/components/ViewDocumentButton";
+import { DocumentCardWrapper } from "@/components/DocumentCardWrapper";
+import { SaveDocumentButton } from "@/components/SaveDocumentButton";
+import { DocumentViewerProvider } from "@/context/DocumentViewerContext";
+import { MeetingDetailLayout } from "@/components/MeetingDetailLayout";
+import { SITE_NAME } from "@/lib/branding";
 
 interface PageProps {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ q?: string; category?: string; from?: string }>;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
+  const eventId = parseInt(id);
+  if (isNaN(eventId)) return { title: SITE_NAME };
+  const event = await getEventById(eventId);
+  return { title: event ? `${event.eventName} | ${SITE_NAME}` : SITE_NAME };
 }
 
 function FileIcon({ fileType }: { fileType: string }) {
@@ -68,7 +83,7 @@ function FileCard({ file, meetingId }: { file: CivicFile; meetingId: number }) {
   const chatUrl = `/meeting/${meetingId}/file/${file.fileId}?name=${encodeURIComponent(file.name)}`;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 hover:border-gray-300 transition-colors">
+    <DocumentCardWrapper pdfUrl={viewUrl}>
       <div className="flex items-center gap-3">
         <FileIcon fileType={file.type} />
         <div className="flex-1 min-w-0">
@@ -86,6 +101,13 @@ function FileCard({ file, meetingId }: { file: CivicFile; meetingId: number }) {
           </div>
         </div>
         <div className="flex items-center gap-0.5 flex-shrink-0">
+          <SaveDocumentButton
+            documentType="file"
+            documentId={file.fileId}
+            eventId={meetingId}
+            documentName={file.name}
+            documentCategory={file.type}
+          />
           <Link
             href={chatUrl}
             title="Chat with AI"
@@ -95,18 +117,7 @@ function FileCard({ file, meetingId }: { file: CivicFile; meetingId: number }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
           </Link>
-          <a
-            href={viewUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="View"
-            className="p-1.5 text-gray-900 hover:bg-gray-100 rounded transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-          </a>
+          <ViewDocumentButton url={viewUrl} title={file.name} />
           <a
             href={downloadUrl}
             title="Download"
@@ -118,7 +129,7 @@ function FileCard({ file, meetingId }: { file: CivicFile; meetingId: number }) {
           </a>
         </div>
       </div>
-    </div>
+    </DocumentCardWrapper>
   );
 }
 
@@ -237,9 +248,8 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
   const formattedTime = formatEventTime(event.startDateTime);
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        {/* Meeting header — renders immediately from cached event data */}
+    <DocumentViewerProvider>
+      <MeetingDetailLayout>
         <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
             {event.eventName}
@@ -286,11 +296,10 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
           </div>
         </div>
 
-        {/* Documents + agenda items — streamed in via Suspense */}
         <Suspense fallback={<MeetingContentSkeleton />}>
           <MeetingContent eventId={eventId} event={event} />
         </Suspense>
-      </div>
-    </main>
+      </MeetingDetailLayout>
+    </DocumentViewerProvider>
   );
 }

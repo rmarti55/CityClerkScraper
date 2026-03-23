@@ -5,19 +5,15 @@ import { useRouter, usePathname } from "next/navigation";
 import { CivicEvent } from "@/lib/types";
 import { useGlobalSearch } from "@/hooks/useGlobalSearch";
 import { useDocumentSearch } from "@/hooks/useDocumentSearch";
-import { useSearchHistory } from "@/hooks/useSearchHistory";
 import { useEvents } from "@/context/EventsContext";
-import { SearchBar } from "./SearchBar";
+import { useSearch } from "@/context/SearchContext";
 import { GlobalSearchResults } from "./GlobalSearchResults";
 import { DocumentSearchResults } from "./DocumentSearchResults";
-import { CategoryFilter } from "./CategoryFilter";
 import { MeetingList } from "./MeetingList";
 import { MobileSearchModal } from "./MobileSearchModal";
-import { Category } from "@/hooks/useCategories";
 
 type SearchMode = "meetings" | "documents";
 
-// Data availability: CivicClerk data starts June 2024
 const DATA_START_YEAR = 2024;
 const DATA_START_MONTH = 6;
 
@@ -26,11 +22,6 @@ interface SearchableContentProps {
   year: number;
   month: number;
   scrollToDate?: string;
-  searchQuery: string;
-  onSearchQueryChange: (query: string) => void;
-  onSearchingChange: (isSearching: boolean) => void;
-  selectedCategory: Category | null;
-  onSelectCategory: (category: Category | null) => void;
 }
 
 export function SearchableContent({ 
@@ -38,24 +29,24 @@ export function SearchableContent({
   year, 
   month, 
   scrollToDate,
-  searchQuery,
-  onSearchQueryChange,
-  onSearchingChange,
-  selectedCategory,
-  onSelectCategory,
 }: SearchableContentProps) {
   const router = useRouter();
   const pathname = usePathname();
   
   const { setScrollToDate } = useEvents();
-  const { history, addSearch, removeSearch } = useSearchHistory();
-  
-  // Mobile search modal state
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
-  // Search mode: meetings (DB) vs documents (Civic Clerk Search API)
+  const {
+    searchQuery,
+    setSearchQuery,
+    selectedCategory,
+    setIsSearching,
+    isMobileSearchOpen,
+    setIsMobileSearchOpen,
+    history,
+    removeSearch,
+  } = useSearch();
+
   const [searchMode, setSearchMode] = useState<SearchMode>("meetings");
 
-  // Unified search hook that handles both search term and category filter
   const {
     results: searchResults,
     total: searchTotal,
@@ -71,36 +62,30 @@ export function SearchableContent({
     debouncedQuery: documentQuery,
   } = useDocumentSearch(searchQuery);
 
-  // Determine if we're showing filtered results (search, category, or both)
   const hasSearchQuery = debouncedQuery.trim().length >= 2;
   const hasCategory = selectedCategory !== null;
   const isShowingFilteredResults = hasSearchQuery || hasCategory;
   const isShowingDocumentSearch = searchMode === "documents" && documentQuery.trim().length >= 2;
 
-  // Track previous loading state to prevent infinite loop
   const prevIsLoadingRef = useRef(isLoading);
 
-  // Notify parent of searching state changes
   const effectiveLoading = isShowingDocumentSearch ? documentLoading : isLoading;
   useEffect(() => {
     if (prevIsLoadingRef.current !== effectiveLoading) {
       prevIsLoadingRef.current = effectiveLoading;
-      onSearchingChange(effectiveLoading);
+      setIsSearching(effectiveLoading);
     }
-  }, [effectiveLoading, onSearchingChange]);
+  }, [effectiveLoading, setIsSearching]);
 
-  // Sync search query and category filter to URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     
-    // Sync search query
     if (debouncedQuery.trim()) {
       params.set("q", debouncedQuery);
     } else {
       params.delete("q");
     }
     
-    // Sync category filter
     if (selectedCategory) {
       params.set("category", String(selectedCategory.id));
     } else {
@@ -111,62 +96,27 @@ export function SearchableContent({
     router.replace(newUrl, { scroll: false });
   }, [debouncedQuery, selectedCategory, pathname, router]);
 
-  // Handle explicit search submission (Enter key)
-  const handleSearchSubmit = useCallback((query: string) => {
-    const trimmed = query.trim();
-    if (trimmed.length >= 2) {
-      addSearch(trimmed);
-    }
-  }, [addSearch]);
-
-  // Mobile search modal handlers
-  const handleMobileSearchOpen = useCallback(() => {
-    setIsMobileSearchOpen(true);
-  }, []);
-
   const handleMobileSearchClose = useCallback(() => {
     setIsMobileSearchOpen(false);
-  }, []);
+  }, [setIsMobileSearchOpen]);
   
-  // Check if viewing a month before data availability
   const isBeforeDataStart = year < DATA_START_YEAR || 
     (year === DATA_START_YEAR && month < DATA_START_MONTH);
 
-  // Clear scrollToDate after scroll completes
   const handleScrollComplete = useCallback(() => {
     setScrollToDate(null);
   }, [setScrollToDate]);
 
   return (
     <div>
-      {/* Search bar and category filter */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-3 items-stretch">
-        <div className="flex-1">
-          <SearchBar
-            value={searchQuery}
-            onChange={onSearchQueryChange}
-            onSubmit={handleSearchSubmit}
-            isSearching={isLoading}
-            recentSearches={history}
-            onSelectRecentSearch={onSearchQueryChange}
-            onRemoveRecentSearch={removeSearch}
-            onMobileSearchOpen={handleMobileSearchOpen}
-          />
-        </div>
-        <CategoryFilter
-          selectedCategory={selectedCategory}
-          onSelectCategory={onSelectCategory}
-        />
-      </div>
-
       {/* Mobile full-screen search modal */}
       <MobileSearchModal
         isOpen={isMobileSearchOpen}
         onClose={handleMobileSearchClose}
         searchQuery={searchQuery}
-        onSearchChange={onSearchQueryChange}
+        onSearchChange={setSearchQuery}
         recentSearches={history}
-        onSelectRecentSearch={onSearchQueryChange}
+        onSelectRecentSearch={setSearchQuery}
         onRemoveRecentSearch={removeSearch}
         searchResults={searchResults}
         searchTotal={searchTotal}

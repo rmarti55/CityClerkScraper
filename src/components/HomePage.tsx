@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useEvents } from "@/context/EventsContext";
+import { useSearch } from "@/context/SearchContext";
 import { getNowInDenver } from "@/lib/datetime";
 import { COMMITTEES } from "@/lib/committees";
 import { MonthPicker } from "./MonthPicker";
 import { SearchableContent } from "./SearchableContent";
 import { TabValue } from "./TabBar";
 import { MeetingListSkeleton } from "./skeletons/MeetingCardSkeleton";
-import { Category, useCategories } from "@/hooks/useCategories";
 import { CommitteeMeetingList } from "./CommitteeMeetingList";
 import { FollowCategoryButton } from "./FollowCategoryButton";
+import { FollowingTabContent } from "./FollowingTabContent";
+import { SavedDocsTabContent } from "./SavedDocsTabContent";
 
 function ErrorState({ error }: { error: string }) {
   return (
@@ -62,34 +64,15 @@ export function HomePage() {
     refresh();
   }, [refresh]);
 
-  const { categories } = useCategories();
+  const { searchQuery, selectedCategory } = useSearch();
 
-  // Tab state from URL
   const activeTab: TabValue = (() => {
     const tabParam = searchParams.get("tab");
-    if (tabParam && (tabParam === "all" || COMMITTEES[tabParam])) {
+    if (tabParam && (tabParam === "all" || tabParam === "following" || tabParam === "saved-docs" || COMMITTEES[tabParam])) {
       return tabParam === "all" ? "all" : tabParam;
     }
     return "all";
   })();
-
-  // Search state
-  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
-  const [isSearching, setIsSearching] = useState(false);
-  
-  // Category filter state
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  
-  useEffect(() => {
-    const categoryIdParam = searchParams.get("category");
-    if (categoryIdParam && categories.length > 0) {
-      const categoryId = parseInt(categoryIdParam, 10);
-      const foundCategory = categories.find((c) => c.id === categoryId);
-      if (foundCategory) {
-        setSelectedCategory(foundCategory);
-      }
-    }
-  }, [categories, searchParams]);
 
   // Restore calendar view from URL
   useEffect(() => {
@@ -160,11 +143,6 @@ export function HomePage() {
                 year={currentYear}
                 month={currentMonth}
                 scrollToDate={scrollToDate ?? undefined}
-                searchQuery={searchQuery}
-                onSearchQueryChange={setSearchQuery}
-                onSearchingChange={setIsSearching}
-                selectedCategory={selectedCategory}
-                onSelectCategory={setSelectedCategory}
               />
             )}
           </>

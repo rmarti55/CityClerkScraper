@@ -4,8 +4,11 @@ import { useCallback } from "react";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { COMMITTEES } from "@/lib/committees";
+import { useSearch } from "@/context/SearchContext";
 import { TabBar, TabValue } from "./TabBar";
 import { LoginButton } from "./LoginButton";
+import { SearchBar } from "./SearchBar";
+import { CategoryFilter } from "./CategoryFilter";
 
 export function AppHeader() {
   const pathname = usePathname();
@@ -63,7 +66,34 @@ export function AppHeader() {
     return null;
   })();
 
-  const hasRow2 = isMeetingPage || (isSubPage && subPageInfo !== null);
+  const isAllTab = isHomePage && activeTab === "all";
+  const hasBackRow = isMeetingPage || (isSubPage && subPageInfo !== null);
+  const hasRow2 = hasBackRow || isAllTab;
+
+  const {
+    searchQuery,
+    setSearchQuery,
+    selectedCategory,
+    setSelectedCategory,
+    isSearching,
+    isMobileSearchOpen,
+    setIsMobileSearchOpen,
+    history,
+    addSearch,
+    removeSearch,
+  } = useSearch();
+
+  const handleSearchSubmit = useCallback(
+    (query: string) => {
+      const trimmed = query.trim();
+      if (trimmed.length >= 2) addSearch(trimmed);
+    },
+    [addSearch]
+  );
+
+  const handleMobileSearchOpen = useCallback(() => {
+    setIsMobileSearchOpen(true);
+  }, [setIsMobileSearchOpen]);
 
   return (
     <>
@@ -84,7 +114,33 @@ export function AppHeader() {
           </div>
         </div>
 
-        {/* Row 2: Back navigation for meeting detail and subpages */}
+        {/* Row 2a: Search bar + category filter for All tab */}
+        {isAllTab && (
+          <div className="max-w-4xl mx-auto px-4 py-1.5">
+            <div className="flex gap-2 items-stretch">
+              <div className="flex-1">
+                <SearchBar
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  onSubmit={handleSearchSubmit}
+                  isSearching={isSearching}
+                  recentSearches={history}
+                  onSelectRecentSearch={setSearchQuery}
+                  onRemoveRecentSearch={removeSearch}
+                  onMobileSearchOpen={handleMobileSearchOpen}
+                  compact
+                />
+              </div>
+              <CategoryFilter
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+                compact
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Row 2b: Back navigation for meeting detail and subpages */}
         {isMeetingPage && (
           <BackRow label="Back to meetings" href={meetingBackHref} scroll={false} />
         )}
@@ -93,7 +149,7 @@ export function AppHeader() {
         )}
       </header>
       {/* Spacer matching header height so content isn't hidden behind the fixed header */}
-      <div className={hasRow2 ? "h-[84px]" : "h-[44px]"} />
+      <div className={isAllTab ? "h-[88px]" : hasBackRow ? "h-[84px]" : "h-[44px]"} />
     </>
   );
 }
