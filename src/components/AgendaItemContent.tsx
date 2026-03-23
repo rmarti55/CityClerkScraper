@@ -10,28 +10,39 @@ function SponsorList({ sponsors }: { sponsors: Sponsor[] }) {
   if (sponsors.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+    <div className="space-y-1.5 mt-2">
       {sponsors.map((s, i) => (
-        <span key={i} className="text-xs text-gray-500 inline-flex items-center gap-1">
-          <svg className="w-3 h-3 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
-          <PersonLink name={s.name} email={s.email}>
-            <span>
-              {s.name}
-              {s.title && <span className="text-gray-400">, {s.title}</span>}
-            </span>
-          </PersonLink>
+        <div key={i} className="text-sm text-gray-600">
+          <div className="flex items-center gap-1">
+            <svg className="w-3 h-3 text-gray-700 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <PersonLink name={s.name} email={s.email}>
+              <span>
+                {s.name}
+                {s.title && <span className="text-gray-700">, {s.title}</span>}
+              </span>
+            </PersonLink>
+            {s.email && (
+              <a
+                href={`mailto:${s.email}`}
+                className="hidden sm:inline text-indigo-600 hover:text-indigo-700 hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {s.email}
+              </a>
+            )}
+          </div>
           {s.email && (
             <a
               href={`mailto:${s.email}`}
-              className="text-indigo-600 hover:text-indigo-700 hover:underline"
+              className="block sm:hidden pl-4 text-indigo-600 hover:text-indigo-700 hover:underline"
               onClick={(e) => e.stopPropagation()}
             >
               {s.email}
             </a>
           )}
-        </span>
+        </div>
       ))}
     </div>
   );
@@ -42,7 +53,7 @@ function CommitteeReviewList({ dates }: { dates: CommitteeDate[] }) {
 
   return (
     <div className="mt-3 pt-3 border-t border-gray-100">
-      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+      <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
         Committee Review
       </h4>
       <ul className="space-y-0.5">
@@ -50,15 +61,15 @@ function CommitteeReviewList({ dates }: { dates: CommitteeDate[] }) {
           const isCanceled = cd.note?.toUpperCase().includes("CANCELED");
           return (
             <li key={i} className="flex items-baseline gap-2 text-xs">
-              <span className={isCanceled ? "text-gray-400 line-through" : "text-gray-700"}>
+              <span className={isCanceled ? "text-gray-500 line-through" : "text-gray-600"}>
                 {cd.committee}
                 {cd.note && (
-                  <span className={isCanceled ? "text-red-600 ml-1" : "text-gray-400 ml-1"}>
+                  <span className={isCanceled ? "text-red-600 ml-1" : "text-gray-500 ml-1"}>
                     ({cd.note})
                   </span>
                 )}
               </span>
-              <span className={`tabular-nums whitespace-nowrap ${isCanceled ? "text-gray-400 line-through" : "text-gray-500"}`}>
+              <span className={`tabular-nums whitespace-nowrap ${isCanceled ? "text-gray-500 line-through" : "text-gray-600"}`}>
                 {cd.date}
               </span>
             </li>
@@ -77,7 +88,7 @@ function DescriptionBlock({ description }: { description: string }) {
 
   return (
     <div className="mt-2">
-      <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-line break-words">
+      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line break-words">
         {displayText}
       </p>
       {isLong && (
@@ -106,7 +117,7 @@ function FullTextDisclosure({ parsed }: { parsed: ParsedAgendaItem }) {
           e.stopPropagation();
           setOpen(!open);
         }}
-        className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors font-medium"
+        className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 transition-colors font-medium"
       >
         <svg
           className={`w-3 h-3 shrink-0 transition-transform duration-150 ${open ? "rotate-90" : ""}`}
@@ -120,7 +131,7 @@ function FullTextDisclosure({ parsed }: { parsed: ParsedAgendaItem }) {
       </button>
       {open && (
         <div className="mt-1.5 pl-4 border-l-2 border-gray-200">
-          <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-line break-words">
+          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line break-words">
             {fullText}
           </p>
         </div>
@@ -144,15 +155,15 @@ export function AgendaItemContent({ item, summary }: AgendaItemContentProps) {
   if (summary) {
     return (
       <div className="min-w-0">
-        <div className="flex items-baseline gap-2 flex-wrap">
-          <p className="text-sm font-medium text-gray-900 leading-snug break-words">
+        <div className="flex items-baseline gap-2 flex-wrap pr-16 sm:pr-20">
+          <p className="text-base font-semibold text-gray-900 leading-snug break-words">
             {parsed.outlineNumber} {summary.summary}
           </p>
-          <span className="text-[9px] font-medium text-indigo-400 bg-indigo-50 border border-indigo-200 rounded px-1 py-px uppercase tracking-wider shrink-0 leading-none">
+          <span className="text-xs font-medium text-indigo-400 bg-indigo-50 border border-indigo-200 rounded px-1 py-px uppercase tracking-wider shrink-0 leading-none">
             AI
           </span>
         </div>
-        <p className="text-xs text-gray-500 leading-relaxed mt-0.5">
+        <p className="text-sm text-gray-700 leading-relaxed mt-1">
           {summary.detail}
         </p>
         <FullTextDisclosure parsed={parsed} />
@@ -166,7 +177,7 @@ export function AgendaItemContent({ item, summary }: AgendaItemContentProps) {
 
   return (
     <div className="min-w-0">
-      <p className="text-sm font-medium text-gray-900 leading-snug break-words">
+      <p className="text-base font-semibold text-gray-900 leading-snug break-words pr-16 sm:pr-20">
         {titleText}
       </p>
       {parsed.description && <DescriptionBlock description={parsed.description} />}

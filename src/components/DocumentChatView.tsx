@@ -85,7 +85,7 @@ export function DocumentChatView({ fileId, meetingId, fileName, attachmentId, ag
           ← Back to meeting
         </Link>
         {fileName && (
-          <span className="text-sm text-gray-500 truncate" title={fileName}>
+          <span className="text-sm text-gray-600 truncate" title={fileName}>
             {fileName}
           </span>
         )}
@@ -93,7 +93,7 @@ export function DocumentChatView({ fileId, meetingId, fileName, attachmentId, ag
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
         <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-100 flex flex-col min-h-[300px]">
-          <div className="bg-white px-3 py-2 border-b border-gray-200 text-sm font-medium text-gray-700">
+          <div className="bg-white px-3 py-2 border-b border-gray-200 text-sm font-medium text-gray-800">
             Document
           </div>
           <div className="flex-1 min-h-0">
@@ -106,12 +106,12 @@ export function DocumentChatView({ fileId, meetingId, fileName, attachmentId, ag
         </div>
 
         <div className="border border-gray-200 rounded-lg flex flex-col bg-white min-h-[300px]">
-          <div className="px-3 py-2 border-b border-gray-200 text-sm font-medium text-gray-700">
+          <div className="px-3 py-2 border-b border-gray-200 text-sm font-medium text-gray-800">
             Chat with document
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
             {messages.length === 0 && !loading && (
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-600">
                 Ask a question about this document. Answers are based only on the
                 document content.
               </p>
@@ -138,7 +138,7 @@ export function DocumentChatView({ fileId, meetingId, fileName, attachmentId, ag
             ))}
             {loading && (
               <div className="text-left">
-                <span className="inline-block px-3 py-2 rounded-lg bg-gray-100 text-gray-500 text-sm">
+                <span className="inline-block px-3 py-2 rounded-lg bg-gray-100 text-gray-600 text-sm">
                   Thinking…
                 </span>
               </div>

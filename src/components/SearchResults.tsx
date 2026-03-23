@@ -68,7 +68,7 @@ function ClientSearchResultCard({ result, query }: { result: SearchResult; query
   const locationTextContent = venueMatched && query ? highlightMatch(locationStr, query) : locationStr;
 
   const locationNode = locationStr ? (
-    <p className="text-sm text-gray-500 flex items-start gap-1.5 mt-2 min-w-0 truncate" aria-label="Location">
+    <p className="text-sm text-gray-600 flex items-start gap-1.5 mt-2 min-w-0 truncate" aria-label="Location">
       <MapPinIcon className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
       {mapsUrl ? (
         <a
@@ -103,7 +103,7 @@ function ClientSearchResultCard({ result, query }: { result: SearchResult; query
     >
       {event.eventDescription &&
         matches.some((m) => m.key === "eventDescription") && (
-          <p className="text-sm text-gray-500 mt-2 line-clamp-2">
+          <p className="text-sm text-gray-600 mt-2 line-clamp-2">
             <HighlightedText
               text={event.eventDescription}
               matches={matches}
@@ -120,7 +120,7 @@ export function SearchResults({ results, query }: SearchResultsProps) {
     return (
       <div className="text-center py-12">
         <svg
-          className="w-12 h-12 text-gray-400 mx-auto mb-4"
+          className="w-12 h-12 text-gray-900 mx-auto mb-4"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -132,10 +132,10 @@ export function SearchResults({ results, query }: SearchResultsProps) {
             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
           />
         </svg>
-        <p className="text-gray-500">
+        <p className="text-gray-600">
           No meetings found for &quot;{query}&quot;
         </p>
-        <p className="text-sm text-gray-400 mt-1">
+        <p className="text-sm text-gray-500 mt-1">
           Try different keywords or check spelling
         </p>
       </div>
@@ -144,7 +144,7 @@ export function SearchResults({ results, query }: SearchResultsProps) {
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-4 text-sm text-gray-500">
+      <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
         <span>
           {results.length} result{results.length !== 1 ? "s" : ""} for &quot;{query}&quot;
         </span>

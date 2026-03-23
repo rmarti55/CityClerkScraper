@@ -97,7 +97,7 @@ export default function ProfilePage() {
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Alert settings</h1>
-            <p className="text-gray-700">Sign in to manage your email and reminder preferences.</p>
+            <p className="text-gray-800">Sign in to manage your email and reminder preferences.</p>
           </div>
         </div>
       </main>
@@ -108,7 +108,7 @@ export default function ProfilePage() {
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Alert settings</h1>
-        <p className="text-gray-500 mb-8">
+        <p className="text-gray-600 mb-8">
           Choose how you want to be notified about followed categories and meetings.
         </p>
 
@@ -145,7 +145,7 @@ export default function ProfilePage() {
                 />
               </button>
             </label>
-            <p className="px-4 pb-4 text-sm text-gray-500">
+            <p className="px-4 pb-4 text-sm text-gray-600">
               One email per day with upcoming meetings in your followed categories.
             </p>
 
@@ -175,7 +175,7 @@ export default function ProfilePage() {
                 />
               </button>
             </label>
-            <p className="px-4 pb-4 text-sm text-gray-500">
+            <p className="px-4 pb-4 text-sm text-gray-600">
               Send an email when you follow a category or meeting.
             </p>
 
@@ -206,7 +206,7 @@ export default function ProfilePage() {
               </button>
             </label>
             <div className="px-4 pb-4">
-              <p className="text-sm text-gray-500 mb-2">
+              <p className="text-sm text-gray-600 mb-2">
                 Remind me before meetings I follow.
               </p>
               <select

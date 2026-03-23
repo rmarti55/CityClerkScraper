@@ -81,15 +81,15 @@ function SearchResultItem({
           </h3>
 
           {/* Date and time */}
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-600 mt-1">
             {formatEventDate(event.startDateTime)} at{" "}
             {formatEventTime(event.startDateTime)}
           </p>
 
           {/* Location */}
           {locationStr && (
-            <p className="text-sm text-gray-500 flex items-start gap-1.5 mt-0.5 min-w-0 truncate" aria-label="Location">
-              <MapPinIcon className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+            <p className="text-sm text-gray-600 flex items-start gap-1.5 mt-0.5 min-w-0 truncate" aria-label="Location">
+              <MapPinIcon className="w-4 h-4 text-gray-700 shrink-0 mt-0.5" />
               {mapsUrl ? (
                 <a
                   href={mapsUrl}
@@ -117,7 +117,7 @@ function SearchResultItem({
               Canceled
             </span>
           )}
-          {status === "happening-now" && (
+          {!isCanceled && status === "happening-now" && (
             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium bg-emerald-200 text-emerald-800 rounded">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -126,12 +126,12 @@ function SearchResultItem({
               Happening Now
             </span>
           )}
-          {status === "today" && (
+          {!isCanceled && status === "today" && (
             <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded">
               Today at {formatEventTime(event.startDateTime)}
             </span>
           )}
-          {status === "upcoming" && (
+          {!isCanceled && status === "upcoming" && (
             <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded">
               Upcoming
             </span>
@@ -254,7 +254,7 @@ export function MobileSearchModal({
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               {isSearching ? (
                 <svg
-                  className="w-5 h-5 text-gray-400 animate-spin"
+                  className="w-5 h-5 text-gray-700 animate-spin"
                   fill="none"
                   viewBox="0 0 24 24"
                 >
@@ -274,7 +274,7 @@ export function MobileSearchModal({
                 </svg>
               ) : (
                 <svg
-                  className="w-5 h-5 text-gray-400"
+                  className="w-5 h-5 text-gray-700"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -308,7 +308,7 @@ export function MobileSearchModal({
               <button
                 type="button"
                 onClick={handleClear}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors touch-manipulation"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-900 hover:text-gray-700 transition-colors touch-manipulation"
                 aria-label="Clear search"
               >
                 <svg
@@ -345,7 +345,7 @@ export function MobileSearchModal({
         {showRecentSearches && (
           <div className="bg-white">
             <div className="px-4 py-3 border-b border-gray-100">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <h2 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                 Recent Searches
               </h2>
             </div>
@@ -367,7 +367,7 @@ export function MobileSearchModal({
                   >
                     {/* Clock icon */}
                     <svg
-                      className="w-5 h-5 text-gray-400 flex-shrink-0"
+                      className="w-5 h-5 text-gray-700 flex-shrink-0"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -389,7 +389,7 @@ export function MobileSearchModal({
                     <button
                       type="button"
                       onClick={(e) => handleRemoveRecentSearch(e, term)}
-                      className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-200 transition-colors touch-manipulation"
+                      className="p-2 text-gray-900 hover:text-gray-700 rounded-full hover:bg-gray-200 transition-colors touch-manipulation"
                       aria-label={`Remove "${term}" from recent searches`}
                       style={{ minWidth: "40px", minHeight: "40px" }}
                     >
@@ -418,7 +418,7 @@ export function MobileSearchModal({
         {!showRecentSearches && !showResults && (
           <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
             <svg
-              className="w-16 h-16 text-gray-400 mb-4"
+              className="w-16 h-16 text-gray-900 mb-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -430,8 +430,8 @@ export function MobileSearchModal({
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
-            <p className="text-lg text-gray-500">Search for meetings</p>
-            <p className="text-gray-400 text-sm mt-1">
+            <p className="text-lg text-gray-600">Search for meetings</p>
+            <p className="text-gray-500 text-sm mt-1">
               Find agendas, minutes, and more
             </p>
           </div>
@@ -456,8 +456,8 @@ export function MobileSearchModal({
                     d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                   />
                 </svg>
-                <p className="text-gray-500">{searchError}</p>
-                <p className="text-sm text-gray-400 mt-1">Please try again</p>
+                <p className="text-gray-600">{searchError}</p>
+                <p className="text-sm text-gray-500 mt-1">Please try again</p>
               </div>
             )}
 
@@ -465,7 +465,7 @@ export function MobileSearchModal({
             {isSearching && searchResults.length === 0 && !searchError && (
               <div>
                 <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-600">
                     Searching for &quot;{debouncedQuery}&quot;...
                   </p>
                 </div>
@@ -477,7 +477,7 @@ export function MobileSearchModal({
             {!isSearching && searchResults.length === 0 && !searchError && (
               <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
                 <svg
-                  className="w-12 h-12 text-gray-400 mb-4"
+                  className="w-12 h-12 text-gray-900 mb-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -489,10 +489,10 @@ export function MobileSearchModal({
                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                   />
                 </svg>
-                <p className="text-gray-500">
+                <p className="text-gray-600">
                   No meetings found for &quot;{debouncedQuery}&quot;
                 </p>
-                <p className="text-sm text-gray-400 mt-1">
+                <p className="text-sm text-gray-500 mt-1">
                   Try different keywords or check spelling
                 </p>
               </div>
@@ -502,10 +502,10 @@ export function MobileSearchModal({
             {searchResults.length > 0 && (
               <>
                 <div className="px-4 py-3 border-b border-gray-100 sticky top-0 bg-white z-10">
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-600">
                     {searchTotal} result{searchTotal !== 1 ? "s" : ""} for &quot;{debouncedQuery}&quot;
                     {isSearching && (
-                      <span className="ml-2 text-gray-400">(updating...)</span>
+                      <span className="ml-2 text-gray-500">(updating...)</span>
                     )}
                   </p>
                 </div>

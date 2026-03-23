@@ -95,7 +95,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-4 right-4 text-gray-900 hover:text-gray-700 transition-colors"
           aria-label="Close"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -106,7 +106,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
         {/* Header */}
         <div className="text-center mb-6">
           <h2 className="text-lg font-semibold text-gray-900">Sign in</h2>
-          <p className="text-gray-500 mt-1">
+          <p className="text-gray-600 mt-1">
             Enter your email to receive a magic link
           </p>
         </div>
@@ -115,7 +115,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-800 mb-1">
                 Email address
               </label>
               <input
@@ -169,7 +169,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
         </form>
 
         {/* Footer */}
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <p className="text-center text-xs text-gray-500 mt-6">
           We&apos;ll send you a link to sign in. No password needed.
         </p>
       </div>

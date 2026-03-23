@@ -52,20 +52,20 @@ export function LoginButton() {
                 <p className="text-sm font-medium text-gray-900 truncate">
                   {session.user.name || "User"}
                 </p>
-                <p className="text-xs text-gray-500 truncate">
+                <p className="text-xs text-gray-600 truncate">
                   {session.user.email}
                 </p>
               </div>
               <a
                 href="/my-follows"
-                className="block px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                className="block px-4 py-2 text-left text-sm text-gray-800 hover:bg-gray-50"
                 onClick={() => setShowDropdown(false)}
               >
                 My Follow
               </a>
               <a
                 href="/profile"
-                className="block px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                className="block px-4 py-2 text-left text-sm text-gray-800 hover:bg-gray-50"
                 onClick={() => setShowDropdown(false)}
               >
                 Alert settings
@@ -75,7 +75,7 @@ export function LoginButton() {
                   setShowDropdown(false);
                   signOut({ callbackUrl: "/" });
                 }}
-                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                className="w-full px-4 py-2 text-left text-sm text-gray-800 hover:bg-gray-50 flex items-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -98,7 +98,7 @@ export function LoginButton() {
   return (
     <button
       onClick={openLoginModal}
-      className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+      className="px-4 py-2 text-sm font-medium text-gray-800 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
     >
       Sign in
     </button>

@@ -89,7 +89,7 @@ function renderContent(content: string) {
       return (
         <blockquote
           key={i}
-          className="border-l-4 border-indigo-200 bg-indigo-50/50 pl-4 py-3 my-3 text-sm text-gray-700 rounded-r-lg"
+          className="border-l-4 border-indigo-200 bg-indigo-50/50 pl-4 py-3 my-3 text-sm text-gray-800 rounded-r-lg"
           dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(quoteText) }}
         />
       );
@@ -102,7 +102,7 @@ function renderContent(content: string) {
           {items.map((item, j) => (
             <li
               key={j}
-              className="text-sm text-gray-700 leading-relaxed"
+              className="text-sm text-gray-800 leading-relaxed"
               dangerouslySetInnerHTML={{
                 __html: renderInlineMarkdown(item.replace(/^- /, "")),
               }}
@@ -119,7 +119,7 @@ function renderContent(content: string) {
           {items.map((item, j) => (
             <li
               key={j}
-              className="text-sm text-gray-700 leading-relaxed"
+              className="text-sm text-gray-800 leading-relaxed"
               dangerouslySetInnerHTML={{
                 __html: renderInlineMarkdown(
                   item.replace(/^\d+\.\s*/, "").trim()
@@ -134,7 +134,7 @@ function renderContent(content: string) {
     return (
       <p
         key={i}
-        className="text-sm text-gray-700 leading-relaxed my-2"
+        className="text-sm text-gray-800 leading-relaxed my-2"
         dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(trimmed) }}
       />
     );
@@ -155,7 +155,7 @@ export default function ProceduralRulesPage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Governing Body Procedural Rules
           </h1>
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-sm text-gray-600 mb-4">
             Adopted January 12, 2022 &mdash; Resolution No. 2022-4
           </p>
           <div className="flex flex-wrap gap-3">
@@ -184,7 +184,7 @@ export default function ProceduralRulesPage() {
               href={OFFICIAL_PAGE_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-gray-700 hover:text-gray-900 bg-gray-100 px-3 py-1.5 rounded-lg"
+              className="inline-flex items-center gap-1.5 text-sm text-gray-800 hover:text-gray-900 bg-gray-100 px-3 py-1.5 rounded-lg"
             >
               <svg
                 className="w-4 h-4"
@@ -214,7 +214,7 @@ export default function ProceduralRulesPage() {
               <a
                 key={i}
                 href={`#section-${i}`}
-                className="block text-sm text-gray-700 hover:text-indigo-600 py-0.5"
+                className="block text-sm text-gray-800 hover:text-indigo-600 py-0.5"
               >
                 {section.title}
               </a>
@@ -235,7 +235,7 @@ export default function ProceduralRulesPage() {
                 ? "text-lg font-bold text-gray-900 mt-8 mb-3 pt-6 border-t border-gray-100 first:mt-0 first:pt-0 first:border-0"
                 : section.level === 3
                   ? "text-base font-semibold text-gray-900 mt-5 mb-2"
-                  : "text-sm font-semibold text-gray-700 mt-4 mb-1.5";
+                  : "text-sm font-semibold text-gray-800 mt-4 mb-1.5";
 
             const heading =
               section.level === 2 ? (
@@ -256,13 +256,13 @@ export default function ProceduralRulesPage() {
         </div>
 
         {/* Footer note */}
-        <p className="text-xs text-gray-400 text-center mt-6">
+        <p className="text-xs text-gray-500 text-center mt-6">
           This is a local copy for reference. Always{" "}
           <a
             href={OFFICIAL_PAGE_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline hover:text-gray-500"
+            className="underline hover:text-gray-600"
           >
             check the official City of Santa Fe page
           </a>{" "}

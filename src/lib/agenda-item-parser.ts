@@ -63,7 +63,8 @@ function extractSponsors(text: string): { text: string; sponsors: Sponsor[] } {
       cursor = end;
 
       const withoutEmail = chunk.replace(EMAIL_RE, "").replace(/[;,\s]+$/, "").replace(/^[;,\s]+/, "").trim();
-      const parts = withoutEmail.split(",").map((s) => s.trim()).filter(Boolean);
+      const withoutAnd = withoutEmail.replace(/^and\s+/i, "");
+      const parts = withoutAnd.split(",").map((s) => s.trim()).filter(Boolean);
       // Remove the semicolon that sometimes precedes the email in "Title; email"
       const cleanedParts = parts.map((p) => p.replace(/;\s*$/, "").trim()).filter(Boolean);
 

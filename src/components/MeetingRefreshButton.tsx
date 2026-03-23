@@ -39,7 +39,7 @@ export function MeetingRefreshButton({ eventId, cachedAt: initialCachedAt }: Mee
   };
 
   return (
-    <div className="flex items-center gap-2 text-sm text-gray-500">
+    <div className="flex items-center gap-2 text-sm text-gray-600">
       {cachedAt && !isRefreshing && (
         <span>Last synced {formatRelativeTime(cachedAt)}</span>
       )}
@@ -49,7 +49,7 @@ export function MeetingRefreshButton({ eventId, cachedAt: initialCachedAt }: Mee
         type="button"
         onClick={handleRefresh}
         disabled={isRefreshing}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-gray-800 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50"
         title="Sync latest data from CivicClerk"
       >
         <svg

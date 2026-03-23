@@ -42,9 +42,9 @@ export function MeetingStatsBarSkeleton() {
   return (
     <div className="flex items-center gap-4 mb-6">
       <Skeleton className="h-4 w-24" />
-      <span className="text-gray-300">•</span>
+      <span className="text-gray-400">•</span>
       <Skeleton className="h-4 w-32" />
-      <span className="text-gray-300">•</span>
+      <span className="text-gray-400">•</span>
       <Skeleton className="h-4 w-24" />
     </div>
   );

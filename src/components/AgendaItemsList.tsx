@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import type { MeetingItem, ItemAttachment } from "@/lib/types";
 import type { AgendaItemSummary } from "@/lib/llm/agenda-summary";
 import { normalizeOutlineNumber } from "@/lib/agenda-items";
@@ -23,48 +24,48 @@ function AttachmentCard({
   const chatUrl = `/meeting/${meetingId}/attachment/${attachment.id}?name=${encodeURIComponent(attachment.fileName)}`;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
-      <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
-        <div className="flex items-start gap-3 flex-1 min-w-0">
-          <svg className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z" />
-            <path d="M8 12h8v2H8zM8 15h8v2H8z" />
-          </svg>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-gray-900 leading-tight">{attachment.fileName}</h3>
+    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 hover:border-gray-300 transition-colors">
+      <div className="flex items-center gap-3">
+        <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z" />
+          <path d="M8 12h8v2H8zM8 15h8v2H8z" />
+        </svg>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-gray-900 text-[15px] leading-tight truncate">{attachment.fileName}</h3>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
             <FileMetadata attachmentId={attachment.id} agendaId={agendaId} />
           </div>
         </div>
-        <div className="flex gap-2 sm:flex-col sm:flex-shrink-0">
+        <div className="flex items-center gap-0.5 flex-shrink-0">
           <Link
             href={chatUrl}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+            title="Chat with AI"
+            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
-            Chat
           </Link>
           <a
             href={viewUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            title="View"
+            className="p-1.5 text-gray-900 hover:bg-gray-100 rounded transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
             </svg>
-            View
           </a>
           <a
             href={downloadUrl}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            title="Download"
+            className="p-1.5 text-gray-900 hover:bg-gray-100 rounded transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            Download
           </a>
         </div>
       </div>
@@ -72,12 +73,17 @@ function AttachmentCard({
   );
 }
 
+const summaryFetcher = (url: string) =>
+  fetch(url).then((res) => {
+    if (!res.ok) throw new Error("Failed to fetch agenda summary");
+    return res.json() as Promise<{ summaries: AgendaItemSummary[] }>;
+  });
+
 interface AgendaItemsListProps {
   items: MeetingItem[];
   agendaId: number;
   eventId: number;
   meetingInfo: string;
-  summaries?: AgendaItemSummary[] | null;
 }
 
 export function AgendaItemsList({
@@ -85,9 +91,15 @@ export function AgendaItemsList({
   agendaId,
   eventId,
   meetingInfo,
-  summaries,
 }: AgendaItemsListProps) {
   const [collapsed, setCollapsed] = useState<Set<number>>(() => new Set());
+
+  const { data } = useSWR(
+    `/api/meeting/${eventId}/agenda-summary`,
+    summaryFetcher,
+    { revalidateOnFocus: false, revalidateOnReconnect: false, dedupingInterval: 60_000 },
+  );
+  const summaries = data?.summaries;
 
   const summaryMap = useMemo(() => {
     if (!summaries?.length) return null;
@@ -166,35 +178,37 @@ export function AgendaItemsList({
                     toggleItem(item.id);
                   }
                 }}
-                className="w-full bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-start gap-2 text-left cursor-pointer hover:bg-gray-100 transition-colors"
+                className="w-full bg-white px-4 py-3 border-b border-gray-200 relative text-left cursor-pointer hover:bg-gray-50 transition-colors"
               >
-                <svg
-                  className={`w-4 h-4 text-gray-400 mt-0.5 shrink-0 transition-transform duration-200 ${
-                    isCollapsed ? "-rotate-90" : ""
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-                <div className="flex-1 min-w-0">
+                <div>
                   <AgendaItemContent item={item} summary={getSummary(item)} />
                 </div>
-                <div onClick={(e) => e.stopPropagation()}>
-                  <ShareAgendaItemButton
-                    title={[item.agendaObjectItemOutlineNumber, item.agendaObjectItemName]
-                      .filter(Boolean)
-                      .join(" ")
-                      .replace(/<[^>]+>/g, "")}
-                    meetingInfo={meetingInfo}
-                    shareUrl={`/meeting/${eventId}#item-${item.id}`}
-                  />
+                <div className="absolute top-3 right-3 flex items-center gap-3">
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <ShareAgendaItemButton
+                      title={[item.agendaObjectItemOutlineNumber, item.agendaObjectItemName]
+                        .filter(Boolean)
+                        .join(" ")
+                        .replace(/<[^>]+>/g, "")}
+                      meetingInfo={meetingInfo}
+                      shareUrl={`/meeting/${eventId}#item-${item.id}`}
+                    />
+                  </div>
+                  <svg
+                    className={`w-5 h-5 text-gray-700 shrink-0 transition-transform duration-200 ${
+                      isCollapsed ? "-rotate-90" : ""
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
                 </div>
               </div>
               {!isCollapsed && (

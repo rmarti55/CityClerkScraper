@@ -82,7 +82,7 @@ function GlobalSearchResultCard({
   const locationTextContent = query && venueMatches ? highlightMatch(locationStr, query) : locationStr;
 
   const locationNode = locationStr ? (
-    <p className="text-sm text-gray-500 flex items-start gap-1.5 mt-2 min-w-0 truncate" aria-label="Location">
+    <p className="text-sm text-gray-600 flex items-start gap-1.5 mt-2 min-w-0 truncate" aria-label="Location">
       <MapPinIcon className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
       {mapsUrl ? (
         <span
@@ -121,12 +121,12 @@ function GlobalSearchResultCard({
       locationNode={locationNode}
     >
       {event.eventDescription && descriptionMatches && (
-        <p className="text-sm text-gray-500 mt-2 line-clamp-2">
+        <p className="text-sm text-gray-600 mt-2 line-clamp-2">
           {highlightMatch(event.eventDescription, query)}
         </p>
       )}
       {showMatchIndicator && (
-        <p className="text-xs text-gray-400 mt-2 italic">
+        <p className="text-xs text-gray-500 mt-2 italic">
           Matched in: {matchedFields.join(", ")}
         </p>
       )}
@@ -188,8 +188,8 @@ export function GlobalSearchResults({
             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
           />
         </svg>
-        <p className="text-gray-500">{error}</p>
-        <p className="text-sm text-gray-400 mt-1">Please try again</p>
+        <p className="text-gray-600">{error}</p>
+        <p className="text-sm text-gray-500 mt-1">Please try again</p>
       </div>
     );
   }
@@ -197,7 +197,7 @@ export function GlobalSearchResults({
   if (isLoading && results.length === 0) {
     return (
       <div>
-        <div className="flex items-center gap-2 mb-4 text-sm text-gray-500">
+        <div className="flex items-center gap-2 mb-4 text-sm text-gray-600">
           <span>Searching for {filterDescription}...</span>
         </div>
         <LoadingSkeleton />
@@ -209,7 +209,7 @@ export function GlobalSearchResults({
     return (
       <div className="text-center py-12">
         <svg
-          className="w-12 h-12 text-gray-400 mx-auto mb-4"
+          className="w-12 h-12 text-gray-900 mx-auto mb-4"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -221,10 +221,10 @@ export function GlobalSearchResults({
             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
           />
         </svg>
-        <p className="text-gray-500">
+        <p className="text-gray-600">
           No meetings found for {filterDescription}
         </p>
-        <p className="text-sm text-gray-400 mt-1">
+        <p className="text-sm text-gray-500 mt-1">
           Try different keywords or check spelling
         </p>
       </div>
@@ -234,12 +234,12 @@ export function GlobalSearchResults({
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-gray-600">
           <span>
             Showing {total} result{total !== 1 ? "s" : ""} for {filterDescription}
           </span>
           {isLoading && (
-            <span className="ml-2 text-gray-400">(updating...)</span>
+            <span className="ml-2 text-gray-500">(updating...)</span>
           )}
         </div>
       </div>

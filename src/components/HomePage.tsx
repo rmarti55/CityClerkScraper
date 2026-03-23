@@ -191,7 +191,7 @@ function CommitteeTabContent({
       <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">{committee.displayName}</h2>
-          <p className="text-gray-500 text-sm mt-0.5">{committee.description}</p>
+          <p className="text-gray-600 text-sm mt-0.5">{committee.description}</p>
         </div>
         <FollowCategoryButton
           categoryName={committee.categoryName}

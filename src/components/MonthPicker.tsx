@@ -114,7 +114,7 @@ export function MonthPicker({ hasActiveFilter = false }: MonthPickerProps) {
           aria-label="Previous month"
         >
           <svg
-            className="w-5 h-5 text-gray-600"
+            className="w-5 h-5 text-gray-700"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -164,7 +164,7 @@ export function MonthPicker({ hasActiveFilter = false }: MonthPickerProps) {
           aria-label="Next month"
         >
           <svg
-            className="w-5 h-5 text-gray-600"
+            className="w-5 h-5 text-gray-700"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

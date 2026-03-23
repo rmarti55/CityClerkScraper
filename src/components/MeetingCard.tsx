@@ -95,7 +95,7 @@ export function MeetingCard({
     >
       {/* Row 1: Title + action buttons (upper right) */}
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-base font-semibold text-gray-900 flex-1 min-w-0">
+        <h3 className="text-base font-bold text-gray-900 flex-1 min-w-0">
           {titleNode ?? event.eventName}
         </h3>
         <div className="flex items-center shrink-0">
@@ -107,7 +107,7 @@ export function MeetingCard({
             className={`inline-flex items-center justify-center min-w-[44px] min-h-[44px] w-8 h-8 rounded-full transition-colors disabled:opacity-50 ${
               favorited
                 ? "text-amber-500"
-                : "text-gray-400 hover:bg-gray-100"
+                : "text-gray-900 hover:bg-gray-100"
             }`}
             aria-label={favorited ? "Unfollow meeting" : "Follow meeting"}
             title={favorited ? "Unfollow meeting" : "Follow meeting (sign in to sync)"}
@@ -127,8 +127,8 @@ export function MeetingCard({
 
       {/* Row 2: Date/time + attachments/status badges (inline, right-aligned) */}
       <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
-        <div className="flex items-center gap-1.5 text-sm font-medium text-gray-700 min-w-0">
-          <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex items-center gap-1.5 text-sm font-medium text-gray-800 min-w-0">
+          <svg className="w-4 h-4 text-gray-700 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
           <span className="truncate">
@@ -162,7 +162,7 @@ export function MeetingCard({
       {/* Row 4: Last synced timestamp + Refresh */}
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
         {event.cachedAt ? (
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-500">
             {isRefreshing ? "Syncing…" : `Synced ${formatRelativeTime(event.cachedAt)}`}
           </p>
         ) : (
@@ -173,7 +173,7 @@ export function MeetingCard({
           type="button"
           onClick={handleRefreshClick}
           disabled={isRefreshing}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-800 transition-colors disabled:opacity-40"
           aria-label="Refresh meeting data"
           title="Sync latest data from CivicClerk"
         >

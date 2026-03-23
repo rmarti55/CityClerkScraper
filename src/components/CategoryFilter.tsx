@@ -79,7 +79,7 @@ export function CategoryFilter({
             ${
               selectedCategory
                 ? "bg-indigo-50 border-indigo-300 text-indigo-700"
-                : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                : "bg-white border-gray-200 text-gray-800 hover:bg-gray-50"
             }
           `}
           disabled={isLoading}
@@ -170,7 +170,7 @@ export function CategoryFilter({
                 className={`
                   w-full px-4 py-2 text-left text-sm flex items-center justify-between
                   hover:bg-gray-50 transition-colors
-                  ${!selectedCategory ? "bg-indigo-50 text-indigo-700" : "text-gray-700"}
+                  ${!selectedCategory ? "bg-indigo-50 text-indigo-700" : "text-gray-800"}
                 `}
               >
                 <span className="font-medium">All Categories</span>
@@ -194,7 +194,7 @@ export function CategoryFilter({
 
               {/* Filtered categories */}
               {filteredCategories.length === 0 ? (
-                <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                <div className="px-4 py-3 text-sm text-gray-600 text-center">
                   No categories found
                 </div>
               ) : (
@@ -209,13 +209,13 @@ export function CategoryFilter({
                       ${
                         selectedCategory?.id === category.id
                           ? "bg-indigo-50 text-indigo-700"
-                          : "text-gray-700"
+                          : "text-gray-800"
                       }
                     `}
                   >
                     <span className="flex-1">{category.name}</span>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-500">
                         ({category.meetingCount || 0})
                       </span>
                       {selectedCategory?.id === category.id && (

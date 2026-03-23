@@ -53,7 +53,7 @@ export function FileMetadata(props: FileMetadataProps) {
 
   if (isLoading) {
     return (
-      <span className="text-xs text-gray-400 inline-flex items-center gap-1">
+      <span className="text-xs text-gray-500 inline-flex items-center gap-1">
         <LoadingDots />
       </span>
     );
@@ -64,11 +64,11 @@ export function FileMetadata(props: FileMetadataProps) {
   }
 
   return (
-    <span className="text-xs text-gray-400 inline-flex items-center gap-2">
+    <span className="text-xs text-gray-500 inline-flex items-center gap-2">
       <span>{formatFileSize(metadata.size)}</span>
       {metadata.pageCount !== null && (
         <>
-          <span className="text-gray-300">•</span>
+          <span className="text-gray-400">•</span>
           <span>{metadata.pageCount} {metadata.pageCount === 1 ? "page" : "pages"}</span>
         </>
       )}

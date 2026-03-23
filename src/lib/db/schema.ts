@@ -18,6 +18,7 @@ export const events = pgTable('events', {
   venueZip: text('venue_zip'),
   fileCount: integer('file_count').default(0),
   fileNames: text('file_names'), // Concatenated file names for search
+  zoomLink: text('zoom_link'),
   cachedAt: timestamp('cached_at').defaultNow(),
   // Full-text search vector (auto-generated)
   searchVector: text('search_vector'),

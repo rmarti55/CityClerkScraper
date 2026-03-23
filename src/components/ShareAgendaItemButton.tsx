@@ -61,7 +61,7 @@ export function ShareAgendaItemButton({
       onClick={handleShare}
       type="button"
       title="Share this agenda item"
-      className="inline-flex items-center justify-center p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+      className="inline-flex items-center justify-center p-1.5 text-gray-900 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
     >
       <svg
         className="w-4 h-4"

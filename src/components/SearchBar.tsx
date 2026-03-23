@@ -135,7 +135,7 @@ export function SearchBar({
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
           {isSearching ? (
             <svg
-              className="w-5 h-5 text-gray-400 animate-spin"
+              className="w-5 h-5 text-gray-700 animate-spin"
               fill="none"
               viewBox="0 0 24 24"
             >
@@ -155,7 +155,7 @@ export function SearchBar({
             </svg>
           ) : (
             <svg
-              className="w-5 h-5 text-gray-400"
+              className="w-5 h-5 text-gray-700"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -188,7 +188,7 @@ export function SearchBar({
           <button
             type="button"
             onClick={handleClear}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors z-10"
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-900 hover:text-gray-900 transition-colors z-10"
             aria-label="Clear search"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -209,7 +209,7 @@ export function SearchBar({
           role="listbox"
           aria-label="Recent searches"
         >
-          <div className="px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wide border-b border-gray-100">
+          <div className="px-3 py-2 text-xs font-medium text-gray-600 uppercase tracking-wide border-b border-gray-100">
             Recent Searches
           </div>
           <ul className="py-1">
@@ -230,7 +230,7 @@ export function SearchBar({
                 >
                   {/* Clock icon */}
                   <svg
-                    className="w-4 h-4 text-gray-400 flex-shrink-0"
+                    className="w-4 h-4 text-gray-700 flex-shrink-0"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -244,7 +244,7 @@ export function SearchBar({
                   </svg>
                   
                   {/* Search term */}
-                  <span className="flex-1 text-gray-700 truncate text-sm sm:text-base">
+                  <span className="flex-1 text-gray-800 truncate text-sm sm:text-base">
                     {term}
                   </span>
                   
@@ -252,7 +252,7 @@ export function SearchBar({
                   <button
                     type="button"
                     onClick={(e) => handleRemoveRecentSearch(e, term)}
-                    className="p-1.5 text-gray-400 can-hover:hover:text-gray-600 rounded-full can-hover:hover:bg-gray-200 active:bg-gray-200 transition-colors can-hover:opacity-0 can-hover:group-hover:opacity-100 focus:opacity-100 touch-manipulation"
+                    className="p-1.5 text-gray-900 can-hover:hover:text-gray-900 rounded-full can-hover:hover:bg-gray-200 active:bg-gray-200 transition-colors can-hover:opacity-0 can-hover:group-hover:opacity-100 focus:opacity-100 touch-manipulation"
                     aria-label={`Remove "${term}" from recent searches`}
                     style={{ minWidth: "32px", minHeight: "32px" }}
                   >

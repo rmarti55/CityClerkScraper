@@ -51,7 +51,7 @@ interface EventLocationProps {
 export function EventLocation({
   event,
   className = "",
-  iconClassName = "w-4 h-4 text-gray-400 shrink-0 mt-0.5",
+  iconClassName = "w-4 h-4 text-gray-700 shrink-0 mt-0.5",
   truncate = false,
   block = false,
   format = "full",
@@ -64,7 +64,7 @@ export function EventLocation({
   const mapsUrl = buildMapsUrl(event);
 
   const textClassName = `min-w-0 ${block ? "block" : ""} ${truncate ? "truncate" : ""}`.trim();
-  const sharedClassName = `text-sm text-gray-500 flex items-start gap-1.5 min-w-0 ${truncate ? "truncate" : ""} ${className}`.trim();
+  const sharedClassName = `text-sm text-gray-600 flex items-start gap-1.5 min-w-0 ${truncate ? "truncate" : ""} ${className}`.trim();
 
   return (
     <p className={sharedClassName} aria-label="Location">

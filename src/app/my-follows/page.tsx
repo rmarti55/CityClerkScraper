@@ -76,7 +76,7 @@ export default function MyFollowsPage() {
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">My Follow</h1>
-            <p className="text-gray-700 mb-6">
+            <p className="text-gray-800 mb-6">
               Sign in to see and manage your followed categories and meetings you follow.
             </p>
             <button
@@ -101,7 +101,7 @@ export default function MyFollowsPage() {
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">My Follow</h1>
-        <p className="text-gray-500 mb-4">
+        <p className="text-gray-600 mb-4">
           Categories and meetings you follow. You’ll get email updates when new meetings are scheduled for followed categories.
         </p>
         <p className="mb-8">
@@ -112,7 +112,7 @@ export default function MyFollowsPage() {
 
         {isEmpty && (
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-            <p className="text-gray-500 mb-4">
+            <p className="text-gray-600 mb-4">
               You haven’t followed any categories or followed any meetings yet.
             </p>
             <Link
@@ -158,10 +158,10 @@ export default function MyFollowsPage() {
           <section>
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Followed meetings</h2>
             {loadingEvents ? (
-              <div className="text-sm text-gray-500">Loading…</div>
+              <div className="text-sm text-gray-600">Loading…</div>
             ) : eventsError ? (
               <div className="bg-white border border-gray-200 rounded-lg p-4">
-                <p className="text-sm text-gray-700 mb-3">{eventsError}</p>
+                <p className="text-sm text-gray-800 mb-3">{eventsError}</p>
                 <button
                   type="button"
                   onClick={fetchFollowedEvents}

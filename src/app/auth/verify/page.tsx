@@ -20,10 +20,10 @@ export default function VerifyRequestPage() {
           </svg>
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Check your email</h1>
-        <p className="text-gray-700 mb-6">
+        <p className="text-gray-800 mb-6">
           We sent you a magic link to sign in. Click the link in your email to continue.
         </p>
-        <div className="text-sm text-gray-500 space-y-2">
+        <div className="text-sm text-gray-600 space-y-2">
           <p>The link will expire in 24 hours.</p>
           <p>
             Didn&apos;t receive an email?{" "}

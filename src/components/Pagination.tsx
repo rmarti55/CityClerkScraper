@@ -58,7 +58,7 @@ export function Pagination({
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="px-3 py-2 pointer-coarse:min-h-[44px] pointer-coarse:min-w-[44px] pointer-coarse:px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md can-hover:hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+        className="px-3 py-2 pointer-coarse:min-h-[44px] pointer-coarse:min-w-[44px] pointer-coarse:px-4 text-sm font-medium text-gray-800 bg-white border border-gray-300 rounded-md can-hover:hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
         aria-label="Previous page"
       >
         <svg
@@ -82,7 +82,7 @@ export function Pagination({
           page === "ellipsis" ? (
             <span
               key={`ellipsis-${index}`}
-              className="px-2 sm:px-3 py-2 text-sm text-gray-500 hidden sm:inline"
+              className="px-2 sm:px-3 py-2 text-sm text-gray-600 hidden sm:inline"
             >
               ...
             </span>
@@ -94,7 +94,7 @@ export function Pagination({
               className={`px-3 py-2 pointer-coarse:min-h-[44px] pointer-coarse:min-w-[44px] text-sm font-medium rounded-md transition-colors flex items-center justify-center ${
                 page === currentPage
                   ? "bg-indigo-600 text-white"
-                  : "text-gray-700 bg-white border border-gray-300 can-hover:hover:bg-gray-50"
+                  : "text-gray-800 bg-white border border-gray-300 can-hover:hover:bg-gray-50"
               } ${
                 // On mobile, only show first, last, current, and adjacent pages
                 page !== 1 &&
@@ -117,7 +117,7 @@ export function Pagination({
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="px-3 py-2 pointer-coarse:min-h-[44px] pointer-coarse:min-w-[44px] pointer-coarse:px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md can-hover:hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+        className="px-3 py-2 pointer-coarse:min-h-[44px] pointer-coarse:min-w-[44px] pointer-coarse:px-4 text-sm font-medium text-gray-800 bg-white border border-gray-300 rounded-md can-hover:hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
         aria-label="Next page"
       >
         <svg

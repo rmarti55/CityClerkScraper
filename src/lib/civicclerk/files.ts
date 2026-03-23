@@ -1,6 +1,6 @@
 import { db, events, files } from '../db';
 import { eq } from 'drizzle-orm';
-import type { CivicFile, MeetingItem, ItemAttachment } from '../types';
+import type { CivicEvent, CivicFile, MeetingDetails, MeetingItem, ItemAttachment } from '../types';
 import {
   API_BASE,
   fetchEventPublishedFilesFromAPI,
@@ -11,10 +11,19 @@ import {
 import { getEventById } from './events';
 import { isCacheFresh, mapCachedFile, upsertFiles } from './cache';
 
+interface GetEventFilesOptions {
+  event?: CivicEvent;
+  meetingDetails?: MeetingDetails | null;
+}
+
 /**
- * Fetch files for an event (via its agendaId)
+ * Fetch files for an event (via its agendaId).
+ * Accepts optional pre-fetched event and meetingDetails to avoid redundant API calls.
  */
-export async function getEventFiles(eventId: number): Promise<CivicFile[]> {
+export async function getEventFiles(
+  eventId: number,
+  options?: GetEventFilesOptions,
+): Promise<CivicFile[]> {
   let cachedFilesList: (typeof files.$inferSelect)[] = [];
 
   try {
@@ -35,12 +44,14 @@ export async function getEventFiles(eventId: number): Promise<CivicFile[]> {
   }
 
   try {
-    const event = await getEventById(eventId);
+    const event = options?.event ?? await getEventById(eventId);
     if (!event) {
       return cachedFilesList.length > 0 ? cachedFilesList.map(mapCachedFile) : [];
     }
 
-    const meeting = event.agendaId != null ? await getMeetingDetails(event.agendaId) : null;
+    const meeting = options?.meetingDetails !== undefined
+      ? options.meetingDetails
+      : (event.agendaId != null ? await getMeetingDetails(event.agendaId) : null);
     const meetingFiles: CivicFile[] = meeting?.publishedFiles ?? [];
 
     let eventFiles: CivicFile[] = [];

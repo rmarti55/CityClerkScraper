@@ -86,7 +86,7 @@ export function CategoryFilterModal({
               type="button"
               onClick={() => setShowSearch(!showSearch)}
               className={`p-2 rounded-full transition-colors ${
-                showSearch ? "bg-indigo-100 text-indigo-600" : "text-gray-500 hover:bg-gray-100"
+                showSearch ? "bg-indigo-100 text-indigo-600" : "text-gray-900 hover:bg-gray-100"
               }`}
               aria-label={showSearch ? "Hide search" : "Search categories"}
             >
@@ -108,7 +108,7 @@ export function CategoryFilterModal({
             <button
               type="button"
               onClick={onClose}
-              className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
               aria-label="Close"
             >
               <svg
@@ -134,7 +134,7 @@ export function CategoryFilterModal({
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg
-                  className="w-4 h-4 text-gray-400"
+                  className="w-4 h-4 text-gray-700"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -159,7 +159,7 @@ export function CategoryFilterModal({
                 <button
                   type="button"
                   onClick={() => setSearchTerm("")}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-900 hover:text-gray-900"
                 >
                   <svg
                     className="w-4 h-4"
@@ -216,7 +216,7 @@ export function CategoryFilterModal({
 
           {/* Filtered categories */}
           {filteredCategories.length === 0 ? (
-            <div className="px-4 py-8 text-center text-gray-500">
+            <div className="px-4 py-8 text-center text-gray-600">
               No categories found
             </div>
           ) : (
@@ -236,7 +236,7 @@ export function CategoryFilterModal({
                   {category.name}
                 </span>
                 <div className="flex items-center gap-3 flex-shrink-0">
-                  <span className="text-sm text-gray-400">
+                  <span className="text-sm text-gray-500">
                     {category.meetingCount || 0}
                   </span>
                   {selectedCategory?.id === category.id && (

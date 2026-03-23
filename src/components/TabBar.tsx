@@ -39,7 +39,7 @@ export function TabBar({ activeTab, onTabChange, compact = false }: TabBarProps)
     : "px-4 py-3 text-sm whitespace-nowrap transition-colors border-b-2 flex items-center";
 
   const activeClass = "border-indigo-600 text-indigo-700 font-semibold";
-  const inactiveClass = "border-transparent text-gray-500 font-medium hover:text-gray-700 hover:border-gray-300";
+  const inactiveClass = "border-transparent text-gray-600 font-medium hover:text-gray-800 hover:border-gray-300";
 
   return (
     <div className="tabs-scroll flex items-center gap-0 -mb-px">

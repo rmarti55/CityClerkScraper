@@ -184,7 +184,7 @@ export function SearchableContent({
             className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
               searchMode === "meetings"
                 ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-700 hover:text-gray-900"
+                : "text-gray-800 hover:text-gray-900"
             }`}
           >
             Meetings
@@ -195,7 +195,7 @@ export function SearchableContent({
             className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
               searchMode === "documents"
                 ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-700 hover:text-gray-900"
+                : "text-gray-800 hover:text-gray-900"
             }`}
           >
             Documents
@@ -224,12 +224,12 @@ export function SearchableContent({
       ) : events.length === 0 && isBeforeDataStart ? (
         <div className="text-center py-12">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-4">
-            <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <p className="text-lg font-semibold text-gray-700 mb-2">No records available</p>
-          <p className="text-gray-500 max-w-md mx-auto">
+          <p className="text-lg font-semibold text-gray-800 mb-2">No records available</p>
+          <p className="text-gray-600 max-w-md mx-auto">
             Meeting records prior to June 2024 are not available in this system. 
             The City of Santa Fe migrated to a new platform at that time.
           </p>

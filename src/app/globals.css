@@ -14,9 +14,9 @@
 
    Gray hierarchy (4 levels only):
      Primary:   text-gray-900  — headings, card titles, primary text
-     Secondary: text-gray-700  — body, descriptions, nav links, labels
-     Tertiary:  text-gray-500  — secondary info, timestamps, back links
-     Muted:     text-gray-400  — metadata, disabled, separators, icons
+     Secondary: text-gray-800  — body, descriptions, nav links, labels
+     Tertiary:  text-gray-600  — secondary info, timestamps, back links
+     Muted:     text-gray-500  — metadata, disabled, separators, icons
 
    Semantic colors:
      Link:    text-indigo-600  hover:text-indigo-700
