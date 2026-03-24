@@ -1,8 +1,17 @@
+/**
+ * AI-powered agenda item summarization using OpenRouter (Claude 3.5 Haiku).
+ *
+ * Given a meeting's agenda items, generates a 3-5 word headline and one-sentence
+ * detail for each substantive item. Results are served via the
+ * /api/meeting/[id]/agenda-summary endpoint (cached 1h, SWR 2h).
+ */
+
 import { chatCompletion, type CompletionOptions } from './openrouter';
 import type { MeetingItem } from '@/lib/types';
 import { parseAgendaItem } from '@/lib/agenda-item-parser';
 import { collectItemsWithAttachments } from '@/lib/agenda-items';
 
+/** Single agenda item summary returned by the LLM. */
 export interface AgendaItemSummary {
   itemId: number;
   outlineNumber: string;
@@ -24,6 +33,15 @@ Rules:
 - Preserve the exact itemId and outlineNumber provided for each item
 - No markdown, no explanation, just the JSON array`;
 
+/**
+ * Generate plain-language summaries for a meeting's agenda items.
+ *
+ * Filters to substantive items (those with attachments), sends them to
+ * Claude 3.5 Haiku, and parses the JSON response. Uses outlineNumber
+ * as a fallback key when the LLM mangles itemId.
+ *
+ * @returns Parsed summaries, or `[]` on LLM/parse failure.
+ */
 export async function generateAgendaSummaries(
   items: MeetingItem[],
   options?: CompletionOptions,
@@ -54,7 +72,7 @@ export async function generateAgendaSummaries(
     ],
     {
       temperature: 0.2,
-      maxTokens: 1024,
+      maxTokens: 4096,
       model: 'anthropic/claude-3.5-haiku',
       ...options,
     },
@@ -88,7 +106,8 @@ export async function generateAgendaSummaries(
           detail: String(item.detail),
         };
       });
-  } catch {
+  } catch (e) {
+    console.warn('Failed to parse agenda summary LLM response:', e);
     return [];
   }
 }

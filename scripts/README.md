@@ -31,6 +31,24 @@ For **new installs**, use Drizzle only: `npx drizzle-kit push`. Do not run `migr
 
 Loads `.env.local` for `DATABASE_URL`. Ensure the database is reachable before running.
 
+## backfill-transcripts.ts
+
+**Run:** `npm run backfill:transcripts` or `npm run backfill:transcripts:process`
+
+Discovers YouTube videos from the city's channel, matches them to CivicClerk events, and extracts transcripts from YouTube auto-captions. Covers the last 3 months of uploads.
+
+- `npm run backfill:transcripts` — Discover videos + extract transcripts only
+- `npm run backfill:transcripts:process` — Same as above + run AI processing (clean transcript, generate summary, attribute speakers, extract topics). Requires `OPENROUTER_API_KEY`.
+
+**Required env vars:** `DATABASE_URL`, `YOUTUBE_API_KEY` (in `.env` or `.env.local`).
+
+The pipeline:
+1. Fetches recent videos from the configured YouTube channel
+2. Fuzzy-matches video titles to events by meeting name + date (bigram similarity + date scoring)
+3. Stores video metadata and auto-links high-confidence matches (>= 80/100)
+4. Extracts YouTube auto-captions for linked videos
+5. (With `--process`) Runs AI processing: transcript cleaning, executive summary, speaker attribution, and topic extraction
+
 ## refresh-event-times.ts
 
 **Run:** `tsx scripts/refresh-event-times.ts [--start YYYY-MM-DD] [--end YYYY-MM-DD]`

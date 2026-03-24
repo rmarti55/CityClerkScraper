@@ -96,6 +96,17 @@ function extractDateFromTitle(title: string): DateTime | null {
     if (dt.isValid) return dt;
   }
 
+  // MM/DD/YY or MM-DD-YY (2-digit year, e.g. "03-16-26")
+  const shortYearDate = title.match(/\b(\d{1,2})[/-](\d{1,2})[/-](\d{2})\b/);
+  if (shortYearDate) {
+    const year = 2000 + parseInt(shortYearDate[3]);
+    const dt = DateTime.fromObject(
+      { month: parseInt(shortYearDate[1]), day: parseInt(shortYearDate[2]), year },
+      { zone: 'America/Denver' },
+    );
+    if (dt.isValid) return dt;
+  }
+
   // ISO YYYY-MM-DD
   const isoDate = title.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
   if (isoDate) {

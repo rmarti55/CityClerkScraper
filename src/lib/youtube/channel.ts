@@ -61,7 +61,7 @@ function getApiKey(): string {
 }
 
 function getChannelId(): string {
-  return process.env.YOUTUBE_CHANNEL_ID || 'UCpSHOBJ-o3VIq9a5sYJiMMA';
+  return process.env.YOUTUBE_CHANNEL_ID || 'UCTgU_rclEQSW7XN-sgaCUBA';
 }
 
 /**

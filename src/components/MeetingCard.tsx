@@ -10,7 +10,7 @@ import { useFollows } from "@/hooks/useFollows";
 import { useLoginModal } from "@/context/LoginModalContext";
 import { useToast } from "@/context/ToastContext";
 import { useEvents } from "@/context/EventsContext";
-import { MeetingStatusBadges } from "./MeetingStatusBadges";
+import { MeetingStatusBadges, type MediaFlags } from "./MeetingStatusBadges";
 
 interface MeetingCardProps {
   event: CivicEvent;
@@ -24,6 +24,8 @@ interface MeetingCardProps {
   locationNode?: React.ReactNode;
   /** Extra content rendered below the location row (e.g. description snippets) */
   children?: React.ReactNode;
+  /** Media availability flags (video, transcript, zoom) for badge icons. */
+  media?: MediaFlags;
 }
 
 export function MeetingCard({
@@ -33,6 +35,7 @@ export function MeetingCard({
   titleNode,
   locationNode,
   children,
+  media,
 }: MeetingCardProps) {
   const { isAuthenticated, isFavorite, toggleFavorite, loadingFavorites } = useFollows();
   const { openLoginModal } = useLoginModal();
@@ -141,6 +144,7 @@ export function MeetingCard({
           fileCount={event.fileCount ?? 0}
           variant="card"
           className="flex items-center gap-2 shrink-0"
+          media={media}
         />
       </div>
 

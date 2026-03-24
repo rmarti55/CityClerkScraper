@@ -1,3 +1,15 @@
+/**
+ * Meeting recording and transcript panel.
+ *
+ * Fetches transcript data from /api/meeting/[id]/transcript via SWR.
+ * When a linked YouTube video exists, renders an embedded player and
+ * (if AI processing is complete) tabbed content: executive summary with
+ * key decisions/motions/action items, searchable full transcript, and
+ * speaker-attributed segments with color-coded badges.
+ *
+ * Handles processing states: pending, processing, failed, and completed.
+ * Renders nothing when no video is linked to the meeting.
+ */
 "use client";
 
 import { useState, useMemo } from "react";
@@ -67,7 +79,7 @@ const SPEAKER_COLORS = [
 
 export function MeetingTranscript({ eventId }: { eventId: number }) {
   const [activeTab, setActiveTab] = useState<"summary" | "transcript" | "speakers">("summary");
-  const [showVideo, setShowVideo] = useState(false);
+  const [showVideo, setShowVideo] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data, error, isLoading } = useSWR<TranscriptData>(
@@ -205,6 +217,7 @@ export function MeetingTranscript({ eventId }: { eventId: number }) {
   );
 }
 
+/** Structured summary: executive overview, topics, key decisions, motions, action items, public comments. */
 function SummaryTab({ summary, topics }: { summary: TranscriptSummary; topics: TopicTag[] | null }) {
   return (
     <div className="space-y-4">
@@ -288,6 +301,7 @@ function SummaryTab({ summary, topics }: { summary: TranscriptSummary; topics: T
   );
 }
 
+/** Full transcript text with inline search and match highlighting. */
 function TranscriptTab({
   text,
   searchQuery,
@@ -352,6 +366,7 @@ function TranscriptTab({
   );
 }
 
+/** Color-coded speaker segments with filter-by-speaker toggle. */
 function SpeakersTab({
   speakers,
   colorMap,

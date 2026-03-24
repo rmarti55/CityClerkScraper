@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useLoginModal } from "@/context/LoginModalContext";
@@ -145,6 +145,17 @@ function SavedDocsInner() {
   const [docs, setDocs] = useState<SavedDocDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const filteredDocs = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return docs;
+    return docs.filter((doc) =>
+      [doc.documentName, doc.eventName, doc.categoryName, doc.documentCategory]
+        .some((field) => field?.toLowerCase().includes(q))
+    );
+  }, [docs, searchQuery]);
 
   const fetchDocs = useCallback(async () => {
     if (!isAuthenticated) {
@@ -256,16 +267,61 @@ function SavedDocsInner() {
     );
   }
 
+  const isFiltering = searchQuery.trim().length > 0;
+
   return (
     <div>
-      <p className="text-gray-600 mb-4">
-        {docs.length} saved document{docs.length !== 1 ? "s" : ""}
+      <p className="text-gray-600 mb-3">
+        {isFiltering
+          ? `${filteredDocs.length} of ${docs.length} saved document${docs.length !== 1 ? "s" : ""}`
+          : `${docs.length} saved document${docs.length !== 1 ? "s" : ""}`}
       </p>
-      <div className="space-y-2">
-        {docs.map((doc) => (
-          <SavedDocCard key={doc.id} doc={doc} onUnsave={handleUnsave} />
-        ))}
+
+      {/* Search input */}
+      <div className="relative mb-4">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+        <input
+          ref={searchInputRef}
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search saved documents..."
+          className="block w-full pl-9 pr-9 py-2 text-sm text-gray-900 placeholder-gray-400 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery("");
+              searchInputRef.current?.focus();
+            }}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="Clear search"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
+
+      {filteredDocs.length === 0 ? (
+        <div className="bg-white border border-gray-200 rounded-lg p-6 text-center">
+          <p className="text-gray-500 text-sm">
+            No documents matching &ldquo;{searchQuery.trim()}&rdquo;
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filteredDocs.map((doc) => (
+            <SavedDocCard key={doc.id} doc={doc} onUnsave={handleUnsave} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

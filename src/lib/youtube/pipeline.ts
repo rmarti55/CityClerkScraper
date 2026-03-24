@@ -27,7 +27,7 @@ export interface PipelineResult {
  * Step 1: Discover new YouTube videos not already in the database.
  */
 export async function discoverNewVideos(publishedAfter?: string): Promise<number> {
-  const videos = await listChannelVideos({ publishedAfter, maxResults: 50 });
+  const videos = await listChannelVideos({ publishedAfter, maxResults: 200 });
   if (videos.length === 0) return 0;
 
   const videoIds = videos.map((v) => v.videoId);

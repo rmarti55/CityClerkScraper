@@ -15,6 +15,9 @@ Built because the official CivicClerk portal is terrible.
 - **Meeting detail pages** - View full meeting info with all attached files
 - **Structured agenda items** - Parsed agenda items with sponsors, committee review schedule, and expandable descriptions
 - **AI agenda summaries** - "Agenda at a Glance" per meeting via OpenRouter (Claude Haiku), summarizing key items
+- **YouTube video integration** - Auto-discovers meeting recordings from the city's YouTube channel, fuzzy-matches videos to events by title and date
+- **Meeting transcripts** - Extracts YouTube auto-captions, AI-cleans and structures them (executive summary, key decisions, action items, motions & votes, speaker attribution, topic tags)
+- **Transcript search** - Full-text search across all meeting transcripts
 - **Document chat (RAG)** - Chat with meeting documents and attachments using retrieval-augmented generation (OpenRouter embeddings + LLM)
 - **PDF preview** - View PDFs inline or download files
 - **File & attachment viewers** - Dedicated pages for viewing files and agenda item attachments
@@ -57,8 +60,9 @@ Built because the official CivicClerk portal is terrible.
 - [Luxon 3.5](https://moment.github.io/luxon/) for timezone-aware date/time handling (America/Denver)
 - [pdf-lib 1.17.1](https://pdf-lib.js.org/) for PDF metadata extraction
 - [unpdf 1.4](https://github.com/nicolo-ribaudo/unpdf) for PDF text extraction (document chat, text API)
+- [youtube-transcript](https://github.com/Kakulukian/youtube-transcript) for YouTube caption extraction (no API key needed)
 - [Vitest](https://vitest.dev/) for unit testing
-- Optional: [OpenRouter](https://openrouter.ai/) for AI features (committee summaries, agenda summaries, document chat, embeddings)
+- Optional: [OpenRouter](https://openrouter.ai/) for AI features (committee summaries, agenda summaries, document chat, transcript processing, embeddings)
 
 ## Quick Start
 
@@ -86,7 +90,9 @@ Create a `.env` or `.env.local` file in the project root. See `.env.example` for
 | `RESEND_API_KEY` | Yes (for magic link) | From [Resend](https://resend.com/api-keys) |
 | `CRON_SECRET` | Yes (for digest) | Secret for protecting `/api/cron/notifications` |
 | `EMAIL_FROM` | No | Custom from address (requires verified domain in Resend) |
-| `OPENROUTER_API_KEY` | No | For AI features: committee summaries, agenda summaries, document chat, and embeddings; omit to disable AI features |
+| `OPENROUTER_API_KEY` | No | For AI features: committee summaries, agenda summaries, document chat, transcript processing, and embeddings; omit to disable AI features |
+| `YOUTUBE_API_KEY` | No | YouTube Data API v3 key for video discovery; omit to disable transcript features. Get one at [Google Cloud Console](https://console.cloud.google.com/apis/credentials) (enable YouTube Data API v3) |
+| `YOUTUBE_CHANNEL_ID` | No | YouTube channel ID to scan for meeting videos (defaults to City of Santa Fe channel) |
 
 **Note:** The CivicClerk API is publicly accessible—no API key needed. The app's auth, email, and cron features require the variables above.
 
@@ -127,6 +133,8 @@ npm run backfill:probe  # Test with 1 month first
 | `npm run backfill:probe` | Test backfill with first month only |
 | `npm run refresh-file-counts` | Refresh `file_count` and file metadata in the database |
 | `npm run migrate:auth` | One-off migration from old auth schema to Auth.js (see Database setup) |
+| `npm run backfill:transcripts` | Discover YouTube videos and extract transcripts (last 3 months) |
+| `npm run backfill:transcripts:process` | Same as above + run AI processing on extracted transcripts |
 
 ## API Routes
 
@@ -149,6 +157,11 @@ Internal API endpoints used by the frontend:
 | `/api/attachment/[id]/chat` | POST | RAG-based chat over an attachment |
 | `/api/meeting/[id]/agenda-summary` | GET | AI-generated agenda item summaries (cached 1h) |
 | `/api/meeting/[id]/zoom-link` | GET | Auto-extracted Zoom/Teams/Meet link for a meeting |
+| `/api/meeting/[id]/transcript` | GET | Transcript data (video info, summary, speakers, topics, cleaned text) |
+| `/api/meeting/[id]/transcript` | POST | Trigger transcript extraction + AI processing (protected by `CRON_SECRET`) |
+| `/api/meetings/media-status` | GET | Batch media availability flags (video, transcript, zoom) for event IDs |
+| `/api/transcripts/search` | GET | Full-text search across meeting transcripts |
+| `/api/saved-docs` | GET/POST/DELETE | User saved documents |
 | `/api/people` | GET | List/search people directory (query, department filter) |
 | `/api/people/[slug]` | GET | Single person by slug |
 | `/api/committees/[slug]/summary` | GET | Cached LLM committee summary; optional `?refresh=true` |
@@ -158,8 +171,11 @@ Internal API endpoints used by the frontend:
 | `/api/follows/categories` | GET/POST/DELETE | User category follows |
 | `/api/notifications/preferences` | GET/PATCH | User notification preferences |
 | `/api/cron/notifications` | GET | Cron: send daily digest (protected by `CRON_SECRET`) |
+| `/api/cron/transcripts` | GET | Cron: run YouTube transcript pipeline (protected by `CRON_SECRET`) |
 | `/api/admin/committees/[slug]/scrape-members` | POST | Admin: scrape committee members from external source |
 | `/api/admin/people/sync` | POST | Admin: sync people directory from agendas, scraper, and seed data |
+| `/api/admin/videos/unmatched` | GET | Admin: list YouTube videos not auto-matched to events |
+| `/api/admin/videos/[videoId]/link` | POST | Admin: manually link a YouTube video to an event |
 
 ### Search API
 
@@ -250,6 +266,43 @@ GET /api/meeting/456/zoom-link
 
 Returns an auto-extracted Zoom, Teams, or Google Meet link for a meeting. Scans PDF annotations and text from agenda documents. Result is cached on the event record.
 
+### Transcript API
+
+```
+GET /api/meeting/456/transcript
+```
+
+Returns transcript data for a meeting: video metadata, AI-generated summary (executive summary, key decisions, action items, motions & votes), speaker-attributed segments, topic tags, and cleaned transcript text. Cached for 1 hour with stale-while-revalidate of 24 hours.
+
+```
+POST /api/meeting/456/transcript
+```
+
+Triggers transcript extraction and AI processing for a meeting's linked YouTube video. Protected by `CRON_SECRET` (via `Authorization: Bearer` header or `?secret=` query param). Requires `OPENROUTER_API_KEY` for AI processing.
+
+### Transcript Search API
+
+```
+GET /api/transcripts/search?q=water+rates&limit=20
+```
+
+Parameters:
+- `q` - Search query (required, min 2 characters)
+- `limit` - Max results (default: 20, max: 50)
+
+Full-text search across all completed meeting transcripts. Returns matching transcript snippets with event and video metadata.
+
+### Media Status API
+
+```
+GET /api/meetings/media-status?ids=917,962,963
+```
+
+Parameters:
+- `ids` - Comma-separated event IDs (required)
+
+Returns a map of `{ hasVideo, hasTranscript, hasZoomLink }` flags for each event ID. Used by meeting cards to show media availability badges. Cached for 5 minutes.
+
 ### People API
 
 ```
@@ -276,7 +329,10 @@ src/
 │   ├── api/               # API routes
 │   │   ├── admin/
 │   │   │   ├── committees/[slug]/scrape-members/  # Admin: scrape members
-│   │   │   └── people/sync/      # Admin: sync people directory
+│   │   │   ├── people/sync/      # Admin: sync people directory
+│   │   │   └── videos/           # Admin: video management
+│   │   │       ├── unmatched/    # List unmatched YouTube videos
+│   │   │       └── [videoId]/link/  # Manually link video to event
 │   │   ├── attachment/[id]/       # Attachment proxy
 │   │   │   ├── metadata/         # Attachment metadata
 │   │   │   └── chat/             # RAG chat over attachment
@@ -285,7 +341,9 @@ src/
 │   │   ├── committees/[slug]/
 │   │   │   ├── overview/         # Committee overview
 │   │   │   └── summary/          # LLM committee summary
-│   │   ├── cron/notifications/   # Daily digest cron
+│   │   ├── cron/
+│   │   │   ├── notifications/   # Daily digest cron
+│   │   │   └── transcripts/     # YouTube transcript pipeline cron
 │   │   ├── events/               # GET all cached events
 │   │   │   ├── [id]/refresh/     # Refresh single event
 │   │   │   └── by-category/      # Filter by category
@@ -297,12 +355,16 @@ src/
 │   │   ├── follows/categories/   # User category follows
 │   │   ├── meeting/[id]/
 │   │   │   ├── agenda-summary/   # AI agenda summaries
+│   │   │   ├── transcript/       # Meeting transcript (GET data, POST trigger processing)
 │   │   │   └── zoom-link/        # Auto-extracted Zoom/Teams/Meet link
+│   │   ├── meetings/media-status/     # Batch video/transcript/zoom availability
 │   │   ├── notifications/preferences/  # Notification prefs
 │   │   ├── people/               # People directory list/search
 │   │   │   └── [slug]/           # Single person by slug
-│   │   └── search/               # Server-side search
-│   │       └── documents/        # Document content search
+│   │   ├── saved-docs/            # User saved documents
+│   │   ├── search/               # Server-side search
+│   │   │   └── documents/        # Document content search
+│   │   └── transcripts/search/   # Transcript full-text search
 │   ├── auth/error/        # Auth error page
 │   ├── auth/verify/       # Magic link verification
 │   ├── governing-body/    # Governing Body committee page
@@ -344,6 +406,7 @@ src/
 │   ├── MeetingCard.tsx            # Meeting card display
 │   ├── MeetingDetailLayout.tsx    # Responsive meeting page layout (single/split column)
 │   ├── MeetingList.tsx            # Meeting list with grouping
+│   ├── MeetingTranscript.tsx      # YouTube video embed + AI transcript (summary, speakers, search)
 │   ├── MeetingRefreshButton.tsx   # Refresh single meeting data
 │   ├── MeetingStatusBadges.tsx    # Happening Now, Today, Upcoming, etc.
 │   ├── MeetingsProviders.tsx      # Composed EventsProvider + CommitteeProvider
@@ -413,10 +476,16 @@ src/
     │   ├── embeddings.ts      # OpenRouter embeddings for RAG
     │   ├── summary.ts         # Committee summary generation
     │   └── agenda-summary.ts  # Agenda item summary generation
-    └── people/                # People directory data
-        ├── scrapers.ts        # Elected official scraping (santafenm.gov)
-        ├── seed.json          # Manual seed data for people
-        └── sync.ts            # People sync: agendas + scraper + seed → DB
+    ├── people/                # People directory data
+    │   ├── scrapers.ts        # Elected official scraping (santafenm.gov)
+    │   ├── seed.json          # Manual seed data for people
+    │   └── sync.ts            # People sync: agendas + scraper + seed → DB
+    └── youtube/               # YouTube video & transcript pipeline
+        ├── channel.ts         # YouTube Data API v3 client (video discovery)
+        ├── matcher.ts         # Fuzzy video-to-event matching (bigram + date scoring)
+        ├── pipeline.ts        # End-to-end pipeline orchestrator (cron/backfill)
+        ├── transcript.ts      # Transcript extraction (YouTube captions, CivicClerk VTT)
+        └── ai-processor.ts   # AI processing (clean, summarize, speakers, topics)
 ```
 
 ## Caching Strategy
@@ -437,7 +506,7 @@ The app also uses:
 
 1. Push to GitHub
 2. Import project in Vercel
-3. Add environment variables: `DATABASE_URL`, `AUTH_SECRET`, `NEXTAUTH_URL` (production URL), `RESEND_API_KEY`, and `CRON_SECRET` (if using Vercel Cron for `/api/cron/notifications`). Optionally set `EMAIL_FROM` (requires verified domain in Resend) and `OPENROUTER_API_KEY` for AI features (committee summaries, agenda summaries, document chat).
+3. Add environment variables: `DATABASE_URL`, `AUTH_SECRET`, `NEXTAUTH_URL` (production URL), `RESEND_API_KEY`, and `CRON_SECRET` (if using Vercel Cron for `/api/cron/notifications` and `/api/cron/transcripts`). Optionally set `EMAIL_FROM` (requires verified domain in Resend), `OPENROUTER_API_KEY` for AI features (committee summaries, agenda summaries, document chat, transcript processing), and `YOUTUBE_API_KEY` for YouTube video discovery and transcript extraction.
 4. Deploy
 
 ## CivicClerk API Reference

@@ -1,3 +1,9 @@
+/**
+ * "Agenda at a Glance" collapsible panel that shows AI-generated summaries
+ * for each agenda item in a meeting. Fetches from /api/meeting/[id]/agenda-summary
+ * via SWR and links each item to its anchor on the page for smooth scrolling.
+ * Renders nothing on error or when no summaries are available.
+ */
 "use client";
 
 import { useState } from "react";
@@ -91,7 +97,7 @@ export function AgendaSummary({ eventId }: { eventId: number }) {
                       }}
                       className="flex gap-2.5 -mx-2 px-2 py-1.5 rounded-md hover:bg-gray-50 transition-colors group"
                     >
-                      <span className="text-gray-400 font-mono text-sm tabular-nums shrink-0 w-10 text-right mt-0.5">
+                      <span className="text-gray-900 font-mono text-sm tabular-nums shrink-0 whitespace-nowrap text-right mt-0.5">
                         {item.outlineNumber}
                       </span>
                       <div className="min-w-0">

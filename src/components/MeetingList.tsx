@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import useSWR from "swr";
 import { CivicEvent } from "@/lib/types";
 import { MeetingCard } from "./MeetingCard";
 import { getEventDateKeyInDenver } from "@/lib/datetime";
+import type { MediaStatusMap } from "@/app/api/meetings/media-status/route";
+
+const mediaFetcher = (url: string) => fetch(url).then((r) => r.json() as Promise<MediaStatusMap>);
 
 interface MeetingListProps {
   events: CivicEvent[];
@@ -36,6 +40,12 @@ function formatDateHeader(dateString: string): string {
 
 export function MeetingList({ events, scrollToDate, onScrollComplete }: MeetingListProps) {
   const highlightedRef = useRef<string | null>(null);
+  const eventIds = events.map((e) => e.id).join(",");
+  const { data: mediaStatus } = useSWR<MediaStatusMap>(
+    eventIds ? `/api/meetings/media-status?ids=${eventIds}` : null,
+    mediaFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60_000 },
+  );
 
   // Scroll to target date when scrollToDate changes. Defer so it runs after layout and wins on desktop.
   useEffect(() => {
@@ -120,7 +130,11 @@ export function MeetingList({ events, scrollToDate, onScrollComplete }: MeetingL
             </h2>
             <div className="space-y-3">
               {groupedEvents.get(dateKey)!.map((event) => (
-                <MeetingCard key={event.id} event={event} />
+                <MeetingCard
+                  key={event.id}
+                  event={event}
+                  media={mediaStatus?.[String(event.id)]}
+                />
               ))}
             </div>
           </div>

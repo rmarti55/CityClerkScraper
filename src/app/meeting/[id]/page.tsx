@@ -18,13 +18,13 @@ import { MeetingRefreshButton } from "@/components/MeetingRefreshButton";
 import { collectItemsWithAttachments } from "@/lib/agenda-items";
 import { AgendaSummary } from "@/components/AgendaSummary";
 import { AgendaItemsList } from "@/components/AgendaItemsList";
-import { ZoomLinkBanner } from "@/components/ZoomLinkBanner";
 import { ViewDocumentButton } from "@/components/ViewDocumentButton";
 import { DocumentCardWrapper } from "@/components/DocumentCardWrapper";
 import { SaveDocumentButton } from "@/components/SaveDocumentButton";
 import { DocumentViewerProvider } from "@/context/DocumentViewerContext";
 import { MeetingDetailLayout } from "@/components/MeetingDetailLayout";
 import { MeetingTranscript } from "@/components/MeetingTranscript";
+import { MeetingMediaBadges } from "@/components/MeetingMediaBadges";
 import { SITE_NAME } from "@/lib/branding";
 
 interface PageProps {
@@ -277,12 +277,13 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
                 </div>
               </div>
             )}
-            <ZoomLinkBanner meetingId={eventId} />
           </div>
 
           <div className="mt-4">
             <MeetingStatusBadges event={event} variant="detail" />
           </div>
+
+          <MeetingMediaBadges eventId={eventId} />
 
           {event.eventDescription && (
             <div className="mt-4 pt-4 border-t border-gray-100">
