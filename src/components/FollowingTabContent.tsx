@@ -91,7 +91,7 @@ export function FollowingTabContent() {
   return (
     <div>
       <p className="text-gray-600 mb-4">
-        Categories and meetings you follow. You&apos;ll get email updates when new meetings are scheduled for followed categories.
+        Categories and meetings you follow. You&apos;ll get emails for daily meeting digests, new agendas and documents, meeting reminders, and post-meeting transcripts.
       </p>
       <p className="mb-8">
         <Link href="/profile" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">

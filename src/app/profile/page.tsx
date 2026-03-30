@@ -8,6 +8,8 @@ interface NotificationPreferences {
   confirmationEmailEnabled: string;
   meetingReminderEnabled: string;
   meetingReminderMinutesBefore: number;
+  agendaPostedEnabled: string;
+  transcriptReadyEnabled: string;
 }
 
 export default function ProfilePage() {
@@ -29,6 +31,8 @@ export default function ProfilePage() {
       confirmationEmailEnabled: data.confirmationEmailEnabled ?? "true",
       meetingReminderEnabled: data.meetingReminderEnabled ?? "true",
       meetingReminderMinutesBefore: data.meetingReminderMinutesBefore ?? 60,
+      agendaPostedEnabled: data.agendaPostedEnabled ?? "true",
+      transcriptReadyEnabled: data.transcriptReadyEnabled ?? "true",
     });
   }, []);
 
@@ -220,6 +224,60 @@ export default function ProfilePage() {
                 <option value={15}>15 minutes before</option>
               </select>
             </div>
+
+            <label className="flex items-center justify-between gap-4 px-4 py-4">
+              <span className="font-medium text-gray-900">Agenda / documents posted</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={prefs.agendaPostedEnabled === "true"}
+                disabled={saving}
+                onClick={() =>
+                  toggle("agendaPostedEnabled", prefs.agendaPostedEnabled === "true" ? "false" : "true")
+                }
+                className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 ${
+                  prefs.agendaPostedEnabled === "true"
+                    ? "border-indigo-600 bg-indigo-600"
+                    : "border-gray-200 bg-gray-200"
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                    prefs.agendaPostedEnabled === "true" ? "translate-x-5" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+            </label>
+            <p className="px-4 pb-4 text-sm text-gray-600">
+              Get an email when new agendas, packets, or documents are posted to meetings in categories you follow.
+            </p>
+
+            <label className="flex items-center justify-between gap-4 px-4 py-4">
+              <span className="font-medium text-gray-900">Transcript ready</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={prefs.transcriptReadyEnabled === "true"}
+                disabled={saving}
+                onClick={() =>
+                  toggle("transcriptReadyEnabled", prefs.transcriptReadyEnabled === "true" ? "false" : "true")
+                }
+                className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 ${
+                  prefs.transcriptReadyEnabled === "true"
+                    ? "border-indigo-600 bg-indigo-600"
+                    : "border-gray-200 bg-gray-200"
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                    prefs.transcriptReadyEnabled === "true" ? "translate-x-5" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+            </label>
+            <p className="px-4 pb-4 text-sm text-gray-600">
+              Get an email when an AI-generated transcript and summary become available for meetings you follow.
+            </p>
           </div>
         )}
       </div>

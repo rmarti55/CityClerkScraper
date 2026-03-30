@@ -31,6 +31,17 @@ For **new installs**, use Drizzle only: `npx drizzle-kit push`. Do not run `migr
 
 Loads `.env.local` for `DATABASE_URL`. Ensure the database is reachable before running.
 
+## backfill-agenda-items.ts
+
+**Run:** `tsx scripts/backfill-agenda-items.ts` or `tsx scripts/backfill-agenda-items.ts --probe`
+
+Backfills agenda items for events that have an `agenda_id` but no cached rows in the `agenda_items` table. Fetches meeting details from the CivicClerk API and caches structured agenda items to the database.
+
+- `tsx scripts/backfill-agenda-items.ts` — Process all events missing agenda items
+- `tsx scripts/backfill-agenda-items.ts --probe` — Test with the first 10 events only
+
+**Required env vars:** `DATABASE_URL` (in `.env` or `.env.local`).
+
 ## backfill-transcripts.ts
 
 **Run:** `npm run backfill:transcripts` or `npm run backfill:transcripts:process`

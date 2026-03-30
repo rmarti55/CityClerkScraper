@@ -53,26 +53,26 @@ export function MeetingStatusBadges({
       )}
       {variant === "card" && media?.hasVideo && (
         <span
-          className={`inline-flex items-center gap-1 px-2 ${badgePadding} text-xs font-medium rounded-full whitespace-nowrap bg-red-50 text-red-600`}
+          className={`inline-flex items-center gap-1 px-2.5 ${badgePadding} text-xs font-medium rounded-full whitespace-nowrap bg-red-50 text-red-600`}
           title="Video recording available"
         >
-          <YouTubeIcon className="w-3 h-3" />
+          <YouTubeIcon className="w-3.5 h-3.5" />
         </span>
       )}
       {variant === "card" && media?.hasTranscript && (
         <span
-          className={`inline-flex items-center gap-1 px-2 ${badgePadding} text-xs font-medium rounded-full whitespace-nowrap bg-purple-50 text-purple-600`}
+          className={`inline-flex items-center gap-1 px-2.5 ${badgePadding} text-xs font-medium rounded-full whitespace-nowrap bg-purple-50 text-purple-600`}
           title="AI transcript available"
         >
-          <DocumentIcon className="w-3 h-3" />
+          <DocumentIcon className="w-3.5 h-3.5" />
         </span>
       )}
       {variant === "card" && media?.hasZoomLink && isZoomLinkRelevant(event.startDateTime) && (
         <span
-          className={`inline-flex items-center gap-1 px-2 ${badgePadding} text-xs font-medium rounded-full whitespace-nowrap bg-blue-50 text-blue-600`}
+          className={`inline-flex items-center gap-1 px-2.5 ${badgePadding} text-xs font-medium rounded-full whitespace-nowrap bg-blue-50 text-blue-600`}
           title="Virtual meeting link available"
         >
-          <VideoCameraIcon className="w-3 h-3" />
+          <VideoCameraIcon className="w-3.5 h-3.5" />
         </span>
       )}
       {isCanceled && (

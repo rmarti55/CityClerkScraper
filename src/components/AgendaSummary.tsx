@@ -59,7 +59,7 @@ export function AgendaSummary({ eventId }: { eventId: number }) {
             AI Summary
           </span>
           <svg
-            className={`w-4 h-4 text-gray-400 ml-auto shrink-0 transition-transform duration-200 ${open ? "rotate-0" : "-rotate-90"}`}
+            className={`w-4 h-4 text-gray-900 ml-auto shrink-0 transition-transform duration-200 ${open ? "rotate-0" : "-rotate-90"}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -71,7 +71,7 @@ export function AgendaSummary({ eventId }: { eventId: number }) {
         {open && (
           <div className="px-4 pb-4">
             {isLoading ? (
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
                 {[42, 55, 38, 50, 45].map((w, i) => (
                   <div key={i} className="flex gap-3 animate-pulse">
                     <div className="w-6 h-4 bg-gray-100 rounded shrink-0 mt-0.5" />
@@ -83,7 +83,7 @@ export function AgendaSummary({ eventId }: { eventId: number }) {
                 ))}
               </div>
             ) : (
-              <ol className="space-y-1">
+              <ol className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
                 {summaries!.map((item, i) => (
                   <li key={i}>
                     <a

@@ -2,7 +2,9 @@
 
 > **Status: Implemented.** This feature has been built and is live. Key implementation files:
 > - API routes: `src/app/api/file/[id]/chat/route.ts`, `src/app/api/file/[id]/text/route.ts`, `src/app/api/attachment/[id]/chat/route.ts`
-> - UI: `src/components/DocumentChatView.tsx` (full-page viewer), `src/components/InlineDocumentChat.tsx` + `src/components/InlineDocumentViewer.tsx` (split-pane inline viewer on large screens)
+> - Shared chat handler: `src/lib/document-chat.ts` (`handleDocumentChat` used by both file and attachment chat routes)
+> - UI: `src/components/DocumentChatView.tsx` (full-page viewer), `src/components/InlineDocumentChat.tsx` + `src/components/InlineDocumentViewer.tsx` (split-pane inline viewer on large screens), `src/components/ChatMessageList.tsx` (shared message list)
+> - Client hook: `src/hooks/useDocumentChat.ts` (message history, submit, reset on endpoint change)
 > - RAG pipeline: `src/lib/document-rag.ts` (chunking, embeddings, retrieval with TTL cache), `src/lib/document-text.ts` (PDF text extraction)
 > - Embeddings: `src/lib/llm/embeddings.ts`
 > - PDF text extraction: uses `unpdf` (Scenario C from the probe — API does not provide usable text)

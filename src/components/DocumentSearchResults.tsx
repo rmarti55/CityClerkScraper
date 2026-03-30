@@ -76,7 +76,7 @@ function DocumentResultCard({
             </p>
             {locationStr && (
               <p className="text-sm text-gray-600 flex items-start gap-1.5 mt-1 min-w-0 truncate" aria-label="Location">
-                <MapPinIcon className="w-4 h-4 text-gray-700 shrink-0 mt-0.5" />
+                <MapPinIcon className="w-4 h-4 text-gray-900 shrink-0 mt-0.5" />
                 {mapsUrl ? (
                   <span
                     role="link"
@@ -249,7 +249,7 @@ function EventFileRow({
         <a
           href={downloadUrl}
           title="Download"
-          className="p-1.5 text-gray-700 hover:bg-gray-100 rounded transition-colors"
+          className="p-1.5 text-gray-900 hover:bg-gray-100 rounded transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />

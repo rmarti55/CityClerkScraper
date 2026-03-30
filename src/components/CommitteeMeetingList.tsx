@@ -2,11 +2,15 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import { CivicEvent } from "@/lib/types";
 import { getMeetingTimeStatus } from "@/lib/datetime";
 import { useCommitteeCache } from "@/context/CommitteeContext";
 import { MeetingCard } from "./MeetingCard";
 import { MeetingListSkeleton } from "./skeletons/MeetingCardSkeleton";
+import type { MediaStatusMap } from "@/app/api/meetings/media-status/route";
+
+const mediaFetcher = (url: string) => fetch(url).then((r) => r.json() as Promise<MediaStatusMap>);
 
 interface CommitteeMeetingListProps {
   categoryName: string;
@@ -34,6 +38,13 @@ export function CommitteeMeetingList({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
+
+  const eventIds = meetings.map((e) => e.id).join(",");
+  const { data: mediaStatus } = useSWR<MediaStatusMap>(
+    eventIds ? `/api/meetings/media-status?ids=${eventIds}` : null,
+    mediaFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60_000 },
+  );
 
   useEffect(() => {
     const cached = getCached(committeeSlug, categoryName, limit);
@@ -148,7 +159,7 @@ export function CommitteeMeetingList({
           </h3>
           <div className="space-y-3">
             {upcomingMeetings.map((meeting) => (
-              <MeetingCard key={meeting.id} event={meeting} backPath={`/?tab=${committeeSlug}`} />
+              <MeetingCard key={meeting.id} event={meeting} backPath={`/?tab=${committeeSlug}`} media={mediaStatus?.[String(meeting.id)]} />
             ))}
           </div>
         </div>
@@ -165,7 +176,7 @@ export function CommitteeMeetingList({
           </h3>
           <div className="space-y-3">
             {pastMeetings.map((meeting) => (
-              <MeetingCard key={meeting.id} event={meeting} backPath={`/?tab=${committeeSlug}`} />
+              <MeetingCard key={meeting.id} event={meeting} backPath={`/?tab=${committeeSlug}`} media={mediaStatus?.[String(meeting.id)]} />
             ))}
           </div>
         </div>

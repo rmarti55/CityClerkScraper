@@ -96,7 +96,7 @@ function SearchResultItem({
           {/* Location */}
           {locationStr && (
             <p className="text-sm text-gray-600 flex items-start gap-1.5 mt-0.5 min-w-0 truncate" aria-label="Location">
-              <MapPinIcon className="w-4 h-4 text-gray-700 shrink-0 mt-0.5" />
+              <MapPinIcon className="w-4 h-4 text-gray-900 shrink-0 mt-0.5" />
               {mapsUrl ? (
                 <a
                   href={mapsUrl}
@@ -261,7 +261,7 @@ export function MobileSearchModal({
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               {isSearching ? (
                 <svg
-                  className="w-5 h-5 text-gray-700 animate-spin"
+                  className="w-5 h-5 text-gray-900 animate-spin"
                   fill="none"
                   viewBox="0 0 24 24"
                 >
@@ -281,7 +281,7 @@ export function MobileSearchModal({
                 </svg>
               ) : (
                 <svg
-                  className="w-5 h-5 text-gray-700"
+                  className="w-5 h-5 text-gray-900"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -315,7 +315,7 @@ export function MobileSearchModal({
               <button
                 type="button"
                 onClick={handleClear}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-900 hover:text-gray-700 transition-colors touch-manipulation"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-900 transition-colors touch-manipulation"
                 aria-label="Clear search"
               >
                 <svg
@@ -374,7 +374,7 @@ export function MobileSearchModal({
                   >
                     {/* Clock icon */}
                     <svg
-                      className="w-5 h-5 text-gray-700 flex-shrink-0"
+                      className="w-5 h-5 text-gray-900 flex-shrink-0"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -396,7 +396,7 @@ export function MobileSearchModal({
                     <button
                       type="button"
                       onClick={(e) => handleRemoveRecentSearch(e, term)}
-                      className="p-2 text-gray-900 hover:text-gray-700 rounded-full hover:bg-gray-200 transition-colors touch-manipulation"
+                      className="p-2 text-gray-900 rounded-full hover:bg-gray-200 transition-colors touch-manipulation"
                       aria-label={`Remove "${term}" from recent searches`}
                       style={{ minWidth: "40px", minHeight: "40px" }}
                     >

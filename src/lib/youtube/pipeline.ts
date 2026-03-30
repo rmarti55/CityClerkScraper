@@ -14,6 +14,7 @@ import { listChannelVideos, getVideoDetails } from './channel';
 import { extractTranscript } from './transcript';
 import { matchVideosToEvents, AUTO_LINK_THRESHOLD, type MatchCandidate } from './matcher';
 import { processTranscript } from './ai-processor';
+import { notifyTranscriptReady } from '@/lib/notifications';
 
 export interface PipelineResult {
   videosDiscovered: number;
@@ -268,6 +269,14 @@ export async function processPendingTranscripts(limit: number = 5): Promise<numb
           generatedAt: new Date(),
         })
         .where(eq(meetingTranscripts.id, transcript.id));
+
+      // Notify followers that the transcript is ready
+      if (transcript.eventId) {
+        const snippet = result.summary?.executiveSummary?.slice(0, 300);
+        notifyTranscriptReady(transcript.eventId, snippet).catch((err) =>
+          console.error('Transcript notification error:', err)
+        );
+      }
 
       processed++;
     } catch (err) {

@@ -137,7 +137,7 @@ export function SearchBar({
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
           {isSearching ? (
             <svg
-              className="w-5 h-5 text-gray-700 animate-spin"
+              className="w-5 h-5 text-gray-900 animate-spin"
               fill="none"
               viewBox="0 0 24 24"
             >
@@ -157,7 +157,7 @@ export function SearchBar({
             </svg>
           ) : (
             <svg
-              className="w-5 h-5 text-gray-700"
+              className="w-5 h-5 text-gray-900"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -232,7 +232,7 @@ export function SearchBar({
                 >
                   {/* Clock icon */}
                   <svg
-                    className="w-4 h-4 text-gray-700 flex-shrink-0"
+                    className="w-4 h-4 text-gray-900 flex-shrink-0"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"

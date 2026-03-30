@@ -21,6 +21,7 @@ import { AgendaSummary } from "@/components/AgendaSummary";
 import { AgendaItemsList } from "@/components/AgendaItemsList";
 import { ViewDocumentButton } from "@/components/ViewDocumentButton";
 import { DocumentCardWrapper } from "@/components/DocumentCardWrapper";
+import { DocumentGrid } from "@/components/DocumentGrid";
 import { SaveDocumentButton } from "@/components/SaveDocumentButton";
 import { DocumentViewerProvider } from "@/context/DocumentViewerContext";
 import { MeetingDetailLayout } from "@/components/MeetingDetailLayout";
@@ -60,7 +61,7 @@ function FileIcon({ fileType }: { fileType: string }) {
     return <VideoCameraIcon className="w-5 h-5 text-purple-500 flex-shrink-0" />;
   }
 
-  return <DocumentIcon className="w-5 h-5 text-gray-700 flex-shrink-0" />;
+  return <DocumentIcon className="w-5 h-5 text-gray-900 flex-shrink-0" />;
 }
 
 function getFileTypeBadgeColor(type: string): string {
@@ -161,11 +162,11 @@ async function MeetingContent({ eventId, event }: { eventId: number; event: NonN
           <h2 className="text-lg font-semibold text-gray-900 mb-2">
             Meeting Documents ({files.length})
           </h2>
-          <div className="space-y-2">
+          <DocumentGrid count={files.length}>
             {files.map((file) => (
               <FileCard key={file.fileId} file={file} meetingId={eventId} />
             ))}
-          </div>
+          </DocumentGrid>
         </div>
       )}
 
@@ -269,7 +270,7 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
                 <div className="mt-0.5">
                   <EventLocation
                     event={event}
-                    iconClassName="w-4 h-4 text-gray-700 shrink-0 mt-0.5"
+                    iconClassName="w-4 h-4 text-gray-900 shrink-0 mt-0.5"
                     className="text-gray-900"
                   />
                 </div>

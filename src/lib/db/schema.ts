@@ -99,7 +99,7 @@ export const categoryFollows = pgTable('category_follows', {
   userCategoryIdx: uniqueIndex('category_follows_user_category_idx').on(table.userId, table.categoryName),
 }));
 
-// User notification preferences (email digest, confirmation, meeting reminders)
+// User notification preferences (email digest, confirmation, meeting reminders, agenda, transcript)
 export const notificationPreferences = pgTable('notification_preferences', {
   id: serial('id').primaryKey(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
@@ -107,6 +107,8 @@ export const notificationPreferences = pgTable('notification_preferences', {
   confirmationEmailEnabled: text('confirmation_email_enabled').default('true'), // 'true' | 'false'
   meetingReminderEnabled: text('meeting_reminder_enabled').default('true'), // 'true' | 'false'
   meetingReminderMinutesBefore: integer('meeting_reminder_minutes_before').default(60), // 0 = day-of (future)
+  agendaPostedEnabled: text('agenda_posted_enabled').default('true'), // 'true' | 'false'
+  transcriptReadyEnabled: text('transcript_ready_enabled').default('true'), // 'true' | 'false'
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
   userIdx: uniqueIndex('notification_preferences_user_idx').on(table.userId),
@@ -122,6 +124,16 @@ export const sentNotifications = pgTable('sent_notifications', {
   payload: text('payload'), // JSON summary of what was sent
 }, (table) => ({
   userTypeCategoryIdx: index('sent_notifications_user_type_category_idx').on(table.userId, table.type, table.categoryName),
+}));
+
+// Snapshot of document counts per event (for detecting new agenda/document uploads)
+export const eventDocumentSnapshots = pgTable('event_document_snapshots', {
+  id: serial('id').primaryKey(),
+  eventId: integer('event_id').notNull().unique(),
+  knownFileCount: integer('known_file_count').notNull().default(0),
+  lastCheckedAt: timestamp('last_checked_at').defaultNow(),
+}, (table) => ({
+  eventIdx: uniqueIndex('event_doc_snapshots_event_idx').on(table.eventId),
 }));
 
 // Cached files metadata
@@ -288,6 +300,8 @@ export type NotificationPreference = typeof notificationPreferences.$inferSelect
 export type NewNotificationPreference = typeof notificationPreferences.$inferInsert;
 export type SentNotification = typeof sentNotifications.$inferSelect;
 export type NewSentNotification = typeof sentNotifications.$inferInsert;
+export type EventDocumentSnapshot = typeof eventDocumentSnapshots.$inferSelect;
+export type NewEventDocumentSnapshot = typeof eventDocumentSnapshots.$inferInsert;
 export type File = typeof files.$inferSelect;
 export type NewFile = typeof files.$inferInsert;
 export type CommitteeSummary = typeof committeeSummaries.$inferSelect;

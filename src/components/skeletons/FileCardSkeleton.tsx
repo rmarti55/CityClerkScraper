@@ -41,7 +41,7 @@ export function FileCardSkeleton() {
  */
 export function FileListSkeleton({ count = 3 }: { count?: number }) {
   return (
-    <div className="space-y-3">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
       {[...Array(count)].map((_, i) => (
         <FileCardSkeleton key={i} />
       ))}

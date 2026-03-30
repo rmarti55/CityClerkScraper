@@ -16,7 +16,8 @@
      Primary:   text-gray-900  — headings, card titles, primary text
      Secondary: text-gray-800  — body, descriptions, nav links, labels
      Tertiary:  text-gray-600  — secondary info, timestamps, back links
-     Muted:     text-gray-500  — metadata, disabled, separators, icons
+     Muted:     text-gray-500  — metadata, disabled, separators
+     Icons:     text-gray-900  — all icons must be black, never grey
 
    Semantic colors:
      Link:    text-indigo-600  hover:text-indigo-700

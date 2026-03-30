@@ -80,6 +80,7 @@ const SPEAKER_COLORS = [
 export function MeetingTranscript({ eventId }: { eventId: number }) {
   const [activeTab, setActiveTab] = useState<"summary" | "transcript" | "speakers">("summary");
   const [showVideo, setShowVideo] = useState(true);
+  const [cardOpen, setCardOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [isRetrying, setIsRetrying] = useState(false);
 
@@ -136,40 +137,56 @@ export function MeetingTranscript({ eventId }: { eventId: number }) {
   return (
     <div className="mb-6">
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        {/* Header */}
-        <div className="px-4 py-3 border-b border-gray-100">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0C.488 3.45.029 5.804 0 12c.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0C23.512 20.55 23.971 18.196 24 12c-.029-6.185-.484-8.549-4.385-8.816zM9 16V8l8 4-8 4z" />
-              </svg>
-              <h3 className="text-sm font-semibold text-gray-900">Meeting Recording & Transcript</h3>
-              <span className="text-xs font-medium text-gray-400 border border-gray-200 rounded px-1.5 py-0.5 uppercase tracking-wider">
-                AI Transcript
-              </span>
-            </div>
-            {video.youtubeVideoId && (
-              <button
-                type="button"
-                onClick={() => setShowVideo(!showVideo)}
-                className="text-xs text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
-              >
-                {showVideo ? "Hide Video" : "Watch Video"}
-              </button>
-            )}
+        {/* Header — clickable to collapse/expand the card */}
+        <button
+          type="button"
+          onClick={() => setCardOpen(!cardOpen)}
+          className="w-full flex items-center gap-2 px-4 py-3 border-b border-gray-100 text-left cursor-pointer"
+        >
+          <svg className="w-5 h-5 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0C.488 3.45.029 5.804 0 12c.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0C23.512 20.55 23.971 18.196 24 12c-.029-6.185-.484-8.549-4.385-8.816zM9 16V8l8 4-8 4z" />
+          </svg>
+          <h3 className="text-sm font-semibold text-gray-900">Meeting Recording & Transcript</h3>
+          <span className="text-xs font-medium text-gray-400 border border-gray-200 rounded px-1.5 py-0.5 uppercase tracking-wider">
+            AI Transcript
+          </span>
+          <svg
+            className={`w-4 h-4 text-gray-900 ml-auto shrink-0 transition-transform duration-200 ${cardOpen ? "rotate-0" : "-rotate-90"}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {cardOpen && (
+        <>
+        {/* Video toggle */}
+        {video.youtubeVideoId && (
+          <div className="flex justify-end px-4 py-1.5 border-b border-gray-100">
+            <button
+              type="button"
+              onClick={() => setShowVideo(!showVideo)}
+              className="text-xs text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
+            >
+              {showVideo ? "Hide Video" : "Watch Video"}
+            </button>
           </div>
-        </div>
+        )}
 
         {/* YouTube Embed */}
         {showVideo && video.youtubeVideoId && (
-          <div className="aspect-video bg-black">
-            <iframe
-              src={`https://www.youtube.com/embed/${video.youtubeVideoId}`}
-              title={video.title || "Meeting Video"}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="w-full h-full"
-            />
+          <div className="bg-black px-8 sm:px-16 lg:px-24 py-4">
+            <div className="aspect-video max-w-4xl mx-auto">
+              <iframe
+                src={`https://www.youtube.com/embed/${video.youtubeVideoId}`}
+                title={video.title || "Meeting Video"}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full"
+              />
+            </div>
           </div>
         )}
 
@@ -256,7 +273,41 @@ export function MeetingTranscript({ eventId }: { eventId: number }) {
             </div>
           </>
         )}
+        </>
+        )}
       </div>
+    </div>
+  );
+}
+
+function CollapsibleSection({
+  title,
+  children,
+  defaultOpen = true,
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border border-gray-100 rounded-lg">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-3 py-2 text-left cursor-pointer hover:bg-gray-50 rounded-lg transition-colors"
+      >
+        <h4 className="text-sm font-semibold text-gray-900">{title}</h4>
+        <svg
+          className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform duration-200 ${open ? "rotate-0" : "-rotate-90"}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && <div className="px-3 pb-3">{children}</div>}
     </div>
   );
 }
@@ -264,17 +315,13 @@ export function MeetingTranscript({ eventId }: { eventId: number }) {
 /** Structured summary: executive overview, topics, key decisions, motions, action items, public comments. */
 function SummaryTab({ summary, topics }: { summary: TranscriptSummary; topics: TopicTag[] | null }) {
   return (
-    <div className="space-y-4">
-      {/* Executive Summary */}
-      <div>
-        <h4 className="text-sm font-semibold text-gray-900 mb-2">Executive Summary</h4>
+    <div className="max-h-[32rem] overflow-y-auto space-y-2">
+      <CollapsibleSection title="Executive Summary">
         <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{summary.executiveSummary}</p>
-      </div>
+      </CollapsibleSection>
 
-      {/* Topics */}
       {topics && topics.length > 0 && (
-        <div>
-          <h4 className="text-sm font-semibold text-gray-900 mb-2">Topics Discussed</h4>
+        <CollapsibleSection title="Topics Discussed">
           <div className="flex flex-wrap gap-1.5">
             {topics.map((topic, i) => (
               <span
@@ -286,13 +333,11 @@ function SummaryTab({ summary, topics }: { summary: TranscriptSummary; topics: T
               </span>
             ))}
           </div>
-        </div>
+        </CollapsibleSection>
       )}
 
-      {/* Key Decisions */}
       {summary.keyDecisions.length > 0 && (
-        <div>
-          <h4 className="text-sm font-semibold text-gray-900 mb-2">Key Decisions</h4>
+        <CollapsibleSection title="Key Decisions">
           <ul className="space-y-1">
             {summary.keyDecisions.map((decision, i) => (
               <li key={i} className="flex gap-2 text-sm text-gray-700">
@@ -301,13 +346,11 @@ function SummaryTab({ summary, topics }: { summary: TranscriptSummary; topics: T
               </li>
             ))}
           </ul>
-        </div>
+        </CollapsibleSection>
       )}
 
-      {/* Motions & Votes */}
       {summary.motionsAndVotes.length > 0 && (
-        <div>
-          <h4 className="text-sm font-semibold text-gray-900 mb-2">Motions & Votes</h4>
+        <CollapsibleSection title="Motions & Votes">
           <ul className="space-y-1">
             {summary.motionsAndVotes.map((motion, i) => (
               <li key={i} className="flex gap-2 text-sm text-gray-700">
@@ -316,13 +359,11 @@ function SummaryTab({ summary, topics }: { summary: TranscriptSummary; topics: T
               </li>
             ))}
           </ul>
-        </div>
+        </CollapsibleSection>
       )}
 
-      {/* Action Items */}
       {summary.actionItems.length > 0 && (
-        <div>
-          <h4 className="text-sm font-semibold text-gray-900 mb-2">Action Items</h4>
+        <CollapsibleSection title="Action Items">
           <ul className="space-y-1">
             {summary.actionItems.map((item, i) => (
               <li key={i} className="flex gap-2 text-sm text-gray-700">
@@ -331,15 +372,13 @@ function SummaryTab({ summary, topics }: { summary: TranscriptSummary; topics: T
               </li>
             ))}
           </ul>
-        </div>
+        </CollapsibleSection>
       )}
 
-      {/* Public Comments */}
       {summary.publicCommentsSummary && (
-        <div>
-          <h4 className="text-sm font-semibold text-gray-900 mb-2">Public Comments</h4>
+        <CollapsibleSection title="Public Comments">
           <p className="text-sm text-gray-700 leading-relaxed">{summary.publicCommentsSummary}</p>
-        </div>
+        </CollapsibleSection>
       )}
     </div>
   );
@@ -380,7 +419,7 @@ function TranscriptTab({
           placeholder="Search transcript..."
           className="w-full px-3 py-2 pl-9 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
-        <svg className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="absolute left-3 top-2.5 w-4 h-4 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
         {matchCount > 0 && (

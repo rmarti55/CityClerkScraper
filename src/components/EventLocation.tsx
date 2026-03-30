@@ -51,7 +51,7 @@ interface EventLocationProps {
 export function EventLocation({
   event,
   className = "",
-  iconClassName = "w-4 h-4 text-gray-700 shrink-0 mt-0.5",
+  iconClassName = "w-4 h-4 text-gray-900 shrink-0 mt-0.5",
   truncate = false,
   block = false,
   format = "full",

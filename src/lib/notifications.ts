@@ -7,13 +7,19 @@ import {
   sentNotifications,
   events,
   favorites,
+  eventDocumentSnapshots,
+  meetingTranscripts,
 } from "@/lib/db/schema";
 import { eq, and, inArray, gte, lte } from "drizzle-orm";
 import { sendDigestEmail, type DigestMeeting } from "@/emails/digest";
 import { sendMeetingReminderEmail } from "@/emails/meeting-reminder";
+import { sendAgendaPostedEmail } from "@/emails/agenda-posted";
+import { sendTranscriptReadyEmail } from "@/emails/transcript-ready";
 
 const DIGEST_TYPE = "daily_digest";
 const REMINDER_TYPE = "meeting_reminder";
+const AGENDA_POSTED_TYPE = "agenda_posted";
+const TRANSCRIPT_READY_TYPE = "transcript_ready";
 const UPCOMING_DAYS = 7;
 
 /**
@@ -250,6 +256,276 @@ export async function runMeetingReminders(): Promise<{
       errors.push(
         `User ${row.userId} event ${row.eventId}: ${err instanceof Error ? err.message : String(err)}`
       );
+    }
+  }
+
+  return { sent, errors };
+}
+
+function getAppUrl(): string {
+  return (
+    process.env.NEXTAUTH_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
+  );
+}
+
+/**
+ * Detect events whose file_count increased since our last snapshot and notify
+ * all users who follow that event's category. Uses the event_document_snapshots
+ * table to track previously-known file counts.
+ */
+export async function runAgendaPostedNotifications(): Promise<{
+  sent: number;
+  errors: string[];
+}> {
+  const appUrl = getAppUrl();
+  const errors: string[] = [];
+  let sent = 0;
+
+  const now = new Date();
+  const pastWindow = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const futureWindow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  const activeEvents = await db
+    .select({
+      id: events.id,
+      eventName: events.eventName,
+      categoryName: events.categoryName,
+      fileCount: events.fileCount,
+      startDateTime: events.startDateTime,
+    })
+    .from(events)
+    .where(
+      and(
+        gte(events.startDateTime, pastWindow),
+        lte(events.startDateTime, futureWindow),
+        gte(events.fileCount, 1)
+      )
+    );
+
+  if (activeEvents.length === 0) return { sent: 0, errors: [] };
+
+  const eventIds = activeEvents.map((e) => e.id);
+  const snapshots = await db
+    .select()
+    .from(eventDocumentSnapshots)
+    .where(inArray(eventDocumentSnapshots.eventId, eventIds));
+  const snapshotMap = new Map(snapshots.map((s) => [s.eventId, s]));
+
+  const changedEvents: { id: number; eventName: string; categoryName: string; newFiles: number }[] = [];
+
+  for (const evt of activeEvents) {
+    const snap = snapshotMap.get(evt.id);
+    const knownCount = snap?.knownFileCount ?? 0;
+    const currentCount = evt.fileCount ?? 0;
+
+    if (currentCount > knownCount) {
+      changedEvents.push({
+        id: evt.id,
+        eventName: evt.eventName,
+        categoryName: evt.categoryName ?? "",
+        newFiles: currentCount - knownCount,
+      });
+    }
+
+    await db
+      .insert(eventDocumentSnapshots)
+      .values({ eventId: evt.id, knownFileCount: currentCount, lastCheckedAt: now })
+      .onConflictDoUpdate({
+        target: [eventDocumentSnapshots.eventId],
+        set: { knownFileCount: currentCount, lastCheckedAt: now },
+      });
+  }
+
+  if (changedEvents.length === 0) return { sent: 0, errors: [] };
+
+  const affectedCategories = [...new Set(changedEvents.map((e) => e.categoryName).filter(Boolean))];
+  if (affectedCategories.length === 0) return { sent: 0, errors: [] };
+
+  const followRows = await db
+    .select({ userId: categoryFollows.userId, categoryName: categoryFollows.categoryName })
+    .from(categoryFollows)
+    .where(inArray(categoryFollows.categoryName, affectedCategories));
+
+  if (followRows.length === 0) return { sent: 0, errors: [] };
+
+  const userIds = [...new Set(followRows.map((r) => r.userId))];
+
+  const prefs = await db
+    .select({
+      userId: notificationPreferences.userId,
+      agendaPostedEnabled: notificationPreferences.agendaPostedEnabled,
+    })
+    .from(notificationPreferences)
+    .where(inArray(notificationPreferences.userId, userIds));
+  const disabledUsers = new Set(
+    prefs.filter((p) => p.agendaPostedEnabled === "false").map((p) => p.userId)
+  );
+
+  const alreadySent = await db
+    .select({ userId: sentNotifications.userId, payload: sentNotifications.payload })
+    .from(sentNotifications)
+    .where(eq(sentNotifications.type, AGENDA_POSTED_TYPE));
+  const sentSet = new Set(alreadySent.map((s) => `${s.userId}:${s.payload}`));
+
+  const userRows = await db
+    .select({ id: users.id, email: users.email })
+    .from(users)
+    .where(inArray(users.id, userIds));
+  const userById = new Map(userRows.map((u) => [u.id, u]));
+
+  const userCategories = new Map<string, Set<string>>();
+  for (const row of followRows) {
+    const set = userCategories.get(row.userId) ?? new Set();
+    set.add(row.categoryName);
+    userCategories.set(row.userId, set);
+  }
+
+  for (const evt of changedEvents) {
+    for (const userId of userIds) {
+      if (disabledUsers.has(userId)) continue;
+      const cats = userCategories.get(userId);
+      if (!cats?.has(evt.categoryName)) continue;
+
+      const payload = JSON.stringify({ eventId: evt.id, fileCount: evt.newFiles });
+      const key = `${userId}:${payload}`;
+      if (sentSet.has(key)) continue;
+
+      const user = userById.get(userId);
+      if (!user?.email) continue;
+
+      try {
+        const { error } = await sendAgendaPostedEmail({
+          to: user.email,
+          eventName: evt.eventName,
+          eventId: evt.id,
+          categoryName: evt.categoryName,
+          newFileCount: evt.newFiles,
+          appUrl,
+        });
+        if (error) {
+          errors.push(`User ${userId} event ${evt.id}: ${String(error)}`);
+          continue;
+        }
+        await db.insert(sentNotifications).values({
+          userId,
+          type: AGENDA_POSTED_TYPE,
+          categoryName: evt.categoryName,
+          payload,
+        });
+        sentSet.add(key);
+        sent++;
+      } catch (err) {
+        errors.push(
+          `User ${userId} event ${evt.id}: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+    }
+  }
+
+  return { sent, errors };
+}
+
+/**
+ * Send transcript-ready notifications for a specific event. Called from the
+ * transcripts cron after a transcript is successfully processed.
+ *
+ * Notifies users who follow the event's category OR have the specific meeting starred.
+ */
+export async function notifyTranscriptReady(
+  eventId: number,
+  summarySnippet?: string
+): Promise<{ sent: number; errors: string[] }> {
+  const appUrl = getAppUrl();
+  const errors: string[] = [];
+  let sent = 0;
+
+  const eventRows = await db
+    .select({
+      id: events.id,
+      eventName: events.eventName,
+      categoryName: events.categoryName,
+    })
+    .from(events)
+    .where(eq(events.id, eventId));
+
+  const evt = eventRows[0];
+  if (!evt) return { sent: 0, errors: [`Event ${eventId} not found`] };
+
+  const targetUserIds = new Set<string>();
+
+  if (evt.categoryName) {
+    const catFollows = await db
+      .select({ userId: categoryFollows.userId })
+      .from(categoryFollows)
+      .where(eq(categoryFollows.categoryName, evt.categoryName));
+    for (const r of catFollows) targetUserIds.add(r.userId);
+  }
+
+  const favRows = await db
+    .select({ userId: favorites.userId })
+    .from(favorites)
+    .where(eq(favorites.eventId, eventId));
+  for (const r of favRows) targetUserIds.add(r.userId);
+
+  if (targetUserIds.size === 0) return { sent: 0, errors: [] };
+
+  const userIds = [...targetUserIds];
+
+  const prefs = await db
+    .select({
+      userId: notificationPreferences.userId,
+      transcriptReadyEnabled: notificationPreferences.transcriptReadyEnabled,
+    })
+    .from(notificationPreferences)
+    .where(inArray(notificationPreferences.userId, userIds));
+  const disabledUsers = new Set(
+    prefs.filter((p) => p.transcriptReadyEnabled === "false").map((p) => p.userId)
+  );
+
+  const payload = JSON.stringify({ eventId });
+  const alreadySent = await db
+    .select({ userId: sentNotifications.userId })
+    .from(sentNotifications)
+    .where(
+      and(
+        eq(sentNotifications.type, TRANSCRIPT_READY_TYPE),
+        eq(sentNotifications.payload, payload)
+      )
+    );
+  const sentAlreadySet = new Set(alreadySent.map((s) => s.userId));
+
+  const userRows = await db
+    .select({ id: users.id, email: users.email })
+    .from(users)
+    .where(inArray(users.id, userIds));
+
+  for (const user of userRows) {
+    if (disabledUsers.has(user.id)) continue;
+    if (sentAlreadySet.has(user.id)) continue;
+    if (!user.email) continue;
+
+    try {
+      const { error } = await sendTranscriptReadyEmail({
+        to: user.email,
+        eventName: evt.eventName,
+        eventId: evt.id,
+        summarySnippet,
+        appUrl,
+      });
+      if (error) {
+        errors.push(`User ${user.id}: ${String(error)}`);
+        continue;
+      }
+      await db.insert(sentNotifications).values({
+        userId: user.id,
+        type: TRANSCRIPT_READY_TYPE,
+        categoryName: evt.categoryName,
+        payload,
+      });
+      sent++;
+    } catch (err) {
+      errors.push(`User ${user.id}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

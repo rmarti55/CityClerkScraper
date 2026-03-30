@@ -90,9 +90,10 @@
 ## Summary
 
 1. **Fixed:** The app now uses **Event.publishedFiles** as fallback when `Meetings(agendaId)` returns 404. See `src/lib/civicclerk/files.ts`.
-2. **Worth considering:**  
-   - **publishedAgendaTimeStamp** and **eventNotice** on Event for context.  
-   - **EventsMedia** (or Event's **hasMedia** / **externalMediaUrl**) to show video/stream links.  
-   - **Meeting.items** (or **Sections** if we get them working) for agenda items when there are no files.  
+2. **Implemented since investigation:**
+   - ~~**EventsMedia** (or Event's **hasMedia** / **externalMediaUrl**) to show video/stream links.~~ **Done** — video/stream links are now provided via the YouTube pipeline (`src/lib/youtube/`), which discovers videos from the city's YouTube channel and matches them to events. The CivicClerk `EventsMedia` entity is not used; the feature was implemented through a different, more reliable approach.
+   - ~~**Meeting.items** (or **Sections** if we get them working) for agenda items when there are no files.~~ **Done** — agenda items are now parsed from `Meeting.items`, cached to the `agenda_items` DB table (`src/lib/civicclerk/agenda-cache.ts`), parsed for sponsors and committee review schedule (`src/lib/agenda-item-parser.ts`), and displayed in the UI (`src/components/AgendaItemsList.tsx`).
+3. **Still worth considering:**
+   - **publishedAgendaTimeStamp** and **eventNotice** on Event for context.
    - **Settings** for customizable labels.
-3. **Fixed:** README now correctly documents the Event.publishedFiles fallback instead of the non-existent `Events({id})/Files` endpoint.
+4. **Fixed:** README now correctly documents the Event.publishedFiles fallback instead of the non-existent `Events({id})/Files` endpoint.

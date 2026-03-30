@@ -63,31 +63,22 @@ function SavedDocCard({ doc, onUnsave }: { doc: SavedDocDetail; onUnsave: (doc: 
   return (
     <DocumentCardWrapper pdfUrl={viewUrl}>
       <div className="flex items-start gap-3">
-        <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z" />
-          <path d="M8 12h8v2H8zM8 15h8v2H8z" />
-        </svg>
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-gray-900 text-[15px] leading-tight truncate">
             {doc.documentName}
           </h3>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
-            {doc.documentCategory && (
+          {doc.documentCategory && (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
               <span className={`px-1.5 py-0.5 text-xs font-medium rounded whitespace-nowrap ${getTypeBadgeColor(doc.documentCategory)}`}>
                 {doc.documentCategory}
               </span>
-            )}
-            {doc.documentType === "attachment" && (
-              <span className="px-1.5 py-0.5 text-xs font-medium rounded whitespace-nowrap bg-orange-100 text-orange-700">
-                Attachment
-              </span>
-            )}
-          </div>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1.5 text-xs text-gray-500">
             {doc.eventName && (
               <Link
                 href={`/meeting/${doc.eventId}`}
-                className="text-indigo-600 hover:text-indigo-700 font-medium truncate max-w-[200px]"
+                className="text-indigo-600 hover:text-indigo-700 font-medium"
                 title={doc.eventName}
               >
                 {doc.eventName}
@@ -248,7 +239,7 @@ function SavedDocsInner() {
   if (docs.length === 0) {
     return (
       <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-        <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-12 h-12 text-gray-900 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
         </svg>
         <p className="text-gray-600 mb-4">
@@ -280,7 +271,7 @@ function SavedDocsInner() {
       {/* Search input */}
       <div className="relative mb-4">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
@@ -299,7 +290,7 @@ function SavedDocsInner() {
               setSearchQuery("");
               searchInputRef.current?.focus();
             }}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-900 hover:bg-gray-100 transition-colors"
             aria-label="Clear search"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -316,7 +307,7 @@ function SavedDocsInner() {
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {filteredDocs.map((doc) => (
             <SavedDocCard key={doc.id} doc={doc} onUnsave={handleUnsave} />
           ))}

@@ -32,7 +32,7 @@ export function CopyButton({ value, label = "Copied!" }: CopyButtonProps) {
     <button
       type="button"
       onClick={handleCopy}
-      className="ml-auto p-0.5 rounded text-gray-400 hover:text-teal-600 transition-colors shrink-0"
+      className="ml-auto p-0.5 rounded text-gray-900 hover:bg-gray-100 transition-colors shrink-0"
       title={`Copy ${value}`}
     >
       {copied ? (

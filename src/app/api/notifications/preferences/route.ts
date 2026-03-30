@@ -21,6 +21,8 @@ export async function GET() {
       confirmationEmailEnabled: notificationPreferences.confirmationEmailEnabled,
       meetingReminderEnabled: notificationPreferences.meetingReminderEnabled,
       meetingReminderMinutesBefore: notificationPreferences.meetingReminderMinutesBefore,
+      agendaPostedEnabled: notificationPreferences.agendaPostedEnabled,
+      transcriptReadyEnabled: notificationPreferences.transcriptReadyEnabled,
     })
     .from(notificationPreferences)
     .where(eq(notificationPreferences.userId, session.user.id));
@@ -31,6 +33,8 @@ export async function GET() {
     confirmationEmailEnabled: row?.confirmationEmailEnabled ?? "true",
     meetingReminderEnabled: row?.meetingReminderEnabled ?? "true",
     meetingReminderMinutesBefore: row?.meetingReminderMinutesBefore ?? 60,
+    agendaPostedEnabled: row?.agendaPostedEnabled ?? "true",
+    transcriptReadyEnabled: row?.transcriptReadyEnabled ?? "true",
   });
 }
 
@@ -50,6 +54,8 @@ export async function PATCH(request: NextRequest) {
     confirmationEmailEnabled?: string;
     meetingReminderEnabled?: string;
     meetingReminderMinutesBefore?: number;
+    agendaPostedEnabled?: string;
+    transcriptReadyEnabled?: string;
   };
   try {
     body = await request.json();
@@ -62,6 +68,8 @@ export async function PATCH(request: NextRequest) {
     confirmationEmailEnabled?: string;
     meetingReminderEnabled?: string;
     meetingReminderMinutesBefore?: number;
+    agendaPostedEnabled?: string;
+    transcriptReadyEnabled?: string;
     updatedAt?: Date;
   } = { updatedAt: new Date() };
 
@@ -84,6 +92,14 @@ export async function PATCH(request: NextRequest) {
   ) {
     updates.meetingReminderMinutesBefore = body.meetingReminderMinutesBefore;
   }
+  if (body.agendaPostedEnabled !== undefined) {
+    updates.agendaPostedEnabled =
+      body.agendaPostedEnabled === "false" ? "false" : "true";
+  }
+  if (body.transcriptReadyEnabled !== undefined) {
+    updates.transcriptReadyEnabled =
+      body.transcriptReadyEnabled === "false" ? "false" : "true";
+  }
 
   try {
     await db
@@ -95,6 +111,8 @@ export async function PATCH(request: NextRequest) {
         meetingReminderEnabled: updates.meetingReminderEnabled ?? "true",
         meetingReminderMinutesBefore:
           updates.meetingReminderMinutesBefore ?? 60,
+        agendaPostedEnabled: updates.agendaPostedEnabled ?? "true",
+        transcriptReadyEnabled: updates.transcriptReadyEnabled ?? "true",
         updatedAt: updates.updatedAt,
       })
       .onConflictDoUpdate({
@@ -111,6 +129,12 @@ export async function PATCH(request: NextRequest) {
           }),
           ...(updates.meetingReminderMinutesBefore !== undefined && {
             meetingReminderMinutesBefore: updates.meetingReminderMinutesBefore,
+          }),
+          ...(updates.agendaPostedEnabled !== undefined && {
+            agendaPostedEnabled: updates.agendaPostedEnabled,
+          }),
+          ...(updates.transcriptReadyEnabled !== undefined && {
+            transcriptReadyEnabled: updates.transcriptReadyEnabled,
           }),
           updatedAt: updates.updatedAt!,
         },

@@ -22,7 +22,7 @@ export function InlineDocumentViewer() {
         <button
           type="button"
           onClick={closeDocument}
-          className="p-1 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors"
+          className="p-1 text-gray-900 hover:bg-gray-100 rounded transition-colors"
           aria-label="Close document viewer"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -32,7 +32,7 @@ export function InlineDocumentViewer() {
       </div>
 
       {/* PDF iframe — takes remaining space, shrinks when chat is open */}
-      <div className={chatOpen ? "h-[55%] shrink-0" : "flex-1 min-h-0"}>
+      <div className={chatOpen ? "flex-[55] min-h-0" : "flex-1 min-h-0"}>
         <iframe
           src={viewerState.pdfUrl}
           title={viewerState.title ?? "PDF Document"}
@@ -51,7 +51,7 @@ export function InlineDocumentViewer() {
         </svg>
         <span className="text-sm font-medium text-gray-800 flex-1">Chat with document</span>
         <svg
-          className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${chatOpen ? "rotate-180" : ""}`}
+          className={`w-4 h-4 text-gray-900 transition-transform duration-200 ${chatOpen ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -62,7 +62,7 @@ export function InlineDocumentViewer() {
 
       {/* Chat panel — collapsible */}
       {chatOpen && viewerState.chatEndpoint && (
-        <div className="h-[45%] shrink-0 min-h-0">
+        <div className="flex-[45] min-h-0">
           <InlineDocumentChat chatEndpoint={viewerState.chatEndpoint} />
         </div>
       )}

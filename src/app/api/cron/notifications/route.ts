@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runDailyDigest, runMeetingReminders } from "@/lib/notifications";
+import { runDailyDigest, runMeetingReminders, runAgendaPostedNotifications } from "@/lib/notifications";
 
 /**
  * GET /api/cron/notifications
- * Runs the daily digest and meeting reminders. Secure with CRON_SECRET (header or query).
- * Call from Vercel Cron or external scheduler (e.g. daily at 8am for digest; every 15 min for reminders).
+ * Runs digest, meeting reminders, and agenda-posted notifications.
+ * Secure with CRON_SECRET (header or query).
+ * Recommended: every 5 minutes via Vercel Cron (Pro) or external scheduler.
  */
 export async function GET(request: NextRequest) {
   const secret =
@@ -17,15 +18,21 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const [digestResult, reminderResult] = await Promise.all([
+    const [digestResult, reminderResult, agendaResult] = await Promise.all([
       runDailyDigest(),
       runMeetingReminders(),
+      runAgendaPostedNotifications(),
     ]);
-    const allErrors = [...digestResult.errors, ...reminderResult.errors];
+    const allErrors = [
+      ...digestResult.errors,
+      ...reminderResult.errors,
+      ...agendaResult.errors,
+    ];
     return NextResponse.json({
       ok: true,
       digestSent: digestResult.sent,
       reminderSent: reminderResult.sent,
+      agendaPostedSent: agendaResult.sent,
       errors: allErrors.length > 0 ? allErrors : undefined,
     });
   } catch (err) {

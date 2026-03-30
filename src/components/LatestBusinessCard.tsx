@@ -132,7 +132,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
               <div className="mt-3 bg-white rounded-lg border border-indigo-100 p-2.5 flex flex-col gap-1.5 text-xs">
                 {stats.lastMeeting && (
                   <div className="flex items-start gap-1.5 text-gray-800">
-                    <span className="shrink-0 text-gray-700 mt-0.5">
+                    <span className="shrink-0 text-gray-900 mt-0.5">
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>

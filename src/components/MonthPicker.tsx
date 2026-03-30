@@ -104,7 +104,7 @@ export function DateNav({ hasActiveFilter = false }: DateNavProps) {
           className="p-1 pointer-coarse:min-h-[34px] pointer-coarse:min-w-[34px] rounded-md can-hover:hover:bg-gray-100 active:bg-gray-100 transition-colors flex-shrink-0 flex items-center justify-center"
           aria-label="Previous month"
         >
-          <ChevronLeftIcon className="w-3.5 h-3.5 text-gray-500" />
+          <ChevronLeftIcon className="w-3.5 h-3.5 text-gray-900" />
         </button>
 
         <select
@@ -136,7 +136,7 @@ export function DateNav({ hasActiveFilter = false }: DateNavProps) {
           className="p-1 pointer-coarse:min-h-[34px] pointer-coarse:min-w-[34px] rounded-md can-hover:hover:bg-gray-100 active:bg-gray-100 transition-colors flex-shrink-0 flex items-center justify-center"
           aria-label="Next month"
         >
-          <ChevronRightIcon className="w-3.5 h-3.5 text-gray-500" />
+          <ChevronRightIcon className="w-3.5 h-3.5 text-gray-900" />
         </button>
       </div>
     </div>

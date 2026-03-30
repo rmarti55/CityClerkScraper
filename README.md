@@ -135,6 +135,8 @@ npm run backfill:probe  # Test with 1 month first
 | `npm run migrate:auth` | One-off migration from old auth schema to Auth.js (see Database setup) |
 | `npm run backfill:transcripts` | Discover YouTube videos and extract transcripts (last 3 months) |
 | `npm run backfill:transcripts:process` | Same as above + run AI processing on extracted transcripts |
+| `tsx scripts/backfill-agenda-items.ts` | Backfill agenda items for events that have an `agenda_id` but no cached items |
+| `tsx scripts/backfill-agenda-items.ts --probe` | Test agenda item backfill with first 10 events only |
 
 ## API Routes
 
@@ -194,7 +196,7 @@ Parameters:
 GET /api/search/documents?q=zoning+amendment
 ```
 
-Full-text search across meeting document content via the CivicClerk Search API.
+Full-text search across meeting document content using local PostgreSQL full-text search on cached files and agenda items.
 
 ### File API
 
@@ -389,15 +391,19 @@ src/
 │   ├── CategoryFilter.tsx         # Category dropdown filter
 │   ├── CategoryFilterModal.tsx    # Mobile category picker
 │   ├── CategoryFilterResults.tsx  # Filtered results display
+│   ├── ChatMessageList.tsx        # Scrollable chat message bubbles (shared by document chat views)
 │   ├── CommitteeMeetingList.tsx   # Committee meeting list (upcoming/past split)
+│   ├── CopyButton.tsx             # Copy-to-clipboard with toast feedback
 │   ├── DocumentCardWrapper.tsx    # Highlighted card wrapper for active document
 │   ├── DocumentChatView.tsx       # RAG document chat UI (file/attachment viewer pages)
 │   ├── DocumentSearchResults.tsx  # Document search results display
 │   ├── EventLocation.tsx          # Meeting location display
 │   ├── FileMetadata.tsx           # File size & page count display
 │   ├── FollowCategoryButton.tsx   # Follow category action
+│   ├── FollowingTabContent.tsx    # Following tab: followed categories and favorite meetings
 │   ├── GlobalSearchResults.tsx    # Global search results display
 │   ├── HomePage.tsx               # Main home page with tab routing
+│   ├── icons.tsx                  # Shared SVG icon components (YouTube, Document, Refresh, etc.)
 │   ├── InlineDocumentChat.tsx     # Chat panel for inline document viewer
 │   ├── InlineDocumentViewer.tsx   # Split-pane PDF + chat viewer (large screens)
 │   ├── LatestBusinessCard.tsx     # Summary on committee page
@@ -416,30 +422,36 @@ src/
 │   ├── PeopleDirectory.tsx        # People directory with search and department filter
 │   ├── PersonLink.tsx             # Inline person link with popover
 │   ├── PersonPopover.tsx          # Person detail popover (title, dept, contact)
+│   ├── SaveDocumentButton.tsx     # Bookmark/save document toggle
+│   ├── SavedDocsTabContent.tsx    # Saved documents tab content with search and viewer
 │   ├── SearchBar.tsx              # Search input
 │   ├── SearchableContent.tsx      # Search + history + global results
 │   ├── SearchResults.tsx          # Search results display
 │   ├── ShareAgendaItemButton.tsx  # Share individual agenda items
 │   ├── TabBar.tsx                 # Top-level navigation tabs
+│   ├── TranscriptSearchResults.tsx # Transcript search results display
 │   ├── ViewDocumentButton.tsx     # Opens document in inline viewer or new tab
 │   └── ZoomLinkBanner.tsx         # Zoom/Teams/Meet link banner on meeting pages
 ├── context/               # React context providers
 │   ├── AuthContext.tsx            # SessionProvider wrapper
-│   ├── CommitteeContext.tsx       # Committee summary cache
+│   ├── CommitteeContext.tsx       # Committee meeting list fetch cache (TTL-based)
 │   ├── DocumentViewerContext.tsx  # Inline document viewer state (open/close PDF, chat endpoint)
 │   ├── EventsContext.tsx          # Global events state
 │   ├── FollowsContext.tsx         # Favorites and category follows state
 │   ├── LoginModalContext.tsx      # Login modal open state
+│   ├── SavedDocsContext.tsx        # Saved document keys with optimistic toggle updates
 │   ├── SearchContext.tsx          # Search query, category, history, mobile search state
 │   └── ToastContext.tsx           # Toast notification system
 ├── hooks/                 # Custom React hooks
 │   ├── useCategories.ts       # Fetch & cache categories
 │   ├── useDeviceCapabilities.ts  # Mobile, touch, hover
+│   ├── useDocumentChat.ts     # Chat endpoint with message history management
 │   ├── useDocumentSearch.ts   # Debounced document content search
 │   ├── useFollows.ts          # Favorites and category follows
 │   ├── useGlobalSearch.ts     # Server-side search
 │   ├── useSearch.ts           # Client-side Fuse.js search
-│   └── useSearchHistory.ts    # Recent search persistence
+│   ├── useSearchHistory.ts    # Recent search persistence
+│   └── useTranscriptSearch.ts # Debounced transcript full-text search
 └── lib/                   # Core libraries
     ├── agenda-item-parser.ts  # Parse CivicClerk agenda text (sponsors, committees)
     ├── agenda-items.ts        # Collect agenda items with attachments
@@ -448,15 +460,19 @@ src/
     ├── breakpoints.ts         # Media queries and touch targets
     ├── committees.ts          # Committee config and slugs
     ├── datetime.ts            # Date/time parsing (Luxon, America/Denver)
+    ├── document-chat.ts       # Shared RAG chat handler (used by file and attachment chat routes)
     ├── document-rag.ts        # RAG pipeline: chunking, embeddings, retrieval (TTL-cached)
     ├── document-text.ts       # PDF text extraction and chunking (unpdf)
     ├── file-cache.ts          # Disk-based PDF cache (file-cache/ or /tmp on Vercel)
     ├── notifications.ts       # Daily digest and meeting reminder email logic
+    ├── pdf-metadata.ts        # PDF page count extraction via pdf-lib
+    ├── pdf-stream.ts          # Disk-cached PDF serving with ETag and Range support
     ├── types.ts               # TypeScript types (e.g. CivicEvent)
     ├── utils.ts               # Utility functions
     ├── zoom-link.ts           # Zoom/Teams/Meet link extraction from PDFs
     ├── civicclerk/            # CivicClerk API client (modular)
     │   ├── index.ts           # Barrel re-exports
+    │   ├── agenda-cache.ts    # Cache agenda items to DB (HTML strip, flatten, upsert)
     │   ├── api.ts             # Core API fetch helpers
     │   ├── backfill.ts        # Historical data backfill
     │   ├── cache.ts           # Age-based cache logic
@@ -480,6 +496,8 @@ src/
     │   ├── scrapers.ts        # Elected official scraping (santafenm.gov)
     │   ├── seed.json          # Manual seed data for people
     │   └── sync.ts            # People sync: agendas + scraper + seed → DB
+    ├── search/                # Search utilities
+    │   └── parse-query.ts     # Google-style query parser for PostgreSQL tsquery
     └── youtube/               # YouTube video & transcript pipeline
         ├── channel.ts         # YouTube Data API v3 client (video discovery)
         ├── matcher.ts         # Fuzzy video-to-event matching (bigram + date scoring)
@@ -508,6 +526,8 @@ The app also uses:
 2. Import project in Vercel
 3. Add environment variables: `DATABASE_URL`, `AUTH_SECRET`, `NEXTAUTH_URL` (production URL), `RESEND_API_KEY`, and `CRON_SECRET` (if using Vercel Cron for `/api/cron/notifications` and `/api/cron/transcripts`). Optionally set `EMAIL_FROM` (requires verified domain in Resend), `OPENROUTER_API_KEY` for AI features (committee summaries, agenda summaries, document chat, transcript processing), and `YOUTUBE_API_KEY` for YouTube video discovery and transcript extraction.
 4. Deploy
+
+**Vercel Cron:** The `vercel.json` in this repo only configures the transcript pipeline cron (`/api/cron/transcripts`, every 6 hours). The notifications cron (`/api/cron/notifications`) must be configured separately via the Vercel dashboard or an external cron service if you want daily digest emails.
 
 ## CivicClerk API Reference
 

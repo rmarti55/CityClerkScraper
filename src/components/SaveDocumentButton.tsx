@@ -53,7 +53,7 @@ export function SaveDocumentButton({
       className={`p-1.5 rounded transition-colors ${
         saved
           ? "text-amber-500 hover:bg-amber-50"
-          : "text-gray-400 hover:text-amber-500 hover:bg-amber-50"
+          : "text-gray-900 hover:bg-amber-50"
       }`}
     >
       {saved ? (

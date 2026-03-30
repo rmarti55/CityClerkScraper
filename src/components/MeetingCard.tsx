@@ -128,7 +128,7 @@ export function MeetingCard({
       {/* Row 2: Date/time + attachments/status badges (inline, right-aligned) */}
       <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
         <div className="flex items-center gap-1.5 text-sm font-medium text-gray-800 min-w-0">
-          <CalendarIcon className="w-4 h-4 text-gray-700 shrink-0" />
+          <CalendarIcon className="w-4 h-4 text-gray-900 shrink-0" />
           <span className="truncate">
             {formatEventDate(event.startDateTime)} at{" "}
             {formatEventTime(event.startDateTime)}
@@ -172,7 +172,7 @@ export function MeetingCard({
           type="button"
           onClick={handleRefreshClick}
           disabled={isRefreshing}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-800 transition-colors disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-900 hover:bg-gray-100 rounded px-1 -mx-1 transition-colors disabled:opacity-40"
           aria-label="Refresh meeting data"
           title="Sync latest data from CivicClerk"
         >

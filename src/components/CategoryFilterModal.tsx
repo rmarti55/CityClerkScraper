@@ -134,7 +134,7 @@ export function CategoryFilterModal({
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg
-                  className="w-4 h-4 text-gray-700"
+                  className="w-4 h-4 text-gray-900"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
