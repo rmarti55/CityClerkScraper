@@ -1,15 +1,14 @@
 /**
- * In-memory cache of chunked + embedded document content per fileId.
- * Used by the chat API to avoid re-extracting and re-embedding on every message.
+ * Unified in-memory cache of chunked + embedded document content.
+ * Used by both file and attachment chat APIs.
  */
 
-import { getPdfBuffer } from "@/lib/file-cache";
-import { extractTextFromPdf, chunkDocument, type TextChunk } from "@/lib/document-text";
+import { extractTextFromPdf, chunkDocument } from "@/lib/document-text";
 import { createEmbeddings } from "@/lib/llm/embeddings";
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
-interface CachedChunk {
+export interface CachedChunk {
   text: string;
   page?: number;
   embedding: number[];
@@ -20,7 +19,7 @@ interface CacheEntry {
   expiresAt: number;
 }
 
-const cache = new Map<number, CacheEntry>();
+const cache = new Map<string, CacheEntry>();
 
 function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) return 0;
@@ -42,17 +41,21 @@ export interface RAGChunk {
 }
 
 /**
- * Get chunks with embeddings for a file, from cache or by extracting + chunking + embedding.
+ * Get chunks with embeddings for any document, keyed by a string cache key.
+ * The loadBuffer callback fetches the PDF when not cached.
  */
-export async function getChunksWithEmbeddings(fileId: number): Promise<CachedChunk[]> {
+export async function getChunksForDocument(
+  cacheKey: string,
+  loadBuffer: () => Promise<Buffer | null>,
+): Promise<CachedChunk[]> {
   const now = Date.now();
-  const entry = cache.get(fileId);
+  const entry = cache.get(cacheKey);
   if (entry && entry.expiresAt > now) {
     return entry.chunks;
   }
 
-  const buffer = await getPdfBuffer(fileId);
-  if (!buffer) throw new Error("Failed to load file");
+  const buffer = await loadBuffer();
+  if (!buffer) throw new Error("Failed to load document");
 
   const { pages } = await extractTextFromPdf(buffer);
   const textChunks = chunkDocument(pages);
@@ -67,7 +70,7 @@ export async function getChunksWithEmbeddings(fileId: number): Promise<CachedChu
     embedding: embeddings[i] ?? [],
   }));
 
-  cache.set(fileId, {
+  cache.set(cacheKey, {
     chunks,
     expiresAt: now + CACHE_TTL_MS,
   });
@@ -76,12 +79,20 @@ export async function getChunksWithEmbeddings(fileId: number): Promise<CachedChu
 }
 
 /**
+ * Backward-compatible wrapper: get chunks for a file by fileId.
+ */
+export async function getChunksWithEmbeddings(fileId: number): Promise<CachedChunk[]> {
+  const { getPdfBuffer } = await import("@/lib/file-cache");
+  return getChunksForDocument(`file-${fileId}`, () => getPdfBuffer(fileId));
+}
+
+/**
  * Retrieve top-k chunks most similar to the query embedding.
  */
 export function retrieveTopK(
   chunks: CachedChunk[],
   queryEmbedding: number[],
-  k: number = 8
+  k: number = 8,
 ): RAGChunk[] {
   const scored = chunks
     .map((c) => ({ chunk: c, score: cosineSimilarity(c.embedding, queryEmbedding) }))

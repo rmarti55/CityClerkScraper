@@ -20,7 +20,7 @@ export {
 export { getMeetingDetails } from './api';
 
 // Functions — search
-export { searchCivicClerk, searchEvents } from './search';
+export { searchCivicClerk, searchDocumentsLocal, searchEvents } from './search';
 
 // Functions — backfill
 export { backfillDateRange } from './backfill';

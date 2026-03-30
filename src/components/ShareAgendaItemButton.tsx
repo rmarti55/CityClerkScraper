@@ -68,6 +68,7 @@ export function ShareAgendaItemButton({
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
+        aria-hidden
       >
         <path
           strokeLinecap="round"

@@ -21,7 +21,7 @@ export default async function DocumentChatPage({
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-6 h-screen flex flex-col">
+    <main className="max-w-7xl mx-auto px-4 py-6 h-screen flex flex-col lg:max-w-none lg:px-12">
       <DocumentChatView
         fileId={fileIdNum}
         meetingId={meetingId}

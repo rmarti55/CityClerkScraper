@@ -89,6 +89,19 @@ export function isEventHappeningNow(startDateTimeIso: string): boolean {
 
 export type MeetingTimeStatus = "happening-now" | "today" | "upcoming" | "past";
 
+const ZOOM_LINK_EXPIRY_HOURS = 5;
+
+/**
+ * A Zoom/virtual meeting link is only useful before and shortly after the
+ * meeting starts. Returns false once we're past start + ZOOM_LINK_EXPIRY_HOURS.
+ */
+export function isZoomLinkRelevant(startDateTimeIso: string): boolean {
+  const now = DateTime.now().setZone(EVENT_TIMEZONE);
+  const start = DateTime.fromISO(startDateTimeIso.trim(), { zone: EVENT_TIMEZONE });
+  if (!start.isValid) return false;
+  return now < start.plus({ hours: ZOOM_LINK_EXPIRY_HOURS });
+}
+
 export function getMeetingTimeStatus(startDateTimeIso: string): MeetingTimeStatus {
   if (isEventHappeningNow(startDateTimeIso)) return "happening-now";
   if (isEventToday(startDateTimeIso)) {

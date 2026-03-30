@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       .from(events)
       .where(sql`${events.id} IN (${sql.raw(idList)})`);
     const zoomEventIds = new Set(
-      zoomRows.filter((r) => r.zoomLink && r.zoomLink !== 'none').map((r) => r.id),
+      zoomRows.filter((r) => r.zoomLink && r.zoomLink !== '__none__').map((r) => r.id),
     );
 
     const result: MediaStatusMap = {};

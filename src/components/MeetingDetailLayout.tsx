@@ -15,8 +15,8 @@ export function MeetingDetailLayout({ children }: { children: ReactNode }) {
         <div
           className={
             isOpen
-              ? "max-w-4xl mx-auto px-4 py-6 lg:max-w-none lg:mx-0 lg:w-1/2 lg:overflow-y-auto lg:shrink-0"
-              : "max-w-4xl mx-auto px-4 py-6"
+              ? "max-w-4xl mx-auto px-4 py-6 lg:max-w-none lg:mx-0 lg:px-12 lg:w-1/2 lg:overflow-y-auto lg:shrink-0"
+              : "max-w-4xl mx-auto px-4 py-6 lg:max-w-none lg:px-12"
           }
         >
           {children}

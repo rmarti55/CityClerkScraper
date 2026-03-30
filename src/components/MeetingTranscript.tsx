@@ -81,16 +81,35 @@ export function MeetingTranscript({ eventId }: { eventId: number }) {
   const [activeTab, setActiveTab] = useState<"summary" | "transcript" | "speakers">("summary");
   const [showVideo, setShowVideo] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isRetrying, setIsRetrying] = useState(false);
 
-  const { data, error, isLoading } = useSWR<TranscriptData>(
+  const { data, error, isLoading, mutate } = useSWR<TranscriptData>(
     `/api/meeting/${eventId}/transcript`,
     fetcher,
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       dedupingInterval: 60_000,
+      refreshInterval: (latestData: TranscriptData | undefined) => {
+        const status = latestData?.transcript?.status;
+        return status === "pending" || status === "processing" ? 30_000 : 0;
+      },
     },
   );
+
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    try {
+      const res = await fetch(`/api/meeting/${eventId}/transcript`, { method: "POST" });
+      if (!res.ok) throw new Error("Retry failed");
+      await mutate();
+    } catch {
+      // mutate to refresh status even on failure
+      await mutate();
+    } finally {
+      setIsRetrying(false);
+    }
+  };
 
   const speakerColorMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -169,9 +188,34 @@ export function MeetingTranscript({ eventId }: { eventId: number }) {
 
         {isFailed && (
           <div className="px-4 py-3 bg-red-50 border-b border-red-100">
-            <p className="text-sm text-red-700">
-              Transcript processing failed{transcript?.errorMessage ? `: ${transcript.errorMessage}` : ""}
-            </p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-red-700">
+                Transcript processing failed{transcript?.errorMessage ? `: ${transcript.errorMessage}` : ""}
+              </p>
+              <button
+                type="button"
+                onClick={handleRetry}
+                disabled={isRetrying}
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-md cursor-pointer transition-colors"
+              >
+                {isRetrying ? (
+                  <>
+                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Retrying...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Retry
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         )}
 

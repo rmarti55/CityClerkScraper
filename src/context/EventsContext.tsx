@@ -60,6 +60,8 @@ export function EventsProvider({ children }: { children: ReactNode }) {
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isFetchingRef = useRef(false);
   const mountedRef = useRef(true);
+  const currentYearRef = useRef(currentYear);
+  const currentMonthRef = useRef(currentMonth);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -67,6 +69,11 @@ export function EventsProvider({ children }: { children: ReactNode }) {
       mountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    currentYearRef.current = currentYear;
+    currentMonthRef.current = currentMonth;
+  }, [currentYear, currentMonth]);
 
   // Load from localStorage on mount
   const loadFromCache = useCallback((): CachedData | null => {
@@ -95,6 +102,7 @@ export function EventsProvider({ children }: { children: ReactNode }) {
 
   // Fetch events for a month from API (dashboard is month-scoped, API-first).
   // Pass year/month when changing month so the request uses the new month before state updates.
+  // Uses refs for currentYear/currentMonth so this callback is stable across month changes.
   const fetchEvents = useCallback(
     async (showLoading = true, year?: number, month?: number) => {
       isFetchingRef.current = true;
@@ -103,8 +111,8 @@ export function EventsProvider({ children }: { children: ReactNode }) {
       }
       setError(null);
 
-      const y = year ?? currentYear;
-      const m = month ?? currentMonth;
+      const y = year ?? currentYearRef.current;
+      const m = month ?? currentMonthRef.current;
       const monthParam = `${y}-${String(m).padStart(2, "0")}`;
 
       try {
@@ -129,7 +137,7 @@ export function EventsProvider({ children }: { children: ReactNode }) {
         isFetchingRef.current = false;
       }
     },
-    [saveToCache, currentYear, currentMonth]
+    [saveToCache]
   );
 
   // Filter events by month using Denver calendar date so evening meetings at

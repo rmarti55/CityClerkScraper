@@ -9,6 +9,8 @@ import { TabBar, TabValue } from "./TabBar";
 import { LoginButton } from "./LoginButton";
 import { SearchBar } from "./SearchBar";
 import { CategoryFilter } from "./CategoryFilter";
+import { DateNav } from "./MonthPicker";
+import { ChevronLeftIcon } from "./icons";
 
 export function AppHeader() {
   const pathname = usePathname();
@@ -85,6 +87,8 @@ export function AppHeader() {
     removeSearch,
   } = useSearch();
 
+  const hasActiveFilter = searchQuery.trim().length >= 2 || selectedCategory !== null;
+
   const handleSearchSubmit = useCallback(
     (query: string) => {
       const trimmed = query.trim();
@@ -102,7 +106,7 @@ export function AppHeader() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
         {/* Row 1: Tab bar + Login */}
         <div className={hasRow2 ? "border-b border-gray-100" : ""}>
-          <div className="max-w-4xl mx-auto px-4">
+          <div className="max-w-4xl mx-auto px-4 lg:max-w-none lg:px-12">
             <div className="flex items-center justify-between">
             <TabBar
               activeTab={activeTab}
@@ -116,11 +120,11 @@ export function AppHeader() {
           </div>
         </div>
 
-        {/* Row 2a: Search bar + category filter for All tab */}
+        {/* Row 2a: Search bar + date nav + category filter for All tab */}
         {isAllTab && (
-          <div className="max-w-4xl mx-auto px-4 py-1.5">
-            <div className="flex gap-2 items-stretch">
-              <div className="flex-1">
+          <div className="max-w-4xl mx-auto px-4 py-1.5 lg:max-w-none lg:px-12">
+            <div className="flex gap-1.5 sm:gap-2 items-center">
+              <div className="flex-1 min-w-0">
                 <SearchBar
                   value={searchQuery}
                   onChange={setSearchQuery}
@@ -133,6 +137,7 @@ export function AppHeader() {
                   compact
                 />
               </div>
+              <DateNav hasActiveFilter={hasActiveFilter} />
               <CategoryFilter
                 selectedCategory={selectedCategory}
                 onSelectCategory={setSelectedCategory}
@@ -158,16 +163,14 @@ export function AppHeader() {
 
 function BackRow({ label, href, scroll }: { label: string; href: string; scroll?: boolean }) {
   return (
-    <div className="max-w-4xl mx-auto px-4">
+    <div className="max-w-4xl mx-auto px-4 lg:max-w-none lg:px-12">
       <div className="flex items-center gap-3 h-10">
         <Link
           href={href}
           scroll={scroll}
           className="flex items-center gap-1.5 text-sm text-gray-900 hover:text-gray-900 transition-colors"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
+          <ChevronLeftIcon className="w-4 h-4" />
           {label}
         </Link>
       </div>

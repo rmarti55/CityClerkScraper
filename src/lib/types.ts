@@ -20,6 +20,9 @@ export interface CivicEvent {
   fileNames?: string; // Concatenated file names for search
   // Cache metadata
   cachedAt?: string; // ISO timestamp of last sync from CivicClerk API
+  // Search metadata (populated only in search results)
+  matchingAgendaItem?: string; // Name of the matching agenda item, if the match came from agenda_items
+  searchRank?: number; // Full-text search relevance score
 }
 
 export interface CivicFile {
@@ -79,10 +82,12 @@ export interface MatchingItem {
   highlightedName?: string;
 }
 
-/** One event with its document-search matches (from GET /v1/Search?search=) */
+/** One event with its document-search matches */
 export interface DocumentSearchResult {
   event: CivicEvent;
   matchingFiles: MatchingFile[];
   matchingItems: MatchingItem[];
   totalInEvent: number;
+  /** All published files for this event (for "View Documents" in search results) */
+  eventFiles?: MatchingFile[];
 }

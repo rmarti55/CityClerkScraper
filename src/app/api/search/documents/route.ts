@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { searchCivicClerk } from '@/lib/civicclerk';
+import { searchDocumentsLocal } from '@/lib/civicclerk';
 
 export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.get('q')?.trim();
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const results = await searchCivicClerk(query);
+    const results = await searchDocumentsLocal(query);
     return NextResponse.json({ results });
   } catch (error) {
     console.error('Document search API error:', error);

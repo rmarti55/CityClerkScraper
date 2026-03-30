@@ -149,7 +149,7 @@ export default function ProceduralRulesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="max-w-4xl mx-auto px-4 py-6 lg:max-w-none lg:px-12">
         {/* Header */}
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">

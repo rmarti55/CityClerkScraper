@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useEvents } from "@/context/EventsContext";
 import { useSearch } from "@/context/SearchContext";
 import { getNowInDenver } from "@/lib/datetime";
 import { COMMITTEES } from "@/lib/committees";
-import { MonthPicker } from "./MonthPicker";
+import { WarningIcon } from "./icons";
 import { SearchableContent } from "./SearchableContent";
 import { TabValue } from "./TabBar";
 import { MeetingListSkeleton } from "./skeletons/MeetingCardSkeleton";
@@ -19,19 +19,7 @@ function ErrorState({ error }: { error: string }) {
   return (
     <div className="rounded-lg border border-red-200 bg-red-50 p-6">
       <div className="flex items-start gap-3">
-        <svg
-          className="w-6 h-6 text-red-600 flex-shrink-0"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-          />
-        </svg>
+        <WarningIcon className="w-6 h-6 text-red-600 flex-shrink-0" />
         <div>
           <h3 className="font-medium text-red-600">Failed to Load Meetings</h3>
           <p className="text-sm text-red-600 mt-1">{error}</p>
@@ -74,8 +62,18 @@ export function HomePage() {
     return "all";
   })();
 
-  // Restore calendar view from URL
+  // Track whether a URL update was triggered by us (not browser nav / external)
+  const isOwnUrlUpdateRef = useRef(false);
+  const hasRestoredFromUrlRef = useRef(false);
+  const hasInitialScrolledRef = useRef(false);
+
+  // Restore calendar view from URL -- only on initial mount or browser back/forward,
+  // not when we ourselves sync state to the URL.
   useEffect(() => {
+    if (isOwnUrlUpdateRef.current) {
+      isOwnUrlUpdateRef.current = false;
+      return;
+    }
     const monthParam = searchParams.get("month");
     if (monthParam && MONTH_PARAM_REGEX.test(monthParam)) {
       const [y, m] = monthParam.split("-").map((n) => parseInt(n, 10));
@@ -90,6 +88,7 @@ export function HomePage() {
         setScrollToDate(dateParam);
       }
     }
+    hasRestoredFromUrlRef.current = true;
   }, [searchParams, setCurrentMonth, setScrollToDate]);
 
   const hasActiveFilter = searchQuery.trim().length >= 2 || selectedCategory !== null;
@@ -107,15 +106,19 @@ export function HomePage() {
       params.set("date", scrollToDate);
     }
     const queryString = params.toString();
+    isOwnUrlUpdateRef.current = true;
     router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
   }, [currentYear, currentMonth, scrollToDate, pathname, router, searchParams]);
 
-  // Open on today
+  // Scroll to today on initial load only -- not on every month change or re-render.
+  // The Today button in DateNav handles explicit user-initiated scrolling.
   useEffect(() => {
+    if (hasInitialScrolledRef.current) return;
     if (hasActiveFilter) return;
     if (activeTab !== "all") return;
     const { year: todayYear, month: todayMonth, dateKey: todayDate } = getNowInDenver();
     if (currentYear === todayYear && currentMonth === todayMonth) {
+      hasInitialScrolledRef.current = true;
       setScrollToDate(todayDate);
     }
   }, [hasActiveFilter, activeTab, currentYear, currentMonth, setScrollToDate]);
@@ -131,12 +134,10 @@ export function HomePage() {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="max-w-4xl mx-auto px-4 py-6 lg:max-w-none lg:px-12">
         {/* Tab content */}
         {activeTab === "all" ? (
           <>
-            <MonthPicker hasActiveFilter={hasActiveFilter} />
-
             {isLoading ? (
               <MeetingListSkeleton count={5} />
             ) : error ? (

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEventById, getMeetingDetails } from '@/lib/civicclerk';
 import { generateAgendaSummaries } from '@/lib/llm/agenda-summary';
+import { OpenRouterError } from '@/lib/llm/openrouter';
 import { db, agendaSummaries } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 
@@ -37,14 +38,16 @@ export async function GET(
         const cached = await db.select().from(agendaSummaries).where(eq(agendaSummaries.eventId, eventId)).limit(1);
         if (cached.length > 0) {
           const summaries = JSON.parse(cached[0].summaryJson);
-          return NextResponse.json(
-            { summaries },
-            {
-              headers: {
-                'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800',
+          if (Array.isArray(summaries) && summaries.length > 0) {
+            return NextResponse.json(
+              { summaries },
+              {
+                headers: {
+                  'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800',
+                },
               },
-            },
-          );
+            );
+          }
         }
       } catch (dbError) {
         console.warn('DB cache read failed for agenda summary:', dbError);
@@ -65,21 +68,22 @@ export async function GET(
 
     const summaries = await generateAgendaSummaries(meetingDetails.items);
 
-    // Persist to DB for future requests
-    try {
-      await db.insert(agendaSummaries).values({
-        eventId,
-        agendaId: event.agendaId,
-        summaryJson: JSON.stringify(summaries),
-      }).onConflictDoUpdate({
-        target: agendaSummaries.eventId,
-        set: {
+    if (summaries.length > 0) {
+      try {
+        await db.insert(agendaSummaries).values({
+          eventId,
+          agendaId: event.agendaId,
           summaryJson: JSON.stringify(summaries),
-          generatedAt: new Date(),
-        },
-      });
-    } catch (dbError) {
-      console.warn('Failed to cache agenda summary in DB:', dbError);
+        }).onConflictDoUpdate({
+          target: agendaSummaries.eventId,
+          set: {
+            summaryJson: JSON.stringify(summaries),
+            generatedAt: new Date(),
+          },
+        });
+      } catch (dbError) {
+        console.warn('Failed to cache agenda summary in DB:', dbError);
+      }
     }
 
     return NextResponse.json(
@@ -91,6 +95,13 @@ export async function GET(
       },
     );
   } catch (error) {
+    if (error instanceof OpenRouterError && error.status === 402) {
+      console.warn('Agenda summary skipped: insufficient OpenRouter credits');
+      return NextResponse.json(
+        { error: 'Insufficient OpenRouter credits', configured: false },
+        { status: 503 },
+      );
+    }
     console.error('Agenda summary API error:', error);
     return NextResponse.json(
       { error: 'Failed to generate summaries' },

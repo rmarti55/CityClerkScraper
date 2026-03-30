@@ -5,14 +5,16 @@ import { useRouter, usePathname } from "next/navigation";
 import { CivicEvent } from "@/lib/types";
 import { useGlobalSearch } from "@/hooks/useGlobalSearch";
 import { useDocumentSearch } from "@/hooks/useDocumentSearch";
+import { useTranscriptSearch } from "@/hooks/useTranscriptSearch";
 import { useEvents } from "@/context/EventsContext";
 import { useSearch } from "@/context/SearchContext";
 import { GlobalSearchResults } from "./GlobalSearchResults";
 import { DocumentSearchResults } from "./DocumentSearchResults";
+import { TranscriptSearchResults } from "./TranscriptSearchResults";
 import { MeetingList } from "./MeetingList";
 import { MobileSearchModal } from "./MobileSearchModal";
 
-type SearchMode = "meetings" | "documents";
+type SearchMode = "meetings" | "documents" | "transcripts";
 
 const DATA_START_YEAR = 2024;
 const DATA_START_MONTH = 6;
@@ -62,14 +64,26 @@ export function SearchableContent({
     debouncedQuery: documentQuery,
   } = useDocumentSearch(searchQuery);
 
+  const {
+    results: transcriptResults,
+    isLoading: transcriptLoading,
+    error: transcriptError,
+    debouncedQuery: transcriptQuery,
+  } = useTranscriptSearch(searchQuery);
+
   const hasSearchQuery = debouncedQuery.trim().length >= 2;
   const hasCategory = selectedCategory !== null;
   const isShowingFilteredResults = hasSearchQuery || hasCategory;
   const isShowingDocumentSearch = searchMode === "documents" && documentQuery.trim().length >= 2;
+  const isShowingTranscriptSearch = searchMode === "transcripts" && transcriptQuery.trim().length >= 2;
 
   const prevIsLoadingRef = useRef(isLoading);
 
-  const effectiveLoading = isShowingDocumentSearch ? documentLoading : isLoading;
+  const effectiveLoading = isShowingTranscriptSearch
+    ? transcriptLoading
+    : isShowingDocumentSearch
+    ? documentLoading
+    : isLoading;
   useEffect(() => {
     if (prevIsLoadingRef.current !== effectiveLoading) {
       prevIsLoadingRef.current = effectiveLoading;
@@ -150,11 +164,29 @@ export function SearchableContent({
           >
             Documents
           </button>
+          <button
+            type="button"
+            onClick={() => setSearchMode("transcripts")}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              searchMode === "transcripts"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-800 hover:text-gray-900"
+            }`}
+          >
+            Transcripts
+          </button>
         </div>
       )}
 
-      {/* Conditional content: document search, filtered results, or meeting list */}
-      {isShowingDocumentSearch ? (
+      {/* Conditional content: transcript search, document search, filtered results, or meeting list */}
+      {isShowingTranscriptSearch ? (
+        <TranscriptSearchResults
+          results={transcriptResults}
+          query={transcriptQuery}
+          isLoading={transcriptLoading}
+          error={transcriptError}
+        />
+      ) : isShowingDocumentSearch ? (
         <DocumentSearchResults
           results={documentResults}
           query={documentQuery}

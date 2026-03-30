@@ -41,6 +41,7 @@ export function CopyButton({ value, label = "Copied!" }: CopyButtonProps) {
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
+          aria-hidden
         >
           <path
             strokeLinecap="round"
@@ -55,6 +56,7 @@ export function CopyButton({ value, label = "Copied!" }: CopyButtonProps) {
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
+          aria-hidden
         >
           <path
             strokeLinecap="round"

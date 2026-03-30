@@ -125,15 +125,25 @@ function extractMeetingName(title: string): string {
   let name = title
     .replace(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s*\d{4}\b/i, '')
     .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{4}\b/, '')
+    .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2}\b/, '')
     .replace(/\b\d{4}-\d{2}-\d{2}\b/, '')
     .replace(/\s*[-–—|]\s*$/, '')
     .replace(/^\s*[-–—|]\s*/, '')
     .trim();
 
-  // Remove common suffixes that aren't part of the meeting type
-  name = name.replace(/\s*(meeting|session|hearing)\s*$/i, '').trim();
-
   return name || title;
+}
+
+const NOISE_WORDS = /\b(regular|special|emergency|committee|joint|ad\s*hoc|subcommittee)\b/gi;
+
+/**
+ * Strip common qualifier words that differ between YouTube titles and CivicClerk
+ * event names but don't affect the core meeting identity.
+ * e.g. "Regular Governing Body Meeting" → "Governing Body Meeting"
+ *      "Governing Body Committee Meeting" → "Governing Body Meeting"
+ */
+function stripNoiseWords(s: string): string {
+  return s.replace(NOISE_WORDS, ' ').replace(/\s+/g, ' ').trim();
 }
 
 /**
@@ -172,10 +182,16 @@ export function matchVideosToEvents(
 
       if (dateScore === 0) continue;
 
-      // Name scoring: compare extracted meeting name against eventName and categoryName
+      // Name scoring: compare extracted meeting name against eventName, categoryName,
+      // and a noise-word-stripped version of both for resilience to qualifier differences
+      // like "Regular" vs "Committee".
       const nameSimEvent = bigramSimilarity(titleName, event.eventName);
       const nameSimCategory = bigramSimilarity(titleName, event.categoryName);
-      const nameSim = Math.max(nameSimEvent, nameSimCategory);
+      const nameSimStripped = bigramSimilarity(
+        stripNoiseWords(titleName),
+        stripNoiseWords(event.eventName),
+      );
+      const nameSim = Math.max(nameSimEvent, nameSimCategory, nameSimStripped);
       const nameScore = Math.round(nameSim * 50);
 
       const confidence = dateScore + nameScore;

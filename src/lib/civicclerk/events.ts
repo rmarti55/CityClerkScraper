@@ -17,6 +17,7 @@ import {
   fetchEventStartDateTimeFromAPI as fetchEventStartDateTimeFromAPIImpl,
 } from './api';
 import { isCacheFresh, mapCachedEvent, upsertEvent, upsertFiles } from './cache';
+import { cacheAgendaItems } from './agenda-cache';
 
 export const fetchEventNameFromAPI = fetchEventNameFromAPIImpl;
 export const fetchEventStartDateTimeFromAPI = fetchEventStartDateTimeFromAPIImpl;
@@ -206,6 +207,9 @@ export async function getEventsWithFileCounts(
           const meeting = await getMeetingDetails(event.agendaId);
           const fileCount = meeting?.publishedFiles?.length || 0;
           const fileNames = meeting?.publishedFiles?.map(f => f.name).join(' ') || '';
+          if (meeting?.items?.length) {
+            cacheAgendaItems(event.id, event.agendaId, meeting.items).catch(() => {});
+          }
           return { ...event, fileCount, fileNames };
         } catch {
           return { ...event, fileCount: 0, fileNames: '' };
@@ -262,6 +266,9 @@ export async function refreshEventById(id: number): Promise<CivicEvent | null> {
         publishedFiles = meeting.publishedFiles;
         fileCount = publishedFiles.length;
         fileNames = publishedFiles.map(f => f.name).join(' ');
+      }
+      if (meeting?.items?.length) {
+        cacheAgendaItems(id, event.agendaId, meeting.items).catch(() => {});
       }
     } catch {
       // Non-fatal

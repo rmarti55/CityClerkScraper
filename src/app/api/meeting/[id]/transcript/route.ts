@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db, meetingVideos, meetingTranscripts } from '@/lib/db';
 import { extractTranscript } from '@/lib/youtube/transcript';
 import { processTranscript } from '@/lib/youtube/ai-processor';
+import { auth } from '@/lib/auth';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -86,7 +87,7 @@ export async function GET(
 /**
  * POST /api/meeting/[id]/transcript
  * Trigger transcript extraction and AI processing for a meeting's video.
- * Requires CRON_SECRET for authorization.
+ * Accepts either CRON_SECRET or an authenticated user session.
  */
 export async function POST(
   request: NextRequest,
@@ -96,8 +97,12 @@ export async function POST(
     request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
     request.nextUrl.searchParams.get('secret');
   const expected = process.env.CRON_SECRET;
+  const hasCronSecret = expected && secret === expected;
 
-  if (!expected || secret !== expected) {
+  const session = !hasCronSecret ? await auth() : null;
+  const hasUserSession = !!session?.user?.id;
+
+  if (!hasCronSecret && !hasUserSession) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

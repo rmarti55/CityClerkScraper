@@ -9,7 +9,7 @@ export const metadata = {
 export default function PeoplePage() {
   return (
     <main className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto px-4 py-6">
+      <div className="max-w-5xl mx-auto px-4 py-6 lg:max-w-none lg:px-12">
         <Suspense fallback={null}>
           <PeopleDirectory />
         </Suspense>

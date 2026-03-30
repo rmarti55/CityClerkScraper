@@ -8,7 +8,7 @@
  * Designed to be called from a cron endpoint or backfill script.
  */
 
-import { eq, and, inArray, gte, isNull } from 'drizzle-orm';
+import { eq, and, inArray, gte, isNull, sql } from 'drizzle-orm';
 import { db, meetingVideos, meetingTranscripts, events } from '@/lib/db';
 import { listChannelVideos, getVideoDetails } from './channel';
 import { extractTranscript } from './transcript';
@@ -99,10 +99,80 @@ export async function discoverNewVideos(publishedAfter?: string): Promise<number
 }
 
 /**
+ * Step 1b: Re-run matching on previously unmatched videos (eventId = 0).
+ * Picks up improvements to the matcher without requiring re-discovery.
+ */
+export async function rematchUnmatchedVideos(): Promise<number> {
+  const unmatched = await db
+    .select({
+      id: meetingVideos.id,
+      youtubeVideoId: meetingVideos.youtubeVideoId,
+      youtubeTitle: meetingVideos.youtubeTitle,
+      youtubePublishedAt: meetingVideos.youtubePublishedAt,
+    })
+    .from(meetingVideos)
+    .where(eq(meetingVideos.eventId, 0));
+
+  if (unmatched.length === 0) return 0;
+
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  const candidateEvents = await db
+    .select({
+      eventId: events.id,
+      eventName: events.eventName,
+      startDateTime: events.startDateTime,
+      categoryName: events.categoryName,
+    })
+    .from(events)
+    .where(gte(events.startDateTime, sixMonthsAgo));
+
+  const candidates: MatchCandidate[] = candidateEvents.map((e) => ({
+    eventId: e.eventId,
+    eventName: e.eventName,
+    startDateTime: e.startDateTime,
+    categoryName: e.categoryName ?? '',
+  }));
+
+  const videosForMatching = unmatched
+    .filter((v) => v.youtubeVideoId && v.youtubeTitle)
+    .map((v) => ({
+      videoId: v.youtubeVideoId!,
+      title: v.youtubeTitle!,
+      publishedAt: v.youtubePublishedAt?.toISOString() ?? new Date().toISOString(),
+      thumbnailUrl: '',
+      description: '',
+    }));
+
+  const matches = matchVideosToEvents(videosForMatching, candidates);
+  let linked = 0;
+
+  for (const match of matches) {
+    if (match.confidence < AUTO_LINK_THRESHOLD) continue;
+
+    const videoRow = unmatched.find((v) => v.youtubeVideoId === match.videoId);
+    if (!videoRow) continue;
+
+    await db
+      .update(meetingVideos)
+      .set({
+        eventId: match.eventId,
+        matchConfidence: match.confidence,
+        matchedAt: new Date(),
+      })
+      .where(eq(meetingVideos.id, videoRow.id));
+
+    linked++;
+  }
+
+  return linked;
+}
+
+/**
  * Step 2: Extract transcripts for videos that don't have one yet.
  * Processes up to `limit` videos per run.
  */
-export async function extractPendingTranscripts(limit: number = 3): Promise<number> {
+export async function extractPendingTranscripts(limit: number = 10): Promise<number> {
   // Find videos linked to events that don't have a transcript row yet
   const videosNeedingTranscript = await db
     .select({
@@ -152,8 +222,20 @@ export async function extractPendingTranscripts(limit: number = 3): Promise<numb
 /**
  * Step 3: Run AI processing on pending transcripts.
  * Processes up to `limit` transcripts per run.
+ * First recovers any rows stuck in 'processing' for over 30 minutes.
  */
-export async function processPendingTranscripts(limit: number = 2): Promise<number> {
+export async function processPendingTranscripts(limit: number = 5): Promise<number> {
+  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+  await db
+    .update(meetingTranscripts)
+    .set({ status: 'pending', errorMessage: 'Reset from stale processing state' })
+    .where(
+      and(
+        eq(meetingTranscripts.status, 'processing'),
+        sql`${meetingTranscripts.generatedAt} < ${thirtyMinutesAgo}`,
+      ),
+    );
+
   const pending = await db
     .select()
     .from(meetingTranscripts)
@@ -216,24 +298,31 @@ export async function runTranscriptPipeline(options?: {
   let transcriptsExtracted = 0;
   let transcriptsProcessed = 0;
 
-  // Step 1: Discover
+  // Step 1: Discover new videos
   try {
     videosDiscovered = await discoverNewVideos(options?.publishedAfter);
-    // Count how many were auto-matched (eventId > 0)
-    if (videosDiscovered > 0) {
-      const matched = await db
-        .select({ id: meetingVideos.id })
-        .from(meetingVideos)
-        .where(gte(meetingVideos.eventId, 1));
-      videosMatched = matched.length;
-    }
   } catch (err) {
     errors.push(`Discovery: ${err instanceof Error ? err.message : 'Unknown error'}`);
   }
 
+  // Step 1b: Re-match previously unmatched videos
+  try {
+    const rematched = await rematchUnmatchedVideos();
+    const matched = await db
+      .select({ id: meetingVideos.id })
+      .from(meetingVideos)
+      .where(gte(meetingVideos.eventId, 1));
+    videosMatched = matched.length;
+    if (rematched > 0) {
+      errors.push(`Rematched ${rematched} previously unmatched video(s)`);
+    }
+  } catch (err) {
+    errors.push(`Rematch: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  }
+
   // Step 2: Extract transcripts
   try {
-    transcriptsExtracted = await extractPendingTranscripts(options?.extractLimit ?? 3);
+    transcriptsExtracted = await extractPendingTranscripts(options?.extractLimit ?? 10);
   } catch (err) {
     errors.push(`Extraction: ${err instanceof Error ? err.message : 'Unknown error'}`);
   }
@@ -241,7 +330,7 @@ export async function runTranscriptPipeline(options?: {
   // Step 3: AI processing
   try {
     if (process.env.OPENROUTER_API_KEY) {
-      transcriptsProcessed = await processPendingTranscripts(options?.processLimit ?? 2);
+      transcriptsProcessed = await processPendingTranscripts(options?.processLimit ?? 5);
     }
   } catch (err) {
     errors.push(`Processing: ${err instanceof Error ? err.message : 'Unknown error'}`);

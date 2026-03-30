@@ -11,6 +11,7 @@ import { useLoginModal } from "@/context/LoginModalContext";
 import { useToast } from "@/context/ToastContext";
 import { useEvents } from "@/context/EventsContext";
 import { MeetingStatusBadges, type MediaFlags } from "./MeetingStatusBadges";
+import { StarFilledIcon, StarOutlineIcon, CalendarIcon, RefreshIcon } from "./icons";
 
 interface MeetingCardProps {
   event: CivicEvent;
@@ -116,13 +117,9 @@ export function MeetingCard({
             title={favorited ? "Unfollow meeting" : "Follow meeting (sign in to sync)"}
           >
             {favorited ? (
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
+              <StarFilledIcon className="w-5 h-5" />
             ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-              </svg>
+              <StarOutlineIcon className="w-5 h-5" />
             )}
           </button>
         </div>
@@ -131,9 +128,7 @@ export function MeetingCard({
       {/* Row 2: Date/time + attachments/status badges (inline, right-aligned) */}
       <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
         <div className="flex items-center gap-1.5 text-sm font-medium text-gray-800 min-w-0">
-          <svg className="w-4 h-4 text-gray-700 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
+          <CalendarIcon className="w-4 h-4 text-gray-700 shrink-0" />
           <span className="truncate">
             {formatEventDate(event.startDateTime)} at{" "}
             {formatEventTime(event.startDateTime)}
@@ -181,19 +176,7 @@ export function MeetingCard({
           aria-label="Refresh meeting data"
           title="Sync latest data from CivicClerk"
         >
-          <svg
-            className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
+          <RefreshIcon className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
           Refresh
         </button>
       </div>

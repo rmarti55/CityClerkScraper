@@ -1,13 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import type { DocumentSearchResult, MatchingFile, MatchingItem } from "@/lib/types";
+import type { DocumentSearchResult, MatchingFile } from "@/lib/types";
 import { formatEventDate, formatEventTime, formatEventLocation, buildMapsUrl } from "@/lib/utils";
 import { MapPinIcon } from "./EventLocation";
 import { MeetingStatusBadges } from "./MeetingStatusBadges";
 
-/** Render API highlight HTML as React nodes (only <mark> allowed) */
 function HighlightedSnippet({ html }: { html: string }) {
   const parts: React.ReactNode[] = [];
   const re = /<mark[^>]*>([^<]*)<\/mark>/gi;
@@ -44,7 +44,9 @@ function DocumentResultCard({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { event, matchingFiles, matchingItems, totalInEvent } = result;
+  const [docsExpanded, setDocsExpanded] = useState(false);
+  const { event, matchingFiles, matchingItems, totalInEvent, eventFiles } = result;
+
   const meetingHref = (() => {
     const params = new URLSearchParams();
     if (query?.trim().length >= 2) params.set("q", query);
@@ -52,8 +54,12 @@ function DocumentResultCard({
     params.set("from", returnTo);
     return `/meeting/${event.id}?${params.toString()}`;
   })();
+
   const locationStr = formatEventLocation(event);
   const mapsUrl = buildMapsUrl(event);
+
+  const matchingFileIds = new Set(matchingFiles.map((f) => f.fileId));
+  const allEventFiles = eventFiles ?? [];
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -72,16 +78,26 @@ function DocumentResultCard({
               <p className="text-sm text-gray-600 flex items-start gap-1.5 mt-1 min-w-0 truncate" aria-label="Location">
                 <MapPinIcon className="w-4 h-4 text-gray-700 shrink-0 mt-0.5" />
                 {mapsUrl ? (
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="truncate hover:underline"
+                  <span
+                    role="link"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      window.open(mapsUrl, "_blank", "noopener,noreferrer");
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.open(mapsUrl, "_blank", "noopener,noreferrer");
+                      }
+                    }}
+                    className="truncate hover:underline cursor-pointer"
                     title={locationStr}
                   >
                     {locationStr}
-                  </a>
+                  </span>
                 ) : (
                   <span className="truncate" title={locationStr}>{locationStr}</span>
                 )}
@@ -96,31 +112,67 @@ function DocumentResultCard({
           />
         </div>
       </Link>
+
       <div className="border-t border-gray-100 px-4 py-3 bg-gray-50/80">
         <p className="text-sm font-medium text-gray-800 mb-2">
           {totalInEvent} result{totalInEvent !== 1 ? "s" : ""} in this event
         </p>
         <ul className="space-y-2 text-sm">
           {matchingFiles.map((f) => (
-            <MatchingFileRow key={`f-${f.fileId}-${f.name}`} file={f} eventId={event.id} />
+            <FileRow key={`f-${f.fileId}`} file={f} />
           ))}
           {matchingItems.map((it) => (
             <li key={`i-${it.id}`} className="flex items-start gap-2 text-gray-800">
-              <span className="text-gray-500 shrink-0">•</span>
-              {it.highlightedName ? (
-                <HighlightedSnippet html={it.highlightedName} />
-              ) : (
-                <span>{it.name}</span>
-              )}
+              <svg className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <Link href={meetingHref} className="hover:underline text-gray-900">
+                {it.highlightedName ? (
+                  <HighlightedSnippet html={it.highlightedName} />
+                ) : (
+                  <span>{it.name}</span>
+                )}
+              </Link>
             </li>
           ))}
         </ul>
       </div>
+
+      {allEventFiles.length > 0 && (
+        <div className="border-t border-gray-100 px-4 py-2 bg-gray-50/50">
+          <button
+            type="button"
+            onClick={() => setDocsExpanded((prev) => !prev)}
+            className="flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 py-1 w-full text-left"
+          >
+            <svg
+              className={`w-4 h-4 transition-transform ${docsExpanded ? "rotate-90" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            {docsExpanded ? "Hide" : "View"} {allEventFiles.length} Document{allEventFiles.length !== 1 ? "s" : ""}
+          </button>
+          {docsExpanded && (
+            <ul className="space-y-1.5 pb-2 pt-1">
+              {allEventFiles.map((f) => (
+                <EventFileRow
+                  key={f.fileId}
+                  file={f}
+                  isMatch={matchingFileIds.has(f.fileId)}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-function MatchingFileRow({ file, eventId }: { file: MatchingFile; eventId: number }) {
+function FileRow({ file }: { file: MatchingFile }) {
   const viewUrl = `/api/file/${file.fileId}`;
   return (
     <li className="flex flex-col gap-1">
@@ -155,6 +207,55 @@ function MatchingFileRow({ file, eventId }: { file: MatchingFile; eventId: numbe
           ))}
         </ul>
       )}
+    </li>
+  );
+}
+
+function EventFileRow({
+  file,
+  isMatch,
+}: {
+  file: MatchingFile;
+  isMatch: boolean;
+}) {
+  const viewUrl = `/api/file/${file.fileId}`;
+  const downloadUrl = `/api/file/${file.fileId}?download=true&name=${encodeURIComponent(file.name)}`;
+
+  return (
+    <li className={`flex items-center gap-2 py-1.5 px-2 rounded text-sm ${isMatch ? "bg-yellow-50" : ""}`}>
+      <svg className="w-4 h-4 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z" />
+        <path d="M8 12h8v2H8zM8 15h8v2H8z" />
+      </svg>
+      <div className="flex-1 min-w-0">
+        <span className="text-gray-900 truncate block">{file.name}</span>
+        {file.type && (
+          <span className="text-xs text-gray-500">({file.type})</span>
+        )}
+      </div>
+      <div className="flex items-center gap-0.5 shrink-0">
+        <a
+          href={viewUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="View PDF"
+          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          </svg>
+        </a>
+        <a
+          href={downloadUrl}
+          title="Download"
+          className="p-1.5 text-gray-700 hover:bg-gray-100 rounded transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+        </a>
+      </div>
     </li>
   );
 }

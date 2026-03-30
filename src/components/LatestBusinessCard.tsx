@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { CommitteeStats } from "@/lib/committees/stats";
 import type { CommitteeLink } from "@/lib/committees/links";
 import { PersonLink } from "./PersonLink";
+import { WarningIcon, CalendarIcon, DocumentIcon } from "./icons";
 
 interface LatestBusinessCardProps {
   committeeSlug: string;
@@ -61,9 +62,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
     return (
       <div className="bg-white rounded-xl border border-red-200 p-6">
         <div className="flex items-center gap-2 text-red-600 mb-2">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
+          <WarningIcon className="w-5 h-5" />
           <span className="font-medium">Unable to load overview</span>
         </div>
         <p className="text-sm text-gray-800">{error}</p>
@@ -80,7 +79,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
     <div className="bg-gradient-to-br from-indigo-50 to-white rounded-xl border border-indigo-100 p-4 sm:p-5 space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <svg className="w-5 h-5 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
         <h2 className="text-lg font-semibold text-gray-900">{committeeName} Overview</h2>
@@ -100,9 +99,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
                   label="Meets"
                   value={stats.frequencyPattern}
                   icon={
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                    <CalendarIcon className="w-3.5 h-3.5" />
                   }
                 />
               )}
@@ -111,7 +108,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
                   label={`Meetings in ${new Date().getFullYear()}`}
                   value={String(stats.totalMeetingsThisYear)}
                   icon={
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                   }
@@ -122,7 +119,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
                   label="Meeting types"
                   value={typeEntries.map(([type, count]) => `${count} ${type}`).join(', ')}
                   icon={
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                     </svg>
                   }
@@ -136,7 +133,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
                 {stats.lastMeeting && (
                   <div className="flex items-start gap-1.5 text-gray-800">
                     <span className="shrink-0 text-gray-700 mt-0.5">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </span>
@@ -149,7 +146,7 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
                 {stats.nextMeeting && (
                   <div className="flex items-start gap-1.5 text-gray-800">
                     <span className="shrink-0 text-indigo-400 mt-0.5">
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3-3 3m-4-3h7M3 12a9 9 0 1018 0A9 9 0 003 12z" />
                       </svg>
                     </span>
@@ -176,11 +173,9 @@ export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusin
                 {links.map(link => {
                   const isInternal = link.url.startsWith('/');
                   const icon = isInternal ? (
-                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+                    <DocumentIcon className="w-3.5 h-3.5 shrink-0" />
                   ) : (
-                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
                   );

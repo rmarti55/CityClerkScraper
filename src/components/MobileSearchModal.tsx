@@ -86,6 +86,13 @@ function SearchResultItem({
             {formatEventTime(event.startDateTime)}
           </p>
 
+          {/* Matching agenda item */}
+          {event.matchingAgendaItem && (
+            <p className="text-sm text-indigo-700 mt-1 line-clamp-2">
+              Agenda item: {highlightMatch(event.matchingAgendaItem, query)}
+            </p>
+          )}
+
           {/* Location */}
           {locationStr && (
             <p className="text-sm text-gray-600 flex items-start gap-1.5 mt-0.5 min-w-0 truncate" aria-label="Location">

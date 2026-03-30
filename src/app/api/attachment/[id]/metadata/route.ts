@@ -1,18 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAttachmentPdfBuffer } from "@/lib/file-cache";
-import { PDFDocument } from "pdf-lib";
+import { getPdfPageCount } from "@/lib/pdf-metadata";
 import { db, attachmentMetadata } from "@/lib/db";
 import { eq } from "drizzle-orm";
-
-async function getPdfPageCount(data: Buffer): Promise<number | null> {
-  try {
-    const pdfDoc = await PDFDocument.load(data, { ignoreEncryption: true });
-    return pdfDoc.getPageCount();
-  } catch (error) {
-    console.warn("Failed to parse PDF for page count:", error);
-    return null;
-  }
-}
 
 export async function GET(
   request: NextRequest,
@@ -38,7 +28,6 @@ export async function GET(
     );
   }
 
-  // Check DB cache first
   try {
     const cached = await db
       .select()
@@ -58,7 +47,6 @@ export async function GET(
 
   try {
     const pdfBuffer = await getAttachmentPdfBuffer(attachmentId, agendaId);
-
     if (!pdfBuffer) {
       return NextResponse.json(
         { error: "Failed to fetch attachment" },
@@ -69,7 +57,6 @@ export async function GET(
     const size = pdfBuffer.length;
     const pageCount = await getPdfPageCount(pdfBuffer);
 
-    // Persist to DB for future requests
     try {
       await db.insert(attachmentMetadata).values({
         attachmentId,

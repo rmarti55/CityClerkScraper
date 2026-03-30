@@ -136,6 +136,7 @@ export const files = pgTable('files', {
   fileSize: integer('file_size'), // File size in bytes (lazy-loaded)
   pageCount: integer('page_count'), // PDF page count (lazy-loaded, null for non-PDFs)
   cachedAt: timestamp('cached_at').defaultNow(),
+  searchVector: text('search_vector'), // Auto-generated tsvector (managed by Postgres)
 }, (table) => ({
   eventIdx: index('files_event_idx').on(table.eventId),
 }));
@@ -245,6 +246,20 @@ export const meetingTranscripts = pgTable('meeting_transcripts', {
   statusIdx: index('meeting_transcripts_status_idx').on(table.status),
 }));
 
+// Cached agenda items from CivicClerk Meetings API (flattened tree)
+export const agendaItems = pgTable('agenda_items', {
+  id: serial('id').primaryKey(),
+  eventId: integer('event_id').notNull(),
+  agendaId: integer('agenda_id').notNull(),
+  outlineNumber: text('outline_number').notNull(),
+  itemName: text('item_name').notNull(),
+  itemDescription: text('item_description'),
+  cachedAt: timestamp('cached_at').defaultNow(),
+}, (table) => ({
+  eventIdx: index('agenda_items_event_idx').on(table.eventId),
+  agendaIdx: index('agenda_items_agenda_idx').on(table.agendaId),
+}));
+
 // Cached attachment metadata (size + page count)
 export const attachmentMetadata = pgTable('attachment_metadata', {
   attachmentId: integer('attachment_id').primaryKey(),
@@ -283,6 +298,8 @@ export type Person = typeof people.$inferSelect;
 export type NewPerson = typeof people.$inferInsert;
 export type AgendaSummary = typeof agendaSummaries.$inferSelect;
 export type NewAgendaSummary = typeof agendaSummaries.$inferInsert;
+export type AgendaItem = typeof agendaItems.$inferSelect;
+export type NewAgendaItem = typeof agendaItems.$inferInsert;
 export type AttachmentMetadataRow = typeof attachmentMetadata.$inferSelect;
 export type NewAttachmentMetadata = typeof attachmentMetadata.$inferInsert;
 export type SavedDocument = typeof savedDocuments.$inferSelect;

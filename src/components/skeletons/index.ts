@@ -15,9 +15,6 @@ export {
   MeetingListSkeleton,
 } from "./MeetingCardSkeleton";
 
-// Month picker skeleton
-export { MonthPickerSkeleton } from "./MonthPickerSkeleton";
-
 // File skeletons
 export { FileCardSkeleton, FileListSkeleton } from "./FileCardSkeleton";
 

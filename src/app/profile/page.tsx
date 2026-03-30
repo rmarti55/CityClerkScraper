@@ -81,7 +81,7 @@ export default function ProfilePage() {
   if (status === "loading" || loading) {
     return (
       <main className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="max-w-4xl mx-auto px-4 py-6 lg:max-w-none lg:px-12">
           <div className="animate-pulse space-y-4">
             <div className="h-8 bg-gray-200 rounded w-48" />
             <div className="h-24 bg-gray-200 rounded" />
@@ -94,7 +94,7 @@ export default function ProfilePage() {
   if (!session?.user) {
     return (
       <main className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="max-w-4xl mx-auto px-4 py-6 lg:max-w-none lg:px-12">
           <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Alert settings</h1>
             <p className="text-gray-800">Sign in to manage your email and reminder preferences.</p>
@@ -106,7 +106,7 @@ export default function ProfilePage() {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="max-w-4xl mx-auto px-4 py-6 lg:max-w-none lg:px-12">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Alert settings</h1>
         <p className="text-gray-600 mb-8">
           Choose how you want to be notified about followed categories and meetings.
