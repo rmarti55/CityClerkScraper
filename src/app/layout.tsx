@@ -19,6 +19,7 @@ const lato = Lato({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://santafeminutes.space"),
   title: SITE_NAME,
   description: SITE_DESCRIPTION,
 };

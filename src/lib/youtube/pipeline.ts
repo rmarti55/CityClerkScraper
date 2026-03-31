@@ -12,7 +12,7 @@ import { eq, and, inArray, gte, isNull, sql } from 'drizzle-orm';
 import { db, meetingVideos, meetingTranscripts, events } from '@/lib/db';
 import { listChannelVideos, getVideoDetails } from './channel';
 import { extractTranscript } from './transcript';
-import { matchVideosToEvents, AUTO_LINK_THRESHOLD, type MatchCandidate } from './matcher';
+import { matchVideosToEvents, getAutoLinkThreshold, type MatchCandidate } from './matcher';
 import { processTranscript } from './ai-processor';
 import { notifyTranscriptReady } from '@/lib/notifications';
 
@@ -80,7 +80,7 @@ export async function discoverNewVideos(publishedAfter?: string): Promise<number
 
   for (const video of newVideos) {
     const match = matchMap.get(video.videoId);
-    const autoLinked = match && match.confidence >= AUTO_LINK_THRESHOLD;
+    const autoLinked = match && match.confidence >= getAutoLinkThreshold(match.dateScore);
 
     await db.insert(meetingVideos).values({
       eventId: autoLinked ? match.eventId : 0,
@@ -149,7 +149,7 @@ export async function rematchUnmatchedVideos(): Promise<number> {
   let linked = 0;
 
   for (const match of matches) {
-    if (match.confidence < AUTO_LINK_THRESHOLD) continue;
+    if (match.confidence < getAutoLinkThreshold(match.dateScore)) continue;
 
     const videoRow = unmatched.find((v) => v.youtubeVideoId === match.videoId);
     if (!videoRow) continue;

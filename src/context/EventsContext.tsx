@@ -157,7 +157,7 @@ export function EventsProvider({ children }: { children: ReactNode }) {
   const setCurrentMonth = useCallback((year: number, month: number) => {
     setCurrentYear(year);
     setCurrentMonthState(month);
-    fetchEvents(false, year, month);
+    fetchEvents(true, year, month);
   }, [fetchEvents]);
 
   // Manual refresh

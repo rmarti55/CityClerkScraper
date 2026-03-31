@@ -1,6 +1,6 @@
-# Santa Fe Civic Dashboard
+# Santa Fe Minutes
 
-A clean, usable interface for **City of Santa Fe Agendas & Minutes**—meeting calendar, agendas, packets, and minutes. The product is branded as [City of Santa Fe Agendas & Minutes](https://santafenm.portal.civicclerk.com/) to align with the city's official portal; this repo is the "Santa Fe Civic Dashboard" project.
+A clean, usable interface for City of Santa Fe meeting agendas and minutes—calendar, agendas, packets, and minutes. Live at [santafeminutes.space](https://santafeminutes.space). Data sourced from the city's [CivicClerk portal](https://santafenm.portal.civicclerk.com/).
 
 Built because the official CivicClerk portal is terrible.
 
