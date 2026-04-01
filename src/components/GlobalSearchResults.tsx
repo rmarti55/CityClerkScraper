@@ -3,8 +3,10 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { CivicEvent } from "@/lib/types";
 import { formatEventLocation, buildMapsUrl } from "@/lib/utils";
+import { useMediaStatus } from "@/hooks/useMediaStatus";
 import { MapPinIcon } from "./EventLocation";
 import { MeetingCard } from "./MeetingCard";
+import type { MediaFlags } from "./MeetingStatusBadges";
 
 interface GlobalSearchResultsProps {
   results: CivicEvent[];
@@ -54,10 +56,12 @@ function GlobalSearchResultCard({
   event,
   query,
   categoryId,
+  media,
 }: {
   event: CivicEvent;
   query: string;
   categoryId?: number | null;
+  media?: MediaFlags;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -119,6 +123,7 @@ function GlobalSearchResultCard({
       href={buildMeetingHref()}
       titleNode={highlightMatch(event.eventName, query)}
       locationNode={locationNode}
+      media={media}
     >
       {event.matchingAgendaItem && (
         <p className="text-sm text-indigo-700 mt-2 flex items-start gap-1.5">
@@ -170,6 +175,7 @@ export function GlobalSearchResults({
   categoryName,
   categoryId,
 }: GlobalSearchResultsProps) {
+  const mediaStatus = useMediaStatus(results.map((e) => e.id));
   const hasQuery = query && query.trim().length >= 2;
   const hasCategory = categoryName && categoryName.trim().length > 0;
 
@@ -256,7 +262,7 @@ export function GlobalSearchResults({
 
       <div className="space-y-3">
         {results.map((event) => (
-          <GlobalSearchResultCard key={event.id} event={event} query={query} categoryId={categoryId} />
+          <GlobalSearchResultCard key={event.id} event={event} query={query} categoryId={categoryId} media={mediaStatus?.[String(event.id)]} />
         ))}
       </div>
     </div>

@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import useSWR from "swr";
 import { isZoomLinkRelevant } from "@/lib/datetime";
+import { getMeetingPlatform } from "@/lib/meeting-platform";
 import { YouTubeIcon, DocumentIcon, VideoCameraIcon } from "./icons";
 
 interface TranscriptData {
@@ -26,6 +28,9 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
  * Shows Video / AI Transcript / Virtual Meeting indicators with links.
  */
 export function MeetingMediaBadges({ eventId, startDateTime }: { eventId: number; startDateTime: string }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const { data: transcriptData } = useSWR<TranscriptData>(
     `/api/meeting/${eventId}/transcript`,
     fetcher,
@@ -43,7 +48,7 @@ export function MeetingMediaBadges({ eventId, startDateTime }: { eventId: number
   const rawZoomLink = zoomData?.zoomLink && zoomData.zoomLink !== "none" ? zoomData.zoomLink : null;
   const zoomLink = rawZoomLink && isZoomLinkRelevant(startDateTime) ? rawZoomLink : null;
 
-  if (!hasVideo && !hasTranscript && !zoomLink) return null;
+  if (!mounted || (!hasVideo && !hasTranscript && !zoomLink)) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-2 mt-4">
@@ -72,8 +77,20 @@ export function MeetingMediaBadges({ eventId, startDateTime }: { eventId: number
           className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
         >
           <VideoCameraIcon className="w-3.5 h-3.5" />
-          Virtual Meeting
+          {getMeetingPlatform(zoomLink)} Meeting
         </a>
+      )}
+      {zoomLink && (
+        <div className="w-full mt-1">
+          <a
+            href={zoomLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-gray-500 hover:text-gray-700 underline decoration-gray-300 hover:decoration-gray-500 break-all transition-colors"
+          >
+            {zoomLink}
+          </a>
+        </div>
       )}
     </div>
   );

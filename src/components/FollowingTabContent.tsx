@@ -1,14 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { useFollows } from "@/hooks/useFollows";
+import { useMediaStatus } from "@/hooks/useMediaStatus";
 import { FollowCategoryButton } from "@/components/FollowCategoryButton";
 import { MeetingCard } from "@/components/MeetingCard";
 import { useLoginModal } from "@/context/LoginModalContext";
 import type { CivicEvent } from "@/lib/types";
 import { getCommitteeByCategoryName } from "@/lib/committees";
+
+const fetcher = (url: string) =>
+  fetch(url).then((r) => {
+    if (!r.ok) throw new Error("Failed to load");
+    return r.json() as Promise<{ events?: CivicEvent[] }>;
+  });
 
 export function FollowingTabContent() {
   const { status } = useSession();
@@ -20,40 +28,24 @@ export function FollowingTabContent() {
     loadingFavorites,
   } = useFollows();
 
-  const [favoriteEvents, setFavoriteEvents] = useState<CivicEvent[]>([]);
-  const [loadingEvents, setLoadingEvents] = useState(false);
-  const [eventsError, setEventsError] = useState<string | null>(null);
+  const ids = useMemo(() => Array.from(favoriteEventIds), [favoriteEventIds]);
+  const swrKey = isAuthenticated && ids.length > 0
+    ? `/api/events?eventIds=${ids.join(",")}`
+    : null;
 
-  const fetchFollowedEvents = useCallback(() => {
-    if (!isAuthenticated || favoriteEventIds.size === 0) {
-      setFavoriteEvents([]);
-      setEventsError(null);
-      return;
-    }
-    const ids = Array.from(favoriteEventIds);
-    setLoadingEvents(true);
-    setEventsError(null);
-    const params = new URLSearchParams({ eventIds: ids.join(",") });
-    fetch(`/api/events?${params}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to load");
-        return res.json();
-      })
-      .then((data: { events?: CivicEvent[] }) => {
-        const events = data.events ?? [];
-        const byId = new Map(events.map((e) => [e.id, e]));
-        setFavoriteEvents(ids.map((id) => byId.get(id)).filter(Boolean) as CivicEvent[]);
-      })
-      .catch(() => {
-        setFavoriteEvents([]);
-        setEventsError("Couldn't load followed meetings. Check your connection and try again.");
-      })
-      .finally(() => setLoadingEvents(false));
-  }, [isAuthenticated, favoriteEventIds]);
+  const { data, error: swrError, isLoading: loadingEvents, mutate } = useSWR(swrKey, fetcher);
 
-  useEffect(() => {
-    fetchFollowedEvents();
-  }, [fetchFollowedEvents]);
+  const favoriteEvents = useMemo(() => {
+    if (!data?.events) return [];
+    const byId = new Map(data.events.map((e) => [e.id, e]));
+    return ids.map((id) => byId.get(id)).filter(Boolean) as CivicEvent[];
+  }, [data, ids]);
+
+  const eventsError = swrError
+    ? "Couldn't load followed meetings. Check your connection and try again."
+    : null;
+
+  const mediaStatus = useMediaStatus(favoriteEvents.map((e) => e.id));
 
   if (status === "loading") {
     return (
@@ -153,7 +145,7 @@ export function FollowingTabContent() {
               <p className="text-sm text-gray-800 mb-3">{eventsError}</p>
               <button
                 type="button"
-                onClick={fetchFollowedEvents}
+                onClick={() => mutate()}
                 className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
               >
                 Try again
@@ -168,7 +160,7 @@ export function FollowingTabContent() {
                 )
                 .map((event) => (
                   <li key={event.id}>
-                    <MeetingCard event={event} />
+                    <MeetingCard event={event} media={mediaStatus?.[String(event.id)]} />
                   </li>
                 ))}
             </ul>

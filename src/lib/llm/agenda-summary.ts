@@ -73,7 +73,7 @@ export async function generateAgendaSummaries(
     {
       temperature: 0.2,
       maxTokens: 4096,
-      model: 'anthropic/claude-3.5-haiku',
+      model: 'anthropic/claude-haiku-4.5',
       ...options,
     },
   );

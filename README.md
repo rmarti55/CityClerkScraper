@@ -415,7 +415,7 @@ src/
 │   ├── MeetingTranscript.tsx      # YouTube video embed + AI transcript (summary, speakers, search)
 │   ├── MeetingRefreshButton.tsx   # Refresh single meeting data
 │   ├── MeetingStatusBadges.tsx    # Happening Now, Today, Upcoming, etc.
-│   ├── MeetingsProviders.tsx      # Composed EventsProvider + CommitteeProvider
+│   ├── MeetingsProviders.tsx      # SWRConfig + EventsProvider (global data fetching)
 │   ├── MobileSearchModal.tsx      # Mobile search UI
 │   ├── MonthPicker.tsx            # Month/year navigation
 │   ├── Pagination.tsx             # Pagination controls
@@ -434,7 +434,7 @@ src/
 │   └── ZoomLinkBanner.tsx         # Zoom/Teams/Meet link banner on meeting pages
 ├── context/               # React context providers
 │   ├── AuthContext.tsx            # SessionProvider wrapper
-│   ├── CommitteeContext.tsx       # Committee meeting list fetch cache (TTL-based)
+│   ├── CommitteeContext.tsx       # (deprecated — replaced by SWR in CommitteeMeetingList)
 │   ├── DocumentViewerContext.tsx  # Inline document viewer state (open/close PDF, chat endpoint)
 │   ├── EventsContext.tsx          # Global events state
 │   ├── FollowsContext.tsx         # Favorites and category follows state
@@ -517,7 +517,7 @@ Events are cached in PostgreSQL with age-based expiration:
 | < 7 days | 1 hour |
 
 The app also uses:
-- **Client-side caching** - Events stored in localStorage, refreshed every 30 minutes
+- **SWR client-side caching** - All data fetching uses SWR with `keepPreviousData` for seamless transitions. A `localStorage`-backed SWR cache provider persists data across sessions for instant page loads.
 - **Stale cache fallback** - If the CivicClerk API fails, stale cached data is served
 
 ## Deployment (Vercel)

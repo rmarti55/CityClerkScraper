@@ -13,8 +13,8 @@
 import { chatCompletion } from '@/lib/llm/openrouter';
 
 const CHUNK_SIZE = 12000; // ~3000 tokens worth of text per chunk
-const FAST_MODEL = 'anthropic/claude-3.5-haiku';
-const SMART_MODEL = 'anthropic/claude-3.5-sonnet';
+const FAST_MODEL = 'anthropic/claude-haiku-4.5';
+const SMART_MODEL = 'anthropic/claude-sonnet-4.6';
 
 export interface TranscriptSummary {
   executiveSummary: string;

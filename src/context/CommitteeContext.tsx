@@ -5,6 +5,7 @@ import {
   useContext,
   useState,
   useCallback,
+  useRef,
   ReactNode,
 } from "react";
 import type { CivicEvent } from "@/lib/types";
@@ -12,9 +13,16 @@ import type { CivicEvent } from "@/lib/types";
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 interface CommitteeCacheEntry {
-  events: CivicEvent[];
+  extraEvents: CivicEvent[];
   total: number;
+  currentPage: number;
   fetchedAt: number;
+}
+
+interface CachedState {
+  extraEvents: CivicEvent[];
+  total: number;
+  currentPage: number;
 }
 
 interface CommitteeContextType {
@@ -22,13 +30,15 @@ interface CommitteeContextType {
     committeeSlug: string,
     categoryName: string,
     limit: number
-  ) => { events: CivicEvent[]; total: number } | null;
+  ) => CachedState | null;
   setCached: (
     committeeSlug: string,
     categoryName: string,
     limit: number,
-    data: { events: CivicEvent[]; total: number }
+    data: CachedState
   ) => void;
+  setLastClicked: (committeeSlug: string, meetingId: number) => void;
+  getLastClicked: (committeeSlug: string) => number | null;
 }
 
 const CommitteeContext = createContext<CommitteeContextType | null>(null);
@@ -43,18 +53,23 @@ function cacheKey(
 
 export function CommitteeProvider({ children }: { children: ReactNode }) {
   const [cache, setCache] = useState<Record<string, CommitteeCacheEntry>>({});
+  const lastClickedRef = useRef<Record<string, number>>({});
 
   const getCached = useCallback(
     (
       committeeSlug: string,
       categoryName: string,
       limit: number
-    ): { events: CivicEvent[]; total: number } | null => {
+    ): CachedState | null => {
       const key = cacheKey(committeeSlug, categoryName, limit);
       const entry = cache[key];
       if (!entry) return null;
       if (Date.now() - entry.fetchedAt > CACHE_TTL_MS) return null;
-      return { events: entry.events, total: entry.total };
+      return {
+        extraEvents: entry.extraEvents,
+        total: entry.total,
+        currentPage: entry.currentPage,
+      };
     },
     [cache]
   );
@@ -64,7 +79,7 @@ export function CommitteeProvider({ children }: { children: ReactNode }) {
       committeeSlug: string,
       categoryName: string,
       limit: number,
-      data: { events: CivicEvent[]; total: number }
+      data: CachedState
     ) => {
       const key = cacheKey(committeeSlug, categoryName, limit);
       setCache((prev) => ({
@@ -78,8 +93,27 @@ export function CommitteeProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const setLastClicked = useCallback(
+    (committeeSlug: string, meetingId: number) => {
+      lastClickedRef.current[committeeSlug] = meetingId;
+    },
+    []
+  );
+
+  const getLastClicked = useCallback(
+    (committeeSlug: string): number | null => {
+      const id = lastClickedRef.current[committeeSlug];
+      if (id !== undefined) {
+        delete lastClickedRef.current[committeeSlug];
+        return id;
+      }
+      return null;
+    },
+    []
+  );
+
   return (
-    <CommitteeContext.Provider value={{ getCached, setCached }}>
+    <CommitteeContext.Provider value={{ getCached, setCached, setLastClicked, getLastClicked }}>
       {children}
     </CommitteeContext.Provider>
   );
@@ -91,7 +125,9 @@ export function useCommitteeCache() {
     return {
       getCached: () => null,
       setCached: () => {},
-    };
+      setLastClicked: () => {},
+      getLastClicked: () => null,
+    } as CommitteeContextType;
   }
   return context;
 }

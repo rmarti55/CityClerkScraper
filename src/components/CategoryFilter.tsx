@@ -21,6 +21,7 @@ export function CategoryFilter({
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
 
@@ -54,6 +55,26 @@ export function CategoryFilter({
       inputRef.current.focus();
     }
   }, [isOpen]);
+
+  // Reposition dropdown if it overflows viewport edges
+  useEffect(() => {
+    if (!isOpen || isMobile || !panelRef.current) return;
+    const panel = panelRef.current;
+    panel.style.removeProperty("left");
+    panel.style.removeProperty("right");
+
+    const rect = panel.getBoundingClientRect();
+    const margin = 8;
+
+    if (rect.right > window.innerWidth - margin) {
+      panel.style.right = "0px";
+      panel.style.left = "auto";
+    }
+    if (rect.left < margin) {
+      panel.style.left = `${margin - rect.left + panel.offsetLeft}px`;
+      panel.style.right = "auto";
+    }
+  }, [isOpen, isMobile]);
 
   const handleSelect = (category: Category | null) => {
     onSelectCategory(category);
@@ -148,7 +169,7 @@ export function CategoryFilter({
 
         {/* Desktop dropdown menu */}
         {isOpen && !isMobile && (
-          <div className="absolute z-50 mt-1 w-96 bg-white border border-gray-200 rounded-lg shadow-lg">
+          <div ref={panelRef} className="absolute right-0 z-50 mt-1 w-96 max-w-[calc(100vw-1rem)] bg-white border border-gray-200 rounded-lg shadow-lg">
             {/* Search input */}
             <div className="p-2 border-b border-gray-100">
               <input

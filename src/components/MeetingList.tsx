@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import useSWR from "swr";
 import { CivicEvent } from "@/lib/types";
+import { useMediaStatus } from "@/hooks/useMediaStatus";
 import { MeetingCard } from "./MeetingCard";
+import { MeetingListSkeleton } from "./skeletons/MeetingCardSkeleton";
 import { getEventDateKeyInDenver } from "@/lib/datetime";
-import type { MediaStatusMap } from "@/app/api/meetings/media-status/route";
-
-const mediaFetcher = (url: string) => fetch(url).then((r) => r.json() as Promise<MediaStatusMap>);
 
 interface MeetingListProps {
   events: CivicEvent[];
@@ -40,12 +38,7 @@ function formatDateHeader(dateString: string): string {
 
 export function MeetingList({ events, scrollToDate, onScrollComplete }: MeetingListProps) {
   const highlightedRef = useRef<string | null>(null);
-  const eventIds = events.map((e) => e.id).join(",");
-  const { data: mediaStatus } = useSWR<MediaStatusMap>(
-    eventIds ? `/api/meetings/media-status?ids=${eventIds}` : null,
-    mediaFetcher,
-    { revalidateOnFocus: false, dedupingInterval: 60_000 },
-  );
+  const mediaStatus = useMediaStatus(events.map((e) => e.id));
 
   // Scroll to target date when scrollToDate changes. Defer so it runs after layout and wins on desktop.
   useEffect(() => {
@@ -85,24 +78,7 @@ export function MeetingList({ events, scrollToDate, onScrollComplete }: MeetingL
   }, [scrollToDate, events, onScrollComplete]);
 
   if (events.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <svg
-          className="w-12 h-12 text-gray-900 mx-auto mb-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.5}
-            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-          />
-        </svg>
-        <p className="text-gray-600">No meetings scheduled this month</p>
-      </div>
-    );
+    return <MeetingListSkeleton count={5} />;
   }
 
   const groupedEvents = groupEventsByDate(events);

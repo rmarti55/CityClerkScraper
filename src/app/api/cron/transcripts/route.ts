@@ -23,12 +23,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Look back 3 months for new videos
-    const threeMonthsAgo = new Date();
-    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    // Look back 24 months to cover all CivicClerk data (starts June 2024)
+    const lookback = new Date();
+    lookback.setMonth(lookback.getMonth() - 24);
 
     const result = await runTranscriptPipeline({
-      publishedAfter: threeMonthsAgo.toISOString(),
+      publishedAfter: lookback.toISOString(),
     });
 
     return NextResponse.json({

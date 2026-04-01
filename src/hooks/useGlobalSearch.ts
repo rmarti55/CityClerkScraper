@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
+import useSWR from "swr";
 import { CivicEvent } from "@/lib/types";
 
 interface SearchResponse {
@@ -16,106 +17,50 @@ interface UseGlobalSearchResult {
   debouncedQuery: string;
 }
 
-/**
- * Hook for server-side search across all events
- * Supports combined search term + category filter with AND logic
- * 
- * @param query - Search term (optional if categoryName provided)
- * @param categoryName - Category to filter by (optional)
- * @param debounceMs - Debounce delay for search input
- */
+const fetcher = (url: string): Promise<SearchResponse> =>
+  fetch(url).then((r) => {
+    if (!r.ok) throw r.json().then((d: { error?: string }) => new Error(d.error || "Search failed"));
+    return r.json();
+  });
+
+function buildSearchKey(query: string, categoryName?: string | null): string | null {
+  const hasValidQuery = query.trim().length >= 2;
+  const hasCategory = categoryName && categoryName.trim().length > 0;
+
+  if (!hasValidQuery && !hasCategory) return null;
+
+  const params = new URLSearchParams();
+  if (hasValidQuery) params.set("q", query.trim());
+  if (hasCategory) params.set("categoryName", categoryName.trim());
+
+  return `/api/search?${params}`;
+}
+
 export function useGlobalSearch(
   query: string,
   categoryName?: string | null,
   debounceMs: number = 300
 ): UseGlobalSearchResult {
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [results, setResults] = useState<CivicEvent[]>([]);
-  const [total, setTotal] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const prevQueryRef = useRef(query);
 
-  // Debounce the query
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(query);
-      prevQueryRef.current = query;
-    }, debounceMs);
-
+    const timer = setTimeout(() => setDebouncedQuery(query), debounceMs);
     return () => clearTimeout(timer);
   }, [query, debounceMs]);
 
-  // Fetch search results with AbortController to cancel stale requests
-  useEffect(() => {
-    const abortController = new AbortController();
+  const key = buildSearchKey(debouncedQuery, categoryName);
 
-    const fetchResults = async () => {
-      const hasValidQuery = debouncedQuery.trim().length >= 2;
-      const hasCategory = categoryName && categoryName.trim().length > 0;
-
-      // Need at least one filter to fetch
-      if (!hasValidQuery && !hasCategory) {
-        setResults([]);
-        setTotal(0);
-        setError(null);
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const params = new URLSearchParams();
-        
-        if (hasValidQuery) {
-          params.set("q", debouncedQuery.trim());
-        }
-        if (hasCategory) {
-          params.set("categoryName", categoryName.trim());
-        }
-
-        const response = await fetch(`/api/search?${params}`, {
-          signal: abortController.signal,
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Search failed");
-        }
-
-        const data: SearchResponse = await response.json();
-        setResults(data.events);
-        setTotal(data.total);
-      } catch (err) {
-        // Ignore abort errors - they're expected when cancelling
-        if (err instanceof Error && err.name === "AbortError") {
-          return;
-        }
-        console.error("Search error:", err);
-        setError(err instanceof Error ? err.message : "Search failed");
-        setResults([]);
-        setTotal(0);
-      } finally {
-        // Only update loading state if request wasn't aborted
-        if (!abortController.signal.aborted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    fetchResults();
-
-    // Cleanup: abort the request when dependencies change or component unmounts
-    return () => abortController.abort();
-  }, [debouncedQuery, categoryName]);
+  const { data, error: swrError, isLoading } = useSWR<SearchResponse>(
+    key,
+    fetcher,
+    { keepPreviousData: true }
+  );
 
   return {
-    results,
-    total,
+    results: data?.events ?? [],
+    total: data?.total ?? 0,
     isLoading,
-    error,
+    error: swrError ? (swrError instanceof Error ? swrError.message : "Search failed") : null,
     debouncedQuery,
   };
 }

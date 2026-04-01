@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { useLoginModal } from "@/context/LoginModalContext";
 import { useSavedDocs } from "@/context/SavedDocsContext";
@@ -18,6 +19,7 @@ interface SavedDocDetail {
   eventId: number;
   agendaId: number | null;
   documentName: string;
+  displayName: string | null;
   documentCategory: string | null;
   createdAt: string;
   eventName: string | null;
@@ -55,18 +57,75 @@ function getTypeBadgeColor(type: string | null): string {
   return "bg-gray-100 text-gray-800";
 }
 
-function SavedDocCard({ doc, onUnsave }: { doc: SavedDocDetail; onUnsave: (doc: SavedDocDetail) => void }) {
+function SavedDocCard({
+  doc,
+  onUnsave,
+  onRename,
+}: {
+  doc: SavedDocDetail;
+  onUnsave: (doc: SavedDocDetail) => void;
+  onRename: (doc: SavedDocDetail, newName: string) => void;
+}) {
   const viewUrl = getViewUrl(doc);
   const downloadUrl = getDownloadUrl(doc);
   const chatUrl = getChatUrl(doc);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  const title = doc.displayName || doc.documentName;
+  const hasCustomTitle = doc.displayName && doc.displayName !== doc.documentName;
+
+  function startEditing() {
+    setEditValue(title);
+    setIsEditing(true);
+    setTimeout(() => editInputRef.current?.select(), 0);
+  }
+
+  function commitEdit() {
+    setIsEditing(false);
+    const trimmed = editValue.trim();
+    if (trimmed && trimmed !== title) {
+      onRename(doc, trimmed);
+    }
+  }
+
+  function cancelEdit() {
+    setIsEditing(false);
+  }
 
   return (
     <DocumentCardWrapper pdfUrl={viewUrl}>
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-gray-900 text-[15px] leading-tight truncate">
-            {doc.documentName}
-          </h3>
+          {isEditing ? (
+            <input
+              ref={editInputRef}
+              type="text"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={commitEdit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitEdit();
+                if (e.key === "Escape") cancelEdit();
+              }}
+              className="w-full font-semibold text-gray-900 text-[15px] leading-tight bg-white border border-indigo-300 rounded px-1.5 py-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          ) : (
+            <h3
+              className="font-semibold text-gray-900 text-[15px] leading-tight cursor-pointer hover:text-indigo-700 transition-colors"
+              onDoubleClick={startEditing}
+              title="Double-click to edit title"
+            >
+              {title}
+            </h3>
+          )}
+          {hasCustomTitle && !isEditing && (
+            <p className="text-xs text-gray-400 mt-0.5 truncate" title={doc.documentName}>
+              {doc.documentName}
+            </p>
+          )}
           {doc.documentCategory && (
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
               <span className={`px-1.5 py-0.5 text-xs font-medium rounded whitespace-nowrap ${getTypeBadgeColor(doc.documentCategory)}`}>
@@ -128,54 +187,59 @@ function SavedDocCard({ doc, onUnsave }: { doc: SavedDocDetail; onUnsave: (doc: 
   );
 }
 
+const savedDocsFetcher = (url: string) =>
+  fetch(url).then((r) => {
+    if (!r.ok) throw new Error("Failed to load");
+    return r.json() as Promise<{ docs?: SavedDocDetail[] }>;
+  });
+
 function SavedDocsInner() {
   const { status } = useSession();
   const { openLoginModal } = useLoginModal();
   const { isAuthenticated, toggleSaveDocument, refetchSavedDocs } = useSavedDocs();
 
-  const [docs, setDocs] = useState<SavedDocDetail[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, error: swrError, isLoading: loading, mutate } = useSWR(
+    isAuthenticated ? "/api/saved-docs?detail=true" : null,
+    savedDocsFetcher,
+  );
+
+  const docs = data?.docs ?? [];
+  const error = swrError
+    ? "Couldn't load saved documents. Check your connection and try again."
+    : null;
+
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortOption, setSortOption] = useState<"saved-newest" | "meeting-newest" | "meeting-oldest">("saved-newest");
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const filteredDocs = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return docs;
     return docs.filter((doc) =>
-      [doc.documentName, doc.eventName, doc.categoryName, doc.documentCategory]
+      [doc.documentName, doc.displayName, doc.eventName, doc.categoryName, doc.documentCategory]
         .some((field) => field?.toLowerCase().includes(q))
     );
   }, [docs, searchQuery]);
 
-  const fetchDocs = useCallback(async () => {
-    if (!isAuthenticated) {
-      setDocs([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/saved-docs?detail=true");
-      if (!res.ok) throw new Error("Failed to load");
-      const data = await res.json();
-      setDocs(data.docs ?? []);
-    } catch {
-      setDocs([]);
-      setError("Couldn't load saved documents. Check your connection and try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    fetchDocs();
-  }, [fetchDocs]);
+  const sortedDocs = useMemo(() => {
+    if (sortOption === "saved-newest") return filteredDocs;
+    const sorted = [...filteredDocs].sort((a, b) => {
+      const aDate = a.startDateTime ? new Date(a.startDateTime).getTime() : 0;
+      const bDate = b.startDateTime ? new Date(b.startDateTime).getTime() : 0;
+      if (!a.startDateTime && !b.startDateTime) return 0;
+      if (!a.startDateTime) return 1;
+      if (!b.startDateTime) return -1;
+      return sortOption === "meeting-newest" ? bDate - aDate : aDate - bDate;
+    });
+    return sorted;
+  }, [filteredDocs, sortOption]);
 
   const handleUnsave = useCallback(
     async (doc: SavedDocDetail) => {
-      setDocs((prev) => prev.filter((d) => d.id !== doc.id));
+      mutate(
+        (prev) => prev ? { docs: prev.docs?.filter((d) => d.id !== doc.id) } : prev,
+        false,
+      );
       const ok = await toggleSaveDocument({
         documentType: doc.documentType as "file" | "attachment",
         documentId: doc.documentId,
@@ -185,12 +249,43 @@ function SavedDocsInner() {
         documentCategory: doc.documentCategory ?? undefined,
       });
       if (!ok) {
-        fetchDocs();
+        mutate();
       } else {
         refetchSavedDocs();
       }
     },
-    [toggleSaveDocument, fetchDocs, refetchSavedDocs]
+    [toggleSaveDocument, mutate, refetchSavedDocs]
+  );
+
+  const handleRename = useCallback(
+    async (doc: SavedDocDetail, newName: string) => {
+      mutate(
+        (prev) =>
+          prev
+            ? {
+                docs: prev.docs?.map((d) =>
+                  d.id === doc.id ? { ...d, displayName: newName } : d,
+                ),
+              }
+            : prev,
+        false,
+      );
+      try {
+        const res = await fetch("/api/saved-docs", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            documentType: doc.documentType,
+            documentId: doc.documentId,
+            displayName: newName,
+          }),
+        });
+        if (!res.ok) mutate();
+      } catch {
+        mutate();
+      }
+    },
+    [mutate],
   );
 
   if (status === "loading" || (isAuthenticated && loading)) {
@@ -227,7 +322,7 @@ function SavedDocsInner() {
         <p className="text-sm text-gray-800 mb-3">{error}</p>
         <button
           type="button"
-          onClick={fetchDocs}
+          onClick={() => mutate()}
           className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
         >
           Try again
@@ -262,11 +357,22 @@ function SavedDocsInner() {
 
   return (
     <div>
-      <p className="text-gray-600 mb-3">
-        {isFiltering
-          ? `${filteredDocs.length} of ${docs.length} saved document${docs.length !== 1 ? "s" : ""}`
-          : `${docs.length} saved document${docs.length !== 1 ? "s" : ""}`}
-      </p>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-gray-600">
+          {isFiltering
+            ? `${sortedDocs.length} of ${docs.length} saved document${docs.length !== 1 ? "s" : ""}`
+            : `${docs.length} saved document${docs.length !== 1 ? "s" : ""}`}
+        </p>
+        <select
+          value={sortOption}
+          onChange={(e) => setSortOption(e.target.value as typeof sortOption)}
+          className="text-sm text-gray-700 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent cursor-pointer"
+        >
+          <option value="saved-newest">Date Saved</option>
+          <option value="meeting-newest">Meeting Date (Newest)</option>
+          <option value="meeting-oldest">Meeting Date (Oldest)</option>
+        </select>
+      </div>
 
       {/* Search input */}
       <div className="relative mb-4">
@@ -300,7 +406,7 @@ function SavedDocsInner() {
         )}
       </div>
 
-      {filteredDocs.length === 0 ? (
+      {sortedDocs.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-lg p-6 text-center">
           <p className="text-gray-500 text-sm">
             No documents matching &ldquo;{searchQuery.trim()}&rdquo;
@@ -308,8 +414,8 @@ function SavedDocsInner() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {filteredDocs.map((doc) => (
-            <SavedDocCard key={doc.id} doc={doc} onUnsave={handleUnsave} />
+          {sortedDocs.map((doc) => (
+            <SavedDocCard key={doc.id} doc={doc} onUnsave={handleUnsave} onRename={handleRename} />
           ))}
         </div>
       )}

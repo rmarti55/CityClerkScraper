@@ -1,34 +1,16 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import useSWR from "swr";
 import type { Person } from "@/lib/db/schema";
 import { PersonPopover } from "./PersonPopover";
 
-// Shared client-side cache for people data
-let peopleCache: Person[] | null = null;
-let peopleFetchPromise: Promise<Person[]> | null = null;
-
-function fetchPeopleOnce(): Promise<Person[]> {
-  if (peopleCache) return Promise.resolve(peopleCache);
-  if (peopleFetchPromise) return peopleFetchPromise;
-
-  peopleFetchPromise = fetch("/api/people")
-    .then((r) => {
-      if (!r.ok) throw new Error("Failed to fetch people");
-      return r.json() as Promise<Person[]>;
-    })
-    .then((data) => {
-      peopleCache = data;
-      return data;
-    })
-    .catch((err) => {
-      peopleFetchPromise = null;
-      throw err;
-    });
-
-  return peopleFetchPromise;
-}
+const fetcher = (url: string) =>
+  fetch(url).then((r) => {
+    if (!r.ok) throw new Error("Failed to fetch people");
+    return r.json() as Promise<Person[]>;
+  });
 
 function findPerson(
   people: Person[],
@@ -57,22 +39,12 @@ interface PersonLinkProps {
 }
 
 export function PersonLink({ name, email, children }: PersonLinkProps) {
-  const [person, setPerson] = useState<Person | null>(null);
+  const { data: people } = useSWR<Person[]>("/api/people", fetcher);
+  const person = people ? findPerson(people, email, name) : null;
+
   const [showPopover, setShowPopover] = useState(false);
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
   const spanRef = useRef<HTMLSpanElement>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchPeopleOnce().then((data) => {
-      if (cancelled) return;
-      const match = findPerson(data, email, name);
-      if (match) setPerson(match);
-    }).catch(() => {
-      // Non-fatal: gracefully degrade to plain text
-    });
-    return () => { cancelled = true; };
-  }, [name, email]);
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {

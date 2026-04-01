@@ -184,7 +184,7 @@ export async function getEventsWithFileCounts(
   try {
     fetchedEvents = await fetchEventsFromAPI(startDate, endDate);
   } catch (apiError) {
-    if (!forceRefresh && cachedEvents.length > 0) {
+    if (cachedEvents.length > 0) {
       console.warn('API unavailable, falling back to stale cache:', apiError);
       console.log(`Serving ${cachedEvents.length} stale cached events with file counts`);
       return cachedEvents.map(mapCachedEvent);

@@ -1,10 +1,12 @@
 /**
- * Backfill YouTube video discovery and transcript extraction for the last 3 months.
+ * Backfill YouTube video discovery and transcript extraction.
+ * Defaults to 24 months (covers all CivicClerk data back to June 2024).
  * Requires DATABASE_URL and YOUTUBE_API_KEY in .env or .env.local.
  *
  * Usage:
- *   npx tsx scripts/backfill-transcripts.ts              # Discover + extract
+ *   npx tsx scripts/backfill-transcripts.ts              # Discover + extract (24 months)
  *   npx tsx scripts/backfill-transcripts.ts --process    # Also run AI processing
+ *   npx tsx scripts/backfill-transcripts.ts --months=6   # Custom lookback window
  */
 
 import path from "path";
@@ -30,15 +32,17 @@ async function main() {
   // Dynamic import after env is loaded
   const { runTranscriptPipeline } = await import("../src/lib/youtube/pipeline");
 
-  const threeMonthsAgo = new Date();
-  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+  const monthsArg = process.argv.find(a => a.startsWith('--months='));
+  const monthsBack = monthsArg ? parseInt(monthsArg.split('=')[1], 10) : 24;
+  const lookback = new Date();
+  lookback.setMonth(lookback.getMonth() - monthsBack);
 
-  console.log(`Starting transcript backfill from ${threeMonthsAgo.toISOString()}`);
+  console.log(`Starting transcript backfill from ${lookback.toISOString()} (${monthsBack} months)`);
   console.log(`AI processing: ${doProcess ? "enabled" : "disabled (use --process to enable)"}`);
   console.log();
 
   const result = await runTranscriptPipeline({
-    publishedAfter: threeMonthsAgo.toISOString(),
+    publishedAfter: lookback.toISOString(),
     extractLimit: 50,
     processLimit: doProcess ? 50 : 0,
   });

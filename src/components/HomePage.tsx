@@ -45,12 +45,7 @@ export function HomePage() {
     scrollToDate,
     setScrollToDate,
     setCurrentMonth,
-    refresh,
   } = useEvents();
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
 
   const { searchQuery, selectedCategory } = useSearch();
 
@@ -77,7 +72,7 @@ export function HomePage() {
     const monthParam = searchParams.get("month");
     if (monthParam && MONTH_PARAM_REGEX.test(monthParam)) {
       const [y, m] = monthParam.split("-").map((n) => parseInt(n, 10));
-      if (m >= 1 && m <= 12 && y >= 2020 && y <= 2030) {
+      if (m >= 1 && m <= 12 && y >= 2020 && y <= 2030 && (y !== currentYear || m !== currentMonth)) {
         setCurrentMonth(y, m);
       }
     }

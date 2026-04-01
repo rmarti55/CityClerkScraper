@@ -16,8 +16,8 @@ export {
   getAttachmentFreshUrl,
 } from './files';
 
-// Functions — API (meeting details)
-export { getMeetingDetails } from './api';
+// Functions — API (meeting details, category fetch)
+export { getMeetingDetails, fetchEventsByCategoryFromAPI } from './api';
 
 // Functions — search
 export { searchCivicClerk, searchDocumentsLocal, searchEvents } from './search';

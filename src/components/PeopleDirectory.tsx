@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import type { Person } from "@/lib/db/schema";
 import { CopyButton } from "@/components/CopyButton";
 
@@ -128,21 +129,27 @@ function DirectorySkeleton() {
   );
 }
 
+const peopleFetcher = (url: string) =>
+  fetch(url).then((r) => {
+    if (!r.ok) throw new Error("Failed to load people");
+    return r.json() as Promise<Person[]>;
+  });
+
 export function PeopleDirectory() {
-  const [people, setPeople] = useState<Person[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: people = [], error: swrError, isLoading } = useSWR<Person[]>(
+    "/api/people",
+    peopleFetcher,
+  );
+  const error = swrError ? (swrError instanceof Error ? swrError.message : "An error occurred") : null;
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const [highlightSlug, setHighlightSlug] = useState<string | null>(null);
 
-  // Read highlight param from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const h = params.get("highlight");
     if (h) {
       setHighlightSlug(h);
-      // Scroll to the person after data loads
       setTimeout(() => {
         const el = document.getElementById(`person-${h}`);
         if (el) {
@@ -150,19 +157,6 @@ export function PeopleDirectory() {
         }
       }, 500);
     }
-  }, []);
-
-  useEffect(() => {
-    setIsLoading(true);
-    setError(null);
-    fetch("/api/people")
-      .then((r) => {
-        if (!r.ok) throw new Error("Failed to load people");
-        return r.json() as Promise<Person[]>;
-      })
-      .then(setPeople)
-      .catch((e) => setError(e instanceof Error ? e.message : "An error occurred"))
-      .finally(() => setIsLoading(false));
   }, []);
 
   // Extract unique departments

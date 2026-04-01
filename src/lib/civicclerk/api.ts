@@ -186,6 +186,43 @@ export async function fetchEventStartDateTimeFromAPI(id: number): Promise<string
   }
 }
 
+/**
+ * Fetch ALL events for a given categoryName from API (handles pagination).
+ * Returns events newest-first. Used by committee tabs to backfill the DB
+ * with the full history for a category.
+ */
+export async function fetchEventsByCategoryFromAPI(
+  categoryName: string,
+): Promise<CivicEvent[]> {
+  const filter = `categoryName eq '${categoryName.replace(/'/g, "''")}'`;
+  const allEvents: CivicEvent[] = [];
+  let skip = 0;
+
+  while (true) {
+    const url = `${API_BASE}/Events?$filter=${encodeURIComponent(filter)}&$orderby=startDateTime desc&$count=true&$skip=${skip}`;
+
+    const response = await fetch(url, {
+      headers: getHeaders(),
+      next: { revalidate: 300 },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch events by category: ${response.status}`);
+    }
+
+    const data: EventsResponse = await response.json();
+
+    if (data.value.length === 0) {
+      break;
+    }
+
+    allEvents.push(...data.value.map(normalizeApiEvent));
+    skip += data.value.length;
+  }
+
+  return allEvents;
+}
+
 /** Strip <mark class="highlight">...</mark> to get plain text */
 export function stripHighlight(s: string): string {
   return s.replace(/<mark[^>]*>([^<]*)<\/mark>/gi, '$1');

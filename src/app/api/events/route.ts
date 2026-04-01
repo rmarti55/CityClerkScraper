@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, events } from '@/lib/db';
-import { asc, inArray } from 'drizzle-orm';
+import { asc, inArray, gte, lt, and, max } from 'drizzle-orm';
 import type { CivicEvent } from '@/lib/types';
 import { getEventsWithFileCounts } from '@/lib/civicclerk';
 import { getNowInDenver } from '@/lib/datetime';
 
-/** Always run fresh so dashboard gets API data for the requested month. */
 export const dynamic = 'force-dynamic';
 
 /** Month param format: YYYY-MM (e.g. 2026-02). Defaults to current month if missing. */
@@ -86,7 +85,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Main path: month-scoped, API-first. Client sends month=YYYY-MM (defaults to current month).
   const monthParam = request.nextUrl.searchParams.get('month')?.trim();
   let year: number;
   let month: number;
@@ -104,10 +102,36 @@ export async function GET(request: NextRequest) {
   const nextYear = month === 12 ? year + 1 : year;
   const endDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
 
+  const sinceParam = request.nextUrl.searchParams.get('since');
+  if (sinceParam) {
+    try {
+      const sinceDate = new Date(sinceParam);
+      if (!isNaN(sinceDate.getTime())) {
+        const [result] = await db
+          .select({ latest: max(events.cachedAt) })
+          .from(events)
+          .where(
+            and(
+              gte(events.startDateTime, new Date(startDate)),
+              lt(events.startDateTime, new Date(endDate))
+            )
+          );
+        if (result?.latest && result.latest <= sinceDate) {
+          return new NextResponse(null, { status: 304 });
+        }
+      }
+    } catch {
+      // Fall through to full fetch if the check fails
+    }
+  }
+
+  const isRangeInPast = new Date(endDate) < new Date();
+
   try {
-    const eventsForMonth = await getEventsWithFileCounts(startDate, endDate, {
-      forceRefresh: true,
-    });
+    const eventsForMonth = await getEventsWithFileCounts(startDate, endDate);
+    const cacheControl = isRangeInPast
+      ? 'public, s-maxage=3600, stale-while-revalidate=86400'
+      : 'public, s-maxage=300, stale-while-revalidate=600';
     return NextResponse.json(
       {
         events: eventsForMonth,
@@ -116,7 +140,7 @@ export async function GET(request: NextRequest) {
       },
       {
         headers: {
-          'Cache-Control': 'no-store, max-age=0',
+          'Cache-Control': cacheControl,
         },
       }
     );

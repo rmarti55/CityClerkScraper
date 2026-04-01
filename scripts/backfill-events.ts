@@ -1,5 +1,6 @@
 /**
- * Backfill last 5 years of CivicClerk events and meeting details into the database.
+ * Backfill CivicClerk events and meeting details into the database.
+ * Starts from June 2024 (earliest data available in the CivicClerk API).
  * Requires DATABASE_URL in .env or .env.local (project root).
  *
  * Event start times are parsed as America/Denver (Santa Fe local time). If you
@@ -8,7 +9,7 @@
  * correctly parsed values.
  *
  * Usage:
- *   npm run backfill           # Full 5-year backfill
+ *   npm run backfill           # Full backfill from June 2024
  *   npm run backfill:probe     # First month only
  */
 
@@ -25,18 +26,17 @@ if (!process.env.DATABASE_URL) {
 }
 
 const THROTTLE_MS = 150;
-const YEARS_BACK = 5;
+const EARLIEST_YEAR = 2024;
+const EARLIEST_MONTH = 6; // June 2024 — earliest data in CivicClerk API
 
 function getMonthsToBackfill(probe: boolean): { year: number; month: number }[] {
   const now = new Date();
   const endYear = now.getFullYear();
   const endMonth = now.getMonth() + 1; // 1-12
-  const startYear = endYear - YEARS_BACK;
-  const startMonth = endMonth; // same month, 5 years ago
 
   const months: { year: number; month: number }[] = [];
-  let y = startYear;
-  let m = startMonth;
+  let y = EARLIEST_YEAR;
+  let m = EARLIEST_MONTH;
   while (y < endYear || (y === endYear && m <= endMonth)) {
     months.push({ year: y, month: m });
     m += 1;
@@ -94,9 +94,10 @@ async function main() {
   console.log("\nDone.");
   console.log(`Total: ${totalEvents} events, ${totalMeetingsCalls} Meetings API calls`);
   if (probe && months.length === 1) {
-    const extrapolated = totalEvents * (12 * YEARS_BACK);
+    const totalMonths = getMonthsToBackfill(false).length;
+    const extrapolated = totalEvents * totalMonths;
     console.log(
-      `Extrapolated for ${YEARS_BACK} years (~${12 * YEARS_BACK} months): ~${extrapolated} events`
+      `Extrapolated for ${totalMonths} months: ~${extrapolated} events`
     );
   }
 }

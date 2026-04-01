@@ -1,0 +1,61 @@
+---
+description: Caching architecture and data-fetching rules for the events pipeline
+globs: src/app/api/events/**,src/context/EventsContext.tsx,src/components/MeetingsProviders.tsx,src/lib/civicclerk/cache.ts,src/lib/civicclerk/events.ts,src/components/HomePage.tsx,src/components/CommitteeMeetingList.tsx,src/hooks/useGlobalSearch.ts,src/hooks/useDocumentSearch.ts,src/hooks/useTranscriptSearch.ts
+alwaysApply: false
+---
+
+# Data Fetching & Caching Architecture
+
+This project uses a layered caching system. Do not bypass one layer to fix a bug in another.
+
+## The layers
+
+1. **DB cache** (`src/lib/civicclerk/cache.ts`): age-based TTL via `isCacheFresh()` / `getCacheDuration()`. Events >30 days = permanent, 7-30 days = 24hr, <7 days = 1hr.
+2. **API route** (`src/app/api/events/route.ts`): calls `getEventsWithFileCounts()` which checks the DB cache before hitting the external CivicClerk API. Uses `Cache-Control` headers.
+3. **Client cache** — **SWR** with localStorage persistence via `SWRConfig` provider in `MeetingsProviders.tsx`.
+
+## Client-side data fetching: SWR everywhere
+
+All client-side data fetching uses **SWR** (`useSWR`). There is no hand-rolled `fetch` + `useState` + `useEffect` pattern for data loading.
+
+### Key SWR patterns
+
+- **Cache keys include parameters**: e.g. `/api/events?month=2026-04` — each month is a separate cache entry. Switching months gets its own fetch with no cross-contamination.
+- **`keepPreviousData: true`**: When switching parameters (months, search queries, tabs), the previous data stays visible while the new data loads. No empty state flash.
+- **SWR localStorage provider**: On page load, SWR reads from localStorage for instant display, then revalidates in the background. Defined in `MeetingsProviders.tsx`.
+- **`refreshInterval`**: EventsContext uses 30-minute refresh. SWR handles this automatically — no manual `setInterval`.
+- **`revalidateOnFocus`**: EventsContext revalidates when the user returns to the tab. No manual visibility change handler.
+- **Null keys prevent fetching**: `useSWR(condition ? url : null, fetcher)` — standard SWR conditional fetching.
+
+### Where SWR is used
+
+| Data | File | SWR Key Pattern |
+|------|------|-----------------|
+| Events (main list) | `EventsContext.tsx` | `/api/events?month=YYYY-MM` |
+| Committee meetings | `CommitteeMeetingList.tsx` | `/api/events/by-committee?...` |
+| Global search | `useGlobalSearch.ts` | `/api/search?q=...&categoryName=...` |
+| Document search | `useDocumentSearch.ts` | `/api/search/documents?q=...` |
+| Transcript search | `useTranscriptSearch.ts` | `/api/transcripts/search?q=...` |
+| Followed events | `FollowingTabContent.tsx` | `/api/events?eventIds=...` |
+| Saved documents | `SavedDocsTabContent.tsx` | `/api/saved-docs?detail=true` |
+| People directory | `PeopleDirectory.tsx` | `/api/people` |
+| Person lookup | `PersonLink.tsx` | `/api/people` |
+| Committee overview | `LatestBusinessCard.tsx` | `/api/committees/{slug}/overview` |
+| Media status | `useMediaStatus.ts` | `/api/meetings/media-status?ids=...` |
+| Transcripts | `MeetingTranscript.tsx` | `/api/meeting/{id}/transcript` |
+| Agenda summary | `AgendaSummary.tsx` | `/api/meeting/{id}/agenda-summary` |
+| Media badges | `MeetingMediaBadges.tsx` | multiple per-meeting keys |
+| File metadata | `FileMetadata.tsx` | `/api/file/{id}/metadata` |
+
+## Rules
+
+- **Never set `forceRefresh: true`** on `getEventsWithFileCounts()` for the main dashboard path.
+- **Never add `Cache-Control: no-store`** to API responses that serve event lists.
+- **Never hand-roll `fetch` + `useState` + `useEffect`** for data loading. Use `useSWR` with an appropriate key.
+- **Never use localStorage directly** for caching API data. SWR's localStorage provider handles persistence.
+- **If dashboard and detail page show different data**, the fix is to ensure both read from the same DB cache — not to skip the cache.
+
+## What went wrong before
+
+- **Feb 25, 2026**: `forceRefresh: true` + `Cache-Control: no-store` bypassed the entire DB caching system, causing every page load to hammer the CivicClerk API.
+- **Apr 1, 2026**: Hand-rolled localStorage cache in EventsContext stored events without tracking which month they belonged to. On month boundaries, stale March data was served for April, causing "No meetings scheduled" to show even though 43 meetings existed. Fixed by replacing all hand-rolled caching with SWR keyed by month.

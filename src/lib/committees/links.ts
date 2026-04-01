@@ -48,6 +48,26 @@ const COMMITTEE_LINKS: Record<string, CommitteeLink[]> = {
       url: 'https://santafenm.gov/your-government/meetings-minutes-and-agendas',
     },
   ],
+  'bpac': [
+    {
+      label: 'Bicycle & Pedestrian Advisory Committee',
+      url: 'https://santafenm.gov/boards-commissions-and-committees/bicycle-and-pedestrians-advisory-committee',
+    },
+    {
+      label: 'Meetings, Minutes & Agendas',
+      url: 'https://santafenm.gov/your-government/meetings-minutes-and-agendas',
+    },
+  ],
+  'finance': [
+    {
+      label: 'Finance Committee',
+      url: 'https://santafenm.gov/boards-commissions-and-committees/city-council-committees/finance-committee',
+    },
+    {
+      label: 'Meetings, Minutes & Agendas',
+      url: 'https://santafenm.gov/your-government/meetings-minutes-and-agendas',
+    },
+  ],
 };
 
 export function getCommitteeLinks(slug: string): CommitteeLink[] {

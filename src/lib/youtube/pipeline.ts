@@ -28,7 +28,7 @@ export interface PipelineResult {
  * Step 1: Discover new YouTube videos not already in the database.
  */
 export async function discoverNewVideos(publishedAfter?: string): Promise<number> {
-  const videos = await listChannelVideos({ publishedAfter, maxResults: 200 });
+  const videos = await listChannelVideos({ publishedAfter, maxResults: 500 });
   if (videos.length === 0) return 0;
 
   const videoIds = videos.map((v) => v.videoId);
@@ -44,9 +44,9 @@ export async function discoverNewVideos(publishedAfter?: string): Promise<number
   const newVideos = details.filter((v) => !existingIds.has(v.videoId));
   if (newVideos.length === 0) return 0;
 
-  // Load candidate events for matching (last 6 months window)
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  // Load candidate events for matching (covers all CivicClerk data back to June 2024)
+  const matchWindowStart = new Date();
+  matchWindowStart.setMonth(matchWindowStart.getMonth() - 24);
   const candidateEvents = await db
     .select({
       eventId: events.id,
@@ -55,7 +55,7 @@ export async function discoverNewVideos(publishedAfter?: string): Promise<number
       categoryName: events.categoryName,
     })
     .from(events)
-    .where(gte(events.startDateTime, sixMonthsAgo));
+    .where(gte(events.startDateTime, matchWindowStart));
 
   const candidates: MatchCandidate[] = candidateEvents.map((e) => ({
     eventId: e.eventId,
@@ -80,7 +80,7 @@ export async function discoverNewVideos(publishedAfter?: string): Promise<number
 
   for (const video of newVideos) {
     const match = matchMap.get(video.videoId);
-    const autoLinked = match && match.confidence >= getAutoLinkThreshold(match.dateScore);
+    const autoLinked = match && match.confidence >= getAutoLinkThreshold(match.dateScore, match.nameScore);
 
     await db.insert(meetingVideos).values({
       eventId: autoLinked ? match.eventId : 0,
@@ -116,8 +116,8 @@ export async function rematchUnmatchedVideos(): Promise<number> {
 
   if (unmatched.length === 0) return 0;
 
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  const matchWindowStart = new Date();
+  matchWindowStart.setMonth(matchWindowStart.getMonth() - 24);
   const candidateEvents = await db
     .select({
       eventId: events.id,
@@ -126,7 +126,7 @@ export async function rematchUnmatchedVideos(): Promise<number> {
       categoryName: events.categoryName,
     })
     .from(events)
-    .where(gte(events.startDateTime, sixMonthsAgo));
+    .where(gte(events.startDateTime, matchWindowStart));
 
   const candidates: MatchCandidate[] = candidateEvents.map((e) => ({
     eventId: e.eventId,
@@ -149,7 +149,7 @@ export async function rematchUnmatchedVideos(): Promise<number> {
   let linked = 0;
 
   for (const match of matches) {
-    if (match.confidence < getAutoLinkThreshold(match.dateScore)) continue;
+    if (match.confidence < getAutoLinkThreshold(match.dateScore, match.nameScore)) continue;
 
     const videoRow = unmatched.find((v) => v.youtubeVideoId === match.videoId);
     if (!videoRow) continue;

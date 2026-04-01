@@ -8,7 +8,7 @@ import { SITE_NAME } from '@/lib/branding';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-const DEFAULT_MODEL = 'anthropic/claude-3.5-sonnet';
+const DEFAULT_MODEL = 'anthropic/claude-sonnet-4.6';
 
 const MAX_RETRIES = 3;
 const RETRYABLE_STATUS_CODES = new Set([402, 429, 500, 502, 503, 504]);
@@ -75,6 +75,7 @@ export async function chatCompletion(
     messages,
     temperature: options.temperature ?? 0.7,
     max_tokens: options.maxTokens ?? 1024,
+    provider: { ignore: ['amazon-bedrock'] },
   });
 
   let lastError: Error | null = null;

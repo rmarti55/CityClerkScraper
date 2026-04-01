@@ -1,22 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useState, useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import useSWR from "swr";
 import { CivicEvent } from "@/lib/types";
 import { getMeetingTimeStatus } from "@/lib/datetime";
+import { useMediaStatus } from "@/hooks/useMediaStatus";
 import { useCommitteeCache } from "@/context/CommitteeContext";
 import { MeetingCard } from "./MeetingCard";
 import { MeetingListSkeleton } from "./skeletons/MeetingCardSkeleton";
-import type { MediaStatusMap } from "@/app/api/meetings/media-status/route";
 
-const mediaFetcher = (url: string) => fetch(url).then((r) => r.json() as Promise<MediaStatusMap>);
+const fetcher = (url: string) =>
+  fetch(url).then((r) => {
+    if (!r.ok) throw new Error("Failed to fetch meetings");
+    return r.json() as Promise<MeetingsResponse>;
+  });
+
+const emptySubscribe = () => () => {};
+function useHydrated() {
+  return useSyncExternalStore(emptySubscribe, () => true, () => false);
+}
 
 interface CommitteeMeetingListProps {
   categoryName: string;
   committeeSlug: string;
   limit?: number;
-  /** Called when the list has finished loading (for scroll restoration) */
   onLoaded?: () => void;
 }
 
@@ -30,81 +37,117 @@ interface MeetingsResponse {
 export function CommitteeMeetingList({
   categoryName,
   committeeSlug,
-  limit = 10,
+  limit = 15,
   onLoaded,
 }: CommitteeMeetingListProps) {
-  const { getCached, setCached } = useCommitteeCache();
-  const [meetings, setMeetings] = useState<CivicEvent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [total, setTotal] = useState(0);
+  const hydrated = useHydrated();
+  const { getCached, setCached, setLastClicked, getLastClicked } = useCommitteeCache();
+  const page1Key = `/api/events/by-committee?categoryName=${encodeURIComponent(categoryName)}&limit=${limit}&page=1`;
 
-  const eventIds = meetings.map((e) => e.id).join(",");
-  const { data: mediaStatus } = useSWR<MediaStatusMap>(
-    eventIds ? `/api/meetings/media-status?ids=${eventIds}` : null,
-    mediaFetcher,
-    { revalidateOnFocus: false, dedupingInterval: 60_000 },
+  const { data, error: swrError, isLoading } = useSWR<MeetingsResponse>(
+    page1Key,
+    fetcher,
+    { keepPreviousData: true }
   );
 
+  const restoredRef = useRef(false);
+  const initialCache = useRef(getCached(committeeSlug, categoryName, limit));
+  const scrollTargetId = useRef(getLastClicked(committeeSlug));
+
+  const [extraMeetings, setExtraMeetings] = useState<CivicEvent[]>(
+    () => initialCache.current?.extraEvents ?? []
+  );
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(
+    () => initialCache.current?.currentPage ?? 1
+  );
+  const [knownTotal, setKnownTotal] = useState(
+    () => initialCache.current?.total ?? 0
+  );
+
+  if (initialCache.current && !restoredRef.current) {
+    restoredRef.current = true;
+  }
+
+  const meetings = data
+    ? [...data.events, ...extraMeetings.filter((e) => !data.events.some((d) => d.id === e.id))]
+    : [];
+  const total = knownTotal || data?.total || 0;
+  const error = swrError ? (swrError instanceof Error ? swrError.message : "An error occurred") : loadMoreError;
+
+  const mediaStatus = useMediaStatus(meetings.map((e) => e.id));
+
+  const prevDataRef = useRef(data);
   useEffect(() => {
-    const cached = getCached(committeeSlug, categoryName, limit);
-    const isBackgroundRefresh = !!cached;
-
-    if (cached) {
-      setMeetings(cached.events);
-      setTotal(cached.total);
-      setError(null);
-      setIsLoading(false);
-    } else {
-      setIsLoading(true);
-      setError(null);
-    }
-
-    const fetchMeetings = async () => {
-      try {
-        const params = new URLSearchParams({
-          categoryName,
-          limit: String(limit),
-          page: "1",
-        });
-
-        const response = await fetch(`/api/events/by-category?${params}`);
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch meetings");
-        }
-
-        const data: MeetingsResponse = await response.json();
-        setMeetings(data.events);
-        setTotal(data.total);
-        setCached(committeeSlug, categoryName, limit, {
-          events: data.events,
-          total: data.total,
-        });
-      } catch (err) {
-        if (!isBackgroundRefresh) {
-          setError(
-            err instanceof Error ? err.message : "An error occurred"
-          );
-        }
-      } finally {
-        setIsLoading(false);
+    if (data) {
+      setKnownTotal(data.total);
+      if (restoredRef.current && prevDataRef.current === undefined) {
+        restoredRef.current = false;
+        prevDataRef.current = data;
+        return;
       }
-    };
+      if (prevDataRef.current !== data) {
+        prevDataRef.current = data;
+      }
+    }
+  }, [data]);
 
-    fetchMeetings();
-    // Only re-run when list params change; getCached/setCached are from context
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryName, committeeSlug, limit]);
-
-  // Notify parent when loading has finished (for scroll restoration)
   useEffect(() => {
     if (!isLoading && onLoaded) {
       onLoaded();
     }
   }, [isLoading, onLoaded]);
 
-  if (isLoading) {
+  useEffect(() => {
+    const targetId = scrollTargetId.current;
+    if (targetId === null || !data) return;
+    scrollTargetId.current = null;
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-meeting-id="${targetId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "instant" as ScrollBehavior, block: "center" });
+      }
+    });
+  }, [data]);
+
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore) return;
+
+    const nextPage = currentPage + 1;
+    setIsLoadingMore(true);
+    setLoadMoreError(null);
+
+    try {
+      const params = new URLSearchParams({
+        categoryName,
+        limit: String(limit),
+        page: String(nextPage),
+      });
+
+      const response = await fetch(`/api/events/by-committee?${params}`);
+      if (!response.ok) throw new Error("Failed to load more meetings");
+
+      const result: MeetingsResponse = await response.json();
+      const newExtra = [...extraMeetings, ...result.events];
+      setExtraMeetings(newExtra);
+      setKnownTotal(result.total);
+      setCurrentPage(nextPage);
+      setCached(committeeSlug, categoryName, limit, {
+        extraEvents: newExtra,
+        total: result.total,
+        currentPage: nextPage,
+      });
+    } catch (err) {
+      setLoadMoreError(err instanceof Error ? err.message : "Failed to load more");
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, currentPage, categoryName, limit, extraMeetings, committeeSlug, setCached]);
+
+  const hasMore = meetings.length < total;
+
+  if (isLoading || !hydrated) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -115,7 +158,7 @@ export function CommitteeMeetingList({
     );
   }
 
-  if (error) {
+  if (error && meetings.length === 0) {
     return (
       <div className="bg-white rounded-xl border border-red-200 p-6">
         <div className="flex items-center gap-2 text-red-600 mb-2">
@@ -130,14 +173,7 @@ export function CommitteeMeetingList({
   }
 
   if (meetings.length === 0) {
-    return (
-      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-        <svg className="w-12 h-12 text-gray-900 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-        <p className="text-gray-600">No meetings found</p>
-      </div>
-    );
+    return <MeetingListSkeleton count={5} />;
   }
 
   const upcomingMeetings = meetings.filter(m => {
@@ -148,7 +184,6 @@ export function CommitteeMeetingList({
 
   return (
     <div className="space-y-6">
-      {/* Upcoming meetings */}
       {upcomingMeetings.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-amber-700 uppercase tracking-wide mb-3 flex items-center gap-2">
@@ -159,40 +194,62 @@ export function CommitteeMeetingList({
           </h3>
           <div className="space-y-3">
             {upcomingMeetings.map((meeting) => (
-              <MeetingCard key={meeting.id} event={meeting} backPath={`/?tab=${committeeSlug}`} media={mediaStatus?.[String(meeting.id)]} />
+              <div key={meeting.id} data-meeting-id={meeting.id} onClick={() => setLastClicked(committeeSlug, meeting.id)}>
+                <MeetingCard event={meeting} backPath={`/?tab=${committeeSlug}`} media={mediaStatus?.[String(meeting.id)]} />
+              </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Past meetings */}
       {pastMeetings.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3 flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
-            Recent Meetings
+            Past Meetings
           </h3>
           <div className="space-y-3">
             {pastMeetings.map((meeting) => (
-              <MeetingCard key={meeting.id} event={meeting} backPath={`/?tab=${committeeSlug}`} media={mediaStatus?.[String(meeting.id)]} />
+              <div key={meeting.id} data-meeting-id={meeting.id} onClick={() => setLastClicked(committeeSlug, meeting.id)}>
+                <MeetingCard event={meeting} backPath={`/?tab=${committeeSlug}`} media={mediaStatus?.[String(meeting.id)]} />
+              </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* View all link */}
-      {total > limit && (
-        <div className="text-center pt-2">
-          <Link
-            href={`/?category=${committeeSlug}`}
-            className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+      <div className="text-center pt-2 space-y-2">
+        <p className="text-xs text-gray-500">
+          Showing {meetings.length} of {total} meetings
+        </p>
+
+        {error && meetings.length > 0 && (
+          <p className="text-xs text-red-500">{error}</p>
+        )}
+
+        {hasMore && (
+          <button
+            type="button"
+            onClick={loadMore}
+            disabled={isLoadingMore}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50"
           >
-            View all {total} meetings →
-          </Link>
-        </div>
-      )}
+            {isLoadingMore ? (
+              <>
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Loading...
+              </>
+            ) : (
+              <>Load more meetings</>
+            )}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

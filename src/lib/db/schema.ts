@@ -214,6 +214,7 @@ export const savedDocuments = pgTable('saved_documents', {
   eventId: integer('event_id').notNull(),
   agendaId: integer('agenda_id'),
   documentName: text('document_name').notNull(),
+  displayName: text('display_name'),
   documentCategory: text('document_category'),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => ({

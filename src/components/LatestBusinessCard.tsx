@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import type { CommitteeStats } from "@/lib/committees/stats";
 import type { CommitteeLink } from "@/lib/committees/links";
 import { PersonLink } from "./PersonLink";
@@ -24,23 +24,18 @@ interface OverviewData {
   links: CommitteeLink[];
 }
 
-export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusinessCardProps) {
-  const [data, setData] = useState<OverviewData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const overviewFetcher = (url: string) =>
+  fetch(url).then((r) => {
+    if (!r.ok) throw new Error("Failed to load overview");
+    return r.json() as Promise<OverviewData>;
+  });
 
-  useEffect(() => {
-    setIsLoading(true);
-    setError(null);
-    fetch(`/api/committees/${committeeSlug}/overview`)
-      .then(r => {
-        if (!r.ok) throw new Error('Failed to load overview');
-        return r.json() as Promise<OverviewData>;
-      })
-      .then(setData)
-      .catch(e => setError(e instanceof Error ? e.message : 'An error occurred'))
-      .finally(() => setIsLoading(false));
-  }, [committeeSlug]);
+export function LatestBusinessCard({ committeeSlug, committeeName }: LatestBusinessCardProps) {
+  const { data, error: swrError, isLoading } = useSWR<OverviewData>(
+    `/api/committees/${committeeSlug}/overview`,
+    overviewFetcher,
+  );
+  const error = swrError ? (swrError instanceof Error ? swrError.message : "An error occurred") : null;
 
   if (isLoading) {
     return (

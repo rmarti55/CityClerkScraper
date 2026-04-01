@@ -49,13 +49,17 @@ const COMMITTEE_CANON: Record<string, string> = {
   'historic': 'historic_review_board',
   'hboard': 'historic_review_board',
   'h board': 'historic_review_board',
+  'hdrb': 'historic_review_board',
 
-  // Governing Body
+  // Governing Body (includes "Special Governing Body")
   'governing body': 'governing_body',
+  'special governing body': 'governing_body',
 
   // Bicycle and Pedestrian Advisory Committee
   'bicycle and pedestrian advisory': 'bicycle_pedestrian',
   'bicycle and pedestrian': 'bicycle_pedestrian',
+  'bicycle and pedestrians advisory': 'bicycle_pedestrian',
+  'bicycle and pedestrians': 'bicycle_pedestrian',
   'bicycling and pedestrian advisory': 'bicycle_pedestrian',
   'bicycling and pedestrian': 'bicycle_pedestrian',
   'bpac': 'bicycle_pedestrian',
@@ -67,20 +71,112 @@ const COMMITTEE_CANON: Record<string, string> = {
   // Finance Committee
   'finance': 'finance',
 
+  // Finance Committee Budget Hearing
+  'finance budget': 'finance_budget_hearing',
+  'finance budget hearings': 'finance_budget_hearing',
+
   // Quality of Life Committee
   'quality of life': 'quality_of_life',
 
   // Planning Commission
   'planning commission': 'planning_commission',
+  'planning': 'planning_commission',
 
   // Board of Adjustments
   'board of adjustments': 'board_of_adjustments',
+  'board of adjustment': 'board_of_adjustments',
 
   // Ethics and Campaign Review Board
   'ethics and campaign review': 'ethics_campaign_review',
 
   // Public Safety Committee
   'public safety': 'public_safety',
+
+  // Archaeological Review Committee
+  'archaeological review': 'archaeological_review',
+  'arc': 'archaeological_review',
+
+  // Liquor Hearing
+  'liquor': 'liquor_hearing',
+
+  // Mayor's Committee on Disability
+  'mayors committee on disability': 'mayors_disability',
+  'mayors disability': 'mayors_disability',
+
+  // Community Development Commission
+  'community development': 'community_development',
+
+  // Independent Salary Commission
+  'independent salary': 'salary_commission',
+
+  // Metropolitan Redevelopment Commission
+  'metropolitan redevelopment': 'metro_redevelopment',
+
+  // Arts Commission
+  'arts': 'arts_commission',
+
+  // Airport Advisory Board
+  'airport advisory': 'airport_advisory',
+
+  // Santa Fe Public Library Board
+  'library': 'library_board',
+
+  // Santa Fe Women's Commission
+  'womens': 'womens_commission',
+
+  // Water Conservation Committee
+  'water conservation': 'water_conservation',
+
+  // Children and Youth Commission
+  'children and youth': 'children_youth',
+
+  // Immigration Committee
+  'immigration': 'immigration',
+
+  // Audit Committee
+  'audit': 'audit',
+
+  // Human Services Committee
+  'human services': 'human_services',
+
+  // Transit Advisory Board
+  'transit advisory': 'transit_advisory',
+
+  // Santa Fe River Commission
+  'river': 'river_commission',
+
+  // Occupancy Tax Advisory Board
+  'occupancy tax': 'occupancy_tax',
+
+  // Economic Development Advisory Committee
+  'economic development': 'economic_development',
+
+  // Veterans Advisory Board
+  'veterans advisory': 'veterans_advisory',
+
+  // Sister Cities Committee
+  'sister cities': 'sister_cities',
+
+  // Solid Waste Management Agency
+  'solid waste': 'solid_waste',
+
+  // Santa Fe MPO
+  'mpo': 'mpo',
+
+  // Santa Fe Film and Digital Media Council
+  'film and digital media': 'film_digital_media',
+
+  // Food Policy
+  'food policy': 'food_policy',
+
+  // Capital Improvements Advisory Committee
+  'capital improvements': 'capital_improvements',
+
+  // Santa Fe Civic Housing Authority
+  'civic housing': 'civic_housing',
+
+  // Mayor's Youth Advisory Board
+  'mayors youth': 'mayors_youth',
 };
 
 // Sorted by descending key length so longest match wins during lookup
@@ -96,6 +192,8 @@ const TYPO_CORRECTIONS: [RegExp, string][] = [
   [/\bcomittee\b/gi, 'committee'],
   [/\butilites\b/gi, 'utilities'],
   [/\bbicycling\b/gi, 'bicycle'],
+  [/\badjusting\b/gi, 'adjustment'],
+  [/\bmayor s\b/gi, 'mayors'],
 ];
 
 /**
@@ -306,32 +404,16 @@ export function matchVideosToEvents(
     for (const event of events) {
       const eventDate = DateTime.fromJSDate(event.startDateTime, { zone: 'America/Denver' });
 
-      // --- Date scoring ---
-      let dateScore = 0;
-      if (titleDate) {
-        const dayDiff = Math.abs(titleDate.diff(eventDate, 'days').days);
-        if (dayDiff < 1) dateScore = 50;
-        else if (dayDiff < 2) dateScore = 30;
-        else if (dayDiff < 7) dateScore = 10;
-      } else {
-        const dayDiff = Math.abs(videoPublished.diff(eventDate, 'days').days);
-        if (dayDiff < 2) dateScore = 20;
-        else if (dayDiff < 7) dateScore = 5;
-      }
-
-      if (dateScore === 0) continue;
-
-      // --- Name scoring ---
+      // --- Name scoring (computed first so alias matches can bypass date gate) ---
       let nameScore = 0;
 
-      // Layer 1: Alias-based deterministic match
       const eventCanon = canonicalize(event.eventName)
         ?? canonicalize(event.categoryName);
 
-      if (videoCanon && eventCanon && videoCanon === eventCanon) {
+      const isAliasMatch = !!(videoCanon && eventCanon && videoCanon === eventCanon);
+      if (isAliasMatch) {
         nameScore = 50;
       } else {
-        // Layer 2: Fuzzy fallback — best of bigram, Jaccard, and stripped variants
         const simBigram = bigramSimilarity(titleName, event.eventName);
         const simCategory = bigramSimilarity(titleName, event.categoryName);
         const simStripped = bigramSimilarity(
@@ -353,6 +435,31 @@ export function matchVideosToEvents(
         );
         nameScore = Math.round(bestSim * 50);
       }
+
+      // --- Date scoring ---
+      let dateScore = 0;
+      if (titleDate) {
+        const dayDiff = Math.abs(titleDate.diff(eventDate, 'days').days);
+        if (dayDiff < 1) dateScore = 50;
+        else if (dayDiff < 2) dateScore = 30;
+        else if (dayDiff < 7) dateScore = 10;
+        // Year-off fallback: title date might have wrong year (e.g. "1/8/2024" for a Jan 2025 meeting)
+        if (dateScore === 0) {
+          const plusYear = titleDate.plus({ years: 1 });
+          const minusYear = titleDate.minus({ years: 1 });
+          const diffPlus = Math.abs(plusYear.diff(eventDate, 'days').days);
+          const diffMinus = Math.abs(minusYear.diff(eventDate, 'days').days);
+          if (diffPlus < 1 || diffMinus < 1) dateScore = 40;
+          else if (diffPlus < 2 || diffMinus < 2) dateScore = 25;
+        }
+      } else {
+        const dayDiff = Math.abs(videoPublished.diff(eventDate, 'days').days);
+        if (dayDiff < 2) dateScore = 20;
+        else if (dayDiff < 7) dateScore = 5;
+      }
+
+      // Skip only if both date and name are weak — alias matches proceed even with dateScore 0
+      if (dateScore === 0 && !isAliasMatch) continue;
 
       const confidence = dateScore + nameScore;
 
@@ -377,15 +484,18 @@ export function matchVideosToEvents(
 }
 
 /**
- * Auto-link threshold. When the date is an exact match (dateScore 50),
- * we need less name confidence since same-day + partial-name is strong signal.
+ * Auto-link thresholds. Relaxed when we have strong signals:
+ *   - Exact date (dateScore >= 50): needs less name confidence
+ *   - Perfect alias match with any date signal: very reliable
  */
 export const AUTO_LINK_THRESHOLD = 80;
 export const AUTO_LINK_THRESHOLD_EXACT_DATE = 70;
+export const AUTO_LINK_THRESHOLD_ALIAS_ONLY = 50;
 
 /**
- * Determine effective threshold based on the match's date score.
+ * Determine effective threshold based on match quality.
  */
-export function getAutoLinkThreshold(dateScore: number): number {
+export function getAutoLinkThreshold(dateScore: number, nameScore?: number): number {
+  if (nameScore === 50 && dateScore >= 0) return AUTO_LINK_THRESHOLD_ALIAS_ONLY;
   return dateScore >= 50 ? AUTO_LINK_THRESHOLD_EXACT_DATE : AUTO_LINK_THRESHOLD;
 }
