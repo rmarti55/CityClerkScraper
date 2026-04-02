@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
   const remaining = limit - processedEventIds.size;
   if (remaining > 0) {
     const agendaRows = await db.execute(sql`
-      SELECT e.id AS event_id, a.summary_json
+      SELECT e.id AS event_id, e.start_date_time, a.summary_json
       FROM events e
       JOIN agenda_summaries a ON a.event_id = e.id
       WHERE e.digest IS NULL
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       LIMIT ${remaining}
     `);
 
-    for (const row of agendaRows.rows as Array<{ event_id: number; summary_json: string }>) {
+    for (const row of agendaRows.rows as Array<{ event_id: number; start_date_time: string; summary_json: string }>) {
       if (processedEventIds.has(row.event_id)) continue;
       try {
         const summaries: AgendaItemSummary[] = JSON.parse(row.summary_json);
@@ -89,7 +89,8 @@ export async function POST(request: NextRequest) {
           results.skipped++;
           continue;
         }
-        const digest = await generateDigestFromAgendaSummaries(summaries);
+        const meetingDate = row.start_date_time ? new Date(row.start_date_time) : undefined;
+        const digest = await generateDigestFromAgendaSummaries(summaries, meetingDate);
         if (digest) {
           await saveDigest(row.event_id, digest);
           results.fromAgenda++;

@@ -159,7 +159,7 @@ export async function sendTranscriptReadyEmail({
   <table role="presentation" style="width: 100%; border-collapse: collapse;">
     <tr>
       <td align="center" style="padding: 40px 20px;">
-        <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse;">
+        <table role="presentation" style="max-width: 800px; width: 100%; border-collapse: collapse;">
 
           <!-- Header -->
           <tr>

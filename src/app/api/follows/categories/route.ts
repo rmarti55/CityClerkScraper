@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { categoryFollows, notificationPreferences } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { sendFollowConfirmationEmail } from "@/emails/follow-confirmation";
+import { getAppBaseUrl } from "@/lib/url";
 
 /**
  * GET /api/follows/categories
@@ -85,9 +86,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const appUrl =
-    process.env.NEXTAUTH_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  const appUrl = getAppBaseUrl();
   const to = session.user?.email;
   if (to) {
     const prefs = await db

@@ -89,7 +89,8 @@ export async function GET(
       // Generate a one-sentence digest for the meeting card (best-effort, background)
       const existing = await db.select({ digest: events.digest }).from(events).where(eq(events.id, eventId)).limit(1);
       if (!existing[0]?.digest) {
-        generateDigestFromAgendaSummaries(summaries)
+        const meetingDate = event.startDateTime ? new Date(event.startDateTime) : undefined;
+        generateDigestFromAgendaSummaries(summaries, meetingDate)
           .then((digest) => saveDigest(eventId, digest))
           .catch((err) => console.warn('Digest generation failed:', err));
       }

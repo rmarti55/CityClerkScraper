@@ -1,42 +1,56 @@
 "use client";
 
-import { ReactNode, useSyncExternalStore } from "react";
+import { ReactNode, useRef, useEffect } from "react";
 import { SWRConfig, type Cache } from "swr";
 import { EventsProvider } from "@/context/EventsContext";
 import { CommitteeProvider } from "@/context/CommitteeContext";
 
-function localStorageProvider(): Cache {
-  const map = new Map(
-    JSON.parse(localStorage.getItem("swr-cache") || "[]")
-  );
-  window.addEventListener("beforeunload", () => {
-    const appCache = JSON.stringify(Array.from(map.entries()));
-    localStorage.setItem("swr-cache", appCache);
-  });
-  return map as Cache;
-}
+function usePersistentCache(): () => Cache {
+  const cacheRef = useRef<Map<string, unknown>>(new Map());
 
-const emptySubscribe = () => () => {};
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("swr-cache");
+      if (stored) {
+        const entries = JSON.parse(stored) as [string, unknown][];
+        for (const [key, value] of entries) {
+          if (!cacheRef.current.has(key)) {
+            cacheRef.current.set(key, value);
+          }
+        }
+      }
+    } catch {
+      // Corrupt or missing localStorage — start fresh
+    }
 
-function useHydrated(): boolean {
-  return useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false,
-  );
+    const onUnload = () => {
+      try {
+        const appCache = JSON.stringify(
+          Array.from(cacheRef.current.entries())
+        );
+        localStorage.setItem("swr-cache", appCache);
+      } catch {
+        // Storage full or unavailable
+      }
+    };
+    window.addEventListener("beforeunload", onUnload);
+    return () => window.removeEventListener("beforeunload", onUnload);
+  }, []);
+
+  const factory = useRef(() => cacheRef.current as Cache);
+  return factory.current;
 }
 
 export function MeetingsProviders({ children }: { children: ReactNode }) {
-  const hydrated = useHydrated();
+  const cacheProvider = usePersistentCache();
 
   return (
     <SWRConfig
       value={{
-        provider: hydrated ? localStorageProvider : undefined,
+        provider: cacheProvider,
         revalidateOnFocus: false,
         dedupingInterval: 60_000,
       }}
-      key={hydrated ? "hydrated" : "ssr"}
     >
       <EventsProvider>
         <CommitteeProvider>

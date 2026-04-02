@@ -97,13 +97,19 @@ export function MeetingCard({
       href={href}
       className="block bg-white border border-gray-200 rounded-lg p-4 hover:border-indigo-300 hover:shadow-md transition-all"
     >
-      {/* Row 1: Title + action buttons (upper right) */}
+      {/* Row 1: Title + digest (left) / star (right) */}
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-base font-bold text-gray-900 flex-1 min-w-0">
-          {titleNode ?? event.eventName}
-        </h3>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base font-bold text-gray-900">
+            {titleNode ?? event.eventName}
+          </h3>
+          {media?.digest && (
+            <p className="text-sm text-gray-900 mt-0.5">
+              {media.digest}
+            </p>
+          )}
+        </div>
         <div className="flex items-center shrink-0">
-          {/* Favorite button */}
           <button
             type="button"
             onClick={handleFavoriteClick}
@@ -153,13 +159,6 @@ export function MeetingCard({
           iconClassName="w-4 h-4 text-indigo-400 shrink-0 mt-0.5"
           linkable={false}
         />
-      )}
-
-      {/* One-sentence AI digest */}
-      {media?.digest && (
-        <p className="mt-2 text-sm text-gray-500 italic line-clamp-1">
-          {media.digest}
-        </p>
       )}
 
       {/* Optional extra content (e.g. search description snippets) */}
