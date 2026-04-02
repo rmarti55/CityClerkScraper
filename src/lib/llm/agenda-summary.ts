@@ -1,5 +1,5 @@
 /**
- * AI-powered agenda item summarization using OpenRouter (Claude 3.5 Haiku).
+ * AI-powered agenda item summarization.
  *
  * Given a meeting's agenda items, generates a 3-5 word headline and one-sentence
  * detail for each substantive item. Results are served via the
@@ -7,6 +7,7 @@
  */
 
 import { chatCompletion, type CompletionOptions } from './openrouter';
+import { FAST_MODEL } from './models';
 import type { MeetingItem } from '@/lib/types';
 import { parseAgendaItem } from '@/lib/agenda-item-parser';
 import { collectItemsWithAttachments } from '@/lib/agenda-items';
@@ -37,7 +38,7 @@ Rules:
  * Generate plain-language summaries for a meeting's agenda items.
  *
  * Filters to substantive items (those with attachments), sends them to
- * Claude 3.5 Haiku, and parses the JSON response. Uses outlineNumber
+ * the configured FAST_MODEL, and parses the JSON response. Uses outlineNumber
  * as a fallback key when the LLM mangles itemId.
  *
  * @returns Parsed summaries, or `[]` on LLM/parse failure.
@@ -73,7 +74,7 @@ export async function generateAgendaSummaries(
     {
       temperature: 0.2,
       maxTokens: 4096,
-      model: 'anthropic/claude-haiku-4.5',
+      model: FAST_MODEL,
       ...options,
     },
   );

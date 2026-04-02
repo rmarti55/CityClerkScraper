@@ -3,6 +3,7 @@
  */
 
 import { chatCompletion, CompletionOptions } from './openrouter';
+import { FAST_MODEL } from './models';
 import { Event } from '@/lib/db/schema';
 
 const SYSTEM_PROMPT = `You are a helpful assistant that summarizes city government committee activity for citizens. 
@@ -71,7 +72,8 @@ Summarize the key topics, decisions, or upcoming business that residents should 
       { role: 'user', content: userPrompt },
     ],
     {
-      temperature: 0.5, // Lower temperature for more factual output
+      model: FAST_MODEL,
+      temperature: 0.5,
       maxTokens: 512,
       ...options,
     }

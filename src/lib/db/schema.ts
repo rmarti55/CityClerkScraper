@@ -19,6 +19,7 @@ export const events = pgTable('events', {
   fileCount: integer('file_count').default(0),
   fileNames: text('file_names'), // Concatenated file names for search
   zoomLink: text('zoom_link'),
+  digest: text('digest'),
   cachedAt: timestamp('cached_at').defaultNow(),
   // Full-text search vector (auto-generated)
   searchVector: text('search_vector'),
@@ -227,11 +228,13 @@ export const meetingVideos = pgTable('meeting_videos', {
   eventId: integer('event_id').notNull(),
   youtubeVideoId: text('youtube_video_id'),
   youtubeTitle: text('youtube_title'),
+  youtubeDescription: text('youtube_description'),
   youtubePublishedAt: timestamp('youtube_published_at'),
   youtubeThumbnailUrl: text('youtube_thumbnail_url'),
   duration: text('duration'),
   source: text('source').notNull(), // 'youtube' | 'civicclerk'
   matchConfidence: integer('match_confidence'),
+  matchMethod: text('match_method'), // 'regex' | 'ai' | 'manual'
   matchedAt: timestamp('matched_at').defaultNow(),
   externalMediaUrl: text('external_media_url'),
 }, (table) => ({
@@ -252,6 +255,7 @@ export const meetingTranscripts = pgTable('meeting_transcripts', {
   model: text('model'),
   status: text('status').notNull().default('pending'), // pending | extracting | processing | completed | failed
   errorMessage: text('error_message'),
+  priorityScore: integer('priority_score').default(0),
   generatedAt: timestamp('generated_at').defaultNow(),
 }, (table) => ({
   videoIdx: uniqueIndex('meeting_transcripts_video_idx').on(table.videoId),

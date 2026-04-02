@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { savedDocuments, events } from "@/lib/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { chatCompletion } from "@/lib/llm/openrouter";
+import { FAST_MODEL } from "@/lib/llm/models";
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -133,7 +134,7 @@ async function generateDisplayName(
           content: `Rewrite this document title in 10 words or less, keeping the key topic:\n\n${originalName}`,
         },
       ],
-      { model: "anthropic/claude-3-haiku", temperature: 0.3, maxTokens: 40 },
+      { model: FAST_MODEL, temperature: 0.3, maxTokens: 40 },
     );
     const displayName = content.trim().replace(/^["']|["']$/g, "");
     if (displayName) {

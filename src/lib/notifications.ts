@@ -14,7 +14,7 @@ import { eq, and, inArray, gte, lte } from "drizzle-orm";
 import { sendDigestEmail, type DigestMeeting } from "@/emails/digest";
 import { sendMeetingReminderEmail } from "@/emails/meeting-reminder";
 import { sendAgendaPostedEmail } from "@/emails/agenda-posted";
-import { sendTranscriptReadyEmail } from "@/emails/transcript-ready";
+import { sendTranscriptReadyEmail, type TranscriptEmailSummary, type TranscriptEmailTopic } from "@/emails/transcript-ready";
 
 const DIGEST_TYPE = "daily_digest";
 const REMINDER_TYPE = "meeting_reminder";
@@ -204,10 +204,16 @@ export async function runMeetingReminders(): Promise<{
     if (!prefsByUser.has(uid)) prefsByUser.set(uid, { enabled: true, minutesBefore: 60 });
   }
 
+  const reminderCutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const alreadySent = await db
     .select({ userId: sentNotifications.userId, payload: sentNotifications.payload })
     .from(sentNotifications)
-    .where(eq(sentNotifications.type, REMINDER_TYPE));
+    .where(
+      and(
+        eq(sentNotifications.type, REMINDER_TYPE),
+        gte(sentNotifications.sentAt, reminderCutoff)
+      )
+    );
   const sentSet = new Set(alreadySent.map((s) => `${s.userId}:${s.payload}`));
 
   const userRows = await db
@@ -434,7 +440,10 @@ export async function runAgendaPostedNotifications(): Promise<{
  */
 export async function notifyTranscriptReady(
   eventId: number,
-  summarySnippet?: string
+  opts?: {
+    summary?: TranscriptEmailSummary;
+    topics?: TranscriptEmailTopic[];
+  }
 ): Promise<{ sent: number; errors: string[] }> {
   const appUrl = getAppUrl();
   const errors: string[] = [];
@@ -445,6 +454,7 @@ export async function notifyTranscriptReady(
       id: events.id,
       eventName: events.eventName,
       categoryName: events.categoryName,
+      startDateTime: events.startDateTime,
     })
     .from(events)
     .where(eq(events.id, eventId));
@@ -452,22 +462,25 @@ export async function notifyTranscriptReady(
   const evt = eventRows[0];
   if (!evt) return { sent: 0, errors: [`Event ${eventId} not found`] };
 
-  const targetUserIds = new Set<string>();
+  // Track which users came from category follows vs meeting favorites
+  const categoryFollowerIds = new Set<string>();
+  const meetingFollowerIds = new Set<string>();
 
   if (evt.categoryName) {
     const catFollows = await db
       .select({ userId: categoryFollows.userId })
       .from(categoryFollows)
       .where(eq(categoryFollows.categoryName, evt.categoryName));
-    for (const r of catFollows) targetUserIds.add(r.userId);
+    for (const r of catFollows) categoryFollowerIds.add(r.userId);
   }
 
   const favRows = await db
     .select({ userId: favorites.userId })
     .from(favorites)
     .where(eq(favorites.eventId, eventId));
-  for (const r of favRows) targetUserIds.add(r.userId);
+  for (const r of favRows) meetingFollowerIds.add(r.userId);
 
+  const targetUserIds = new Set([...categoryFollowerIds, ...meetingFollowerIds]);
   if (targetUserIds.size === 0) return { sent: 0, errors: [] };
 
   const userIds = [...targetUserIds];
@@ -505,12 +518,27 @@ export async function notifyTranscriptReady(
     if (sentAlreadySet.has(user.id)) continue;
     if (!user.email) continue;
 
+    const followsCategory = categoryFollowerIds.has(user.id);
+    const followsMeeting = meetingFollowerIds.has(user.id);
+    let reason: string;
+    if (followsCategory && followsMeeting) {
+      reason = `You follow the category "${evt.categoryName}" and this meeting.`;
+    } else if (followsCategory) {
+      reason = `You follow the category "${evt.categoryName}".`;
+    } else {
+      reason = "You follow this meeting.";
+    }
+
     try {
       const { error } = await sendTranscriptReadyEmail({
         to: user.email,
         eventName: evt.eventName,
         eventId: evt.id,
-        summarySnippet,
+        startDateTime: evt.startDateTime?.toISOString(),
+        categoryName: evt.categoryName ?? undefined,
+        summary: opts?.summary,
+        topics: opts?.topics,
+        reason,
         appUrl,
       });
       if (error) {

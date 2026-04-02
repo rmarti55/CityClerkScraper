@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { type CachedChunk, retrieveTopK } from "@/lib/document-rag";
 import { createEmbedding } from "@/lib/llm/embeddings";
 import { chatCompletion, type ChatMessage } from "@/lib/llm/openrouter";
+import { SMART_MODEL } from "@/lib/llm/models";
 
 const TOP_K = 8;
 
@@ -66,6 +67,7 @@ export async function handleDocumentChat(
     ];
 
     const { content, model } = await chatCompletion(chatMessages, {
+      model: SMART_MODEL,
       temperature: 0.3,
       maxTokens: 1024,
     });

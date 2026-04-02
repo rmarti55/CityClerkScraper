@@ -27,6 +27,7 @@ import { DocumentViewerProvider } from "@/context/DocumentViewerContext";
 import { MeetingDetailLayout } from "@/components/MeetingDetailLayout";
 import { MeetingTranscript } from "@/components/MeetingTranscript";
 import { MeetingMediaBadges } from "@/components/MeetingMediaBadges";
+import { LiveStreamEmbed } from "@/components/LiveStreamEmbed";
 import { SITE_NAME } from "@/lib/branding";
 import { DocumentIcon, VideoCameraIcon } from "@/components/icons";
 
@@ -296,6 +297,8 @@ export default async function MeetingPage({ params, searchParams }: PageProps) {
             <MeetingRefreshButton eventId={event.id} cachedAt={event.cachedAt} />
           </div>
         </div>
+
+        <LiveStreamEmbed eventId={eventId} startDateTime={event.startDateTime} />
 
         <MeetingTranscript eventId={eventId} />
 

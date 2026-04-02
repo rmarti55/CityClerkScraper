@@ -155,6 +155,13 @@ export function MeetingCard({
         />
       )}
 
+      {/* One-sentence AI digest */}
+      {media?.digest && (
+        <p className="mt-2 text-sm text-gray-500 italic line-clamp-1">
+          {media.digest}
+        </p>
+      )}
+
       {/* Optional extra content (e.g. search description snippets) */}
       {children}
 

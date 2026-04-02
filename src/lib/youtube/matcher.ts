@@ -11,6 +11,8 @@
 
 import { DateTime } from 'luxon';
 import type { YouTubeVideo } from './channel';
+import { chatCompletion } from '@/lib/llm/openrouter';
+import { FAST_MODEL } from '@/lib/llm/models';
 
 export interface MatchCandidate {
   eventId: number;
@@ -329,6 +331,21 @@ function extractDateFromTitle(title: string): DateTime | null {
     if (dt.isValid) return dt;
   }
 
+  // 5-digit year typo (e.g. "04/01/20206"): try dropping each digit to recover a valid 4-digit year
+  const fiveDigitYear = title.match(/\b(\d{1,2})[/-](\d{1,2})[/-](\d{5})\b/);
+  if (fiveDigitYear) {
+    const digits = fiveDigitYear[3];
+    const month = parseInt(fiveDigitYear[1]);
+    const day = parseInt(fiveDigitYear[2]);
+    for (let i = 0; i < 5; i++) {
+      const candidate = parseInt(digits.slice(0, i) + digits.slice(i + 1));
+      if (candidate >= 2020 && candidate <= 2035) {
+        const dt = DateTime.fromObject({ month, day, year: candidate }, { zone: 'America/Denver' });
+        if (dt.isValid) return dt;
+      }
+    }
+  }
+
   const shortYearDate = title.match(/\b(\d{1,2})[/-](\d{1,2})[/-](\d{2})\b/);
   if (shortYearDate) {
     const year = 2000 + parseInt(shortYearDate[3]);
@@ -358,8 +375,9 @@ function extractDateFromTitle(title: string): DateTime | null {
  */
 function extractMeetingName(title: string): string {
   let name = title
-    // Date patterns
+    // Date patterns (including 5-digit year typos like "04/01/20206")
     .replace(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s*\d{4}\b/i, '')
+    .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{5}\b/, '')
     .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{4}\b/, '')
     .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2}\b/, '')
     .replace(/\b\d{4}-\d{2}-\d{2}\b/, '')
@@ -499,3 +517,102 @@ export function getAutoLinkThreshold(dateScore: number, nameScore?: number): num
   if (nameScore === 50 && dateScore >= 0) return AUTO_LINK_THRESHOLD_ALIAS_ONLY;
   return dateScore >= 50 ? AUTO_LINK_THRESHOLD_EXACT_DATE : AUTO_LINK_THRESHOLD;
 }
+
+// ---------------------------------------------------------------------------
+// AI-Assisted Classification (fallback for regex failures)
+// ---------------------------------------------------------------------------
+
+const AI_MATCH_MODEL = FAST_MODEL;
+const AI_MATCH_THRESHOLD = 70;
+
+export interface AiMatchResult {
+  eventId: number | null;
+  confidence: number;
+  reasoning: string;
+}
+
+/**
+ * Use an LLM to classify a YouTube video when regex matching fails or
+ * produces a low-confidence result. Sends the video's full metadata
+ * (title, description, publish date) plus a compact list of candidate
+ * events and asks the model to pick the best match.
+ *
+ * Only called when OPENROUTER_API_KEY is set and the regex matcher
+ * couldn't auto-link the video. Costs ~$0.0002 per call with Haiku.
+ */
+export async function aiClassifyVideo(
+  video: { title: string; description: string; publishedAt: string },
+  candidates: MatchCandidate[],
+): Promise<AiMatchResult> {
+  if (!process.env.OPENROUTER_API_KEY) {
+    return { eventId: null, confidence: 0, reasoning: 'OPENROUTER_API_KEY not configured' };
+  }
+
+  if (candidates.length === 0) {
+    return { eventId: null, confidence: 0, reasoning: 'No candidate events' };
+  }
+
+  // Build a compact candidate list (id, name, date) to minimize tokens
+  const candidateList = candidates
+    .map((e) => {
+      const dt = DateTime.fromJSDate(e.startDateTime, { zone: 'America/Denver' });
+      return `  ${e.eventId}: ${e.eventName} (${e.categoryName}) — ${dt.toFormat('yyyy-MM-dd')}`;
+    })
+    .join('\n');
+
+  try {
+    const result = await chatCompletion(
+      [
+        {
+          role: 'system',
+          content: `You match YouTube videos from the City of Santa Fe channel to city government meetings. The video titles often contain typos in dates (extra digits, wrong year) or abbreviated/misspelled committee names.
+
+Given a video's metadata and a list of candidate meetings, determine which meeting this video is a recording of.
+
+Return ONLY valid JSON — no markdown fences:
+{"eventId": <number or null>, "confidence": <0-100>, "reasoning": "<one sentence>"}
+
+Rules:
+- Match based on committee name AND date proximity
+- The video's publish date is usually the same day or day after the meeting
+- Title typos are common (e.g. "20206" means "2026", "committe" means "committee")
+- If no candidate is a reasonable match, return eventId: null
+- confidence 90-100: near certain match (name + date align perfectly)
+- confidence 70-89: strong match (one signal is clear, other has a typo)
+- confidence below 70: uncertain, return null`,
+        },
+        {
+          role: 'user',
+          content: `YouTube video:
+- Title: "${video.title}"
+- Description: "${video.description?.slice(0, 500) || '(none)'}"
+- Published: ${video.publishedAt}
+
+Candidate meetings:
+${candidateList}`,
+        },
+      ],
+      { model: AI_MATCH_MODEL, temperature: 0, maxTokens: 150 },
+    );
+
+    const parsed = JSON.parse(result.content);
+    const eventId = typeof parsed.eventId === 'number' ? parsed.eventId : null;
+    const confidence = typeof parsed.confidence === 'number' ? Math.min(100, Math.max(0, parsed.confidence)) : 0;
+    const reasoning = typeof parsed.reasoning === 'string' ? parsed.reasoning : '';
+
+    // Verify the returned eventId actually exists in our candidate list
+    if (eventId !== null && !candidates.some((c) => c.eventId === eventId)) {
+      return { eventId: null, confidence: 0, reasoning: `AI returned unknown eventId ${eventId}` };
+    }
+
+    return { eventId, confidence, reasoning };
+  } catch (err) {
+    return {
+      eventId: null,
+      confidence: 0,
+      reasoning: `AI classification error: ${err instanceof Error ? err.message : 'Unknown'}`,
+    };
+  }
+}
+
+export { AI_MATCH_THRESHOLD };

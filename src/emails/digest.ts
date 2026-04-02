@@ -1,17 +1,5 @@
-import { Resend } from "resend";
 import { SITE_NAME } from "@/lib/branding";
-
-let resend: Resend | null = null;
-
-function getResend(): Resend {
-  if (!resend) {
-    if (!process.env.RESEND_API_KEY) {
-      throw new Error("RESEND_API_KEY environment variable is not set");
-    }
-    resend = new Resend(process.env.RESEND_API_KEY);
-  }
-  return resend;
-}
+import { getResend, emailFrom, formatDate, footerLinksHtml, footerLinksText } from "@/emails/shared";
 
 export interface DigestMeeting {
   id: number;
@@ -24,19 +12,6 @@ export interface SendDigestParams {
   to: string;
   categoryMeetings: { categoryName: string; meetings: DigestMeeting[] }[];
   appUrl: string;
-}
-
-function formatDate(d: string): string {
-  const date = new Date(d);
-  return date.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "America/Denver",
-  });
 }
 
 export async function sendDigestEmail({ to, categoryMeetings, appUrl }: SendDigestParams) {
@@ -92,9 +67,7 @@ export async function sendDigestEmail({ to, categoryMeetings, appUrl }: SendDige
                 ${sections}
               </table>
               <p style="margin: 24px 0 0; font-size: 14px;">
-                <a href="${appUrl}/my-follows" style="color: #2563eb; text-decoration: none;">My Follow</a>
-                &nbsp;·&nbsp;
-                <a href="${appUrl}/profile" style="color: #2563eb; text-decoration: none;">Manage your alerts</a>
+                ${footerLinksHtml(appUrl)}
               </p>
             </td>
           </tr>
@@ -125,11 +98,11 @@ export async function sendDigestEmail({ to, categoryMeetings, appUrl }: SendDige
             "",
           ]
     ),
-    `My Follow: ${appUrl}/my-follows | Manage your alerts: ${appUrl}/profile`,
+    footerLinksText(appUrl),
   ].join("\n");
 
   const { data, error } = await getResend().emails.send({
-    from: process.env.EMAIL_FROM || `${SITE_NAME} <noreply@resend.dev>`,
+    from: emailFrom(),
     to,
     subject,
     html,

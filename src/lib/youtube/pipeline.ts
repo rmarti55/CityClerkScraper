@@ -8,13 +8,78 @@
  * Designed to be called from a cron endpoint or backfill script.
  */
 
-import { eq, and, inArray, gte, isNull, sql } from 'drizzle-orm';
+import { eq, and, inArray, gte, isNull, sql, desc, asc } from 'drizzle-orm';
 import { db, meetingVideos, meetingTranscripts, events } from '@/lib/db';
 import { listChannelVideos, getVideoDetails } from './channel';
 import { extractTranscript } from './transcript';
-import { matchVideosToEvents, getAutoLinkThreshold, type MatchCandidate } from './matcher';
+import { matchVideosToEvents, getAutoLinkThreshold, aiClassifyVideo, AI_MATCH_THRESHOLD, type MatchCandidate } from './matcher';
 import { processTranscript } from './ai-processor';
 import { notifyTranscriptReady } from '@/lib/notifications';
+import { generateDigestFromTranscriptSummary, saveDigest } from '@/lib/llm/digest';
+
+const HIGH_TIER_COMMITTEES = new Set([
+  'Governing Body',
+]);
+
+const MID_TIER_COMMITTEES = new Set([
+  'Finance Committee',
+  'Quality of Life Committee',
+  'Planning Commission',
+  'Public Safety Committee',
+]);
+
+const LOW_TIER_COMMITTEES = new Set([
+  'Liquor Hearing',
+]);
+
+/**
+ * Compute a priority score for transcript processing.
+ * Higher score = process first.
+ *
+ * Signals:
+ *   - Recency: 100 pts for meetings within 30 days, decaying ~3 pts/month
+ *   - Committee tier: Governing Body 30, Finance/QoL/Planning 20, Liquor 5, others 10
+ *   - Length: short (<20k) +10, very long (>150k) -10
+ */
+export function computePriorityScore(
+  eventDate: Date | null,
+  categoryName: string | null,
+  transcriptLength: number,
+): number {
+  let score = 0;
+
+  // Recency: 100 base, -3 per month beyond 30 days
+  if (eventDate) {
+    const daysSince = Math.max(0, (Date.now() - eventDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysSince <= 30) {
+      score += 100;
+    } else {
+      const monthsBeyond = (daysSince - 30) / 30;
+      score += Math.max(0, Math.round(100 - monthsBeyond * 3));
+    }
+  }
+
+  // Committee tier
+  const cat = categoryName ?? '';
+  if (HIGH_TIER_COMMITTEES.has(cat)) {
+    score += 30;
+  } else if (MID_TIER_COMMITTEES.has(cat)) {
+    score += 20;
+  } else if (LOW_TIER_COMMITTEES.has(cat)) {
+    score += 5;
+  } else {
+    score += 10;
+  }
+
+  // Length bonus/penalty
+  if (transcriptLength < 20000) {
+    score += 10;
+  } else if (transcriptLength > 150000) {
+    score -= 10;
+  }
+
+  return score;
+}
 
 export interface PipelineResult {
   videosDiscovered: number;
@@ -80,17 +145,36 @@ export async function discoverNewVideos(publishedAfter?: string): Promise<number
 
   for (const video of newVideos) {
     const match = matchMap.get(video.videoId);
-    const autoLinked = match && match.confidence >= getAutoLinkThreshold(match.dateScore, match.nameScore);
+    const regexAutoLinked = match && match.confidence >= getAutoLinkThreshold(match.dateScore, match.nameScore);
+
+    let finalEventId = regexAutoLinked ? match.eventId : 0;
+    let finalConfidence = match?.confidence ?? 0;
+    let matchMethod: string | null = regexAutoLinked ? 'regex' : null;
+
+    // AI fallback: when regex fails or is low-confidence, ask the LLM
+    if (!regexAutoLinked && process.env.OPENROUTER_API_KEY) {
+      const aiResult = await aiClassifyVideo(
+        { title: video.title, description: video.description, publishedAt: video.publishedAt },
+        candidates,
+      );
+      if (aiResult.eventId !== null && aiResult.confidence >= AI_MATCH_THRESHOLD) {
+        finalEventId = aiResult.eventId;
+        finalConfidence = aiResult.confidence;
+        matchMethod = 'ai';
+      }
+    }
 
     await db.insert(meetingVideos).values({
-      eventId: autoLinked ? match.eventId : 0,
+      eventId: finalEventId,
       youtubeVideoId: video.videoId,
       youtubeTitle: video.title,
+      youtubeDescription: video.description || null,
       youtubePublishedAt: new Date(video.publishedAt),
       youtubeThumbnailUrl: video.thumbnailUrl,
       duration: video.duration,
       source: 'youtube',
-      matchConfidence: match?.confidence ?? 0,
+      matchConfidence: finalConfidence,
+      matchMethod,
     }).onConflictDoNothing();
 
     inserted++;
@@ -109,6 +193,7 @@ export async function rematchUnmatchedVideos(): Promise<number> {
       id: meetingVideos.id,
       youtubeVideoId: meetingVideos.youtubeVideoId,
       youtubeTitle: meetingVideos.youtubeTitle,
+      youtubeDescription: meetingVideos.youtubeDescription,
       youtubePublishedAt: meetingVideos.youtubePublishedAt,
     })
     .from(meetingVideos)
@@ -142,28 +227,56 @@ export async function rematchUnmatchedVideos(): Promise<number> {
       title: v.youtubeTitle!,
       publishedAt: v.youtubePublishedAt?.toISOString() ?? new Date().toISOString(),
       thumbnailUrl: '',
-      description: '',
+      description: v.youtubeDescription ?? '',
     }));
 
   const matches = matchVideosToEvents(videosForMatching, candidates);
+  const matchMap = new Map(matches.map((m) => [m.videoId, m]));
   let linked = 0;
 
-  for (const match of matches) {
-    if (match.confidence < getAutoLinkThreshold(match.dateScore, match.nameScore)) continue;
+  for (const videoRow of unmatched) {
+    if (!videoRow.youtubeVideoId || !videoRow.youtubeTitle) continue;
 
-    const videoRow = unmatched.find((v) => v.youtubeVideoId === match.videoId);
-    if (!videoRow) continue;
+    const match = matchMap.get(videoRow.youtubeVideoId);
+    const regexAutoLinked = match && match.confidence >= getAutoLinkThreshold(match.dateScore, match.nameScore);
 
-    await db
-      .update(meetingVideos)
-      .set({
-        eventId: match.eventId,
-        matchConfidence: match.confidence,
-        matchedAt: new Date(),
-      })
-      .where(eq(meetingVideos.id, videoRow.id));
+    if (regexAutoLinked) {
+      await db
+        .update(meetingVideos)
+        .set({
+          eventId: match.eventId,
+          matchConfidence: match.confidence,
+          matchMethod: 'regex',
+          matchedAt: new Date(),
+        })
+        .where(eq(meetingVideos.id, videoRow.id));
+      linked++;
+      continue;
+    }
 
-    linked++;
+    // AI fallback for videos the regex still can't match
+    if (process.env.OPENROUTER_API_KEY) {
+      const aiResult = await aiClassifyVideo(
+        {
+          title: videoRow.youtubeTitle,
+          description: videoRow.youtubeDescription ?? '',
+          publishedAt: videoRow.youtubePublishedAt?.toISOString() ?? new Date().toISOString(),
+        },
+        candidates,
+      );
+      if (aiResult.eventId !== null && aiResult.confidence >= AI_MATCH_THRESHOLD) {
+        await db
+          .update(meetingVideos)
+          .set({
+            eventId: aiResult.eventId,
+            matchConfidence: aiResult.confidence,
+            matchMethod: 'ai',
+            matchedAt: new Date(),
+          })
+          .where(eq(meetingVideos.id, videoRow.id));
+        linked++;
+      }
+    }
   }
 
   return linked;
@@ -192,12 +305,21 @@ export async function extractPendingTranscripts(limit: number = 10): Promise<num
     )
     .limit(limit);
 
+  // Pre-load event metadata for priority scoring
+  const eventIds = [...new Set(videosNeedingTranscript.map((v) => v.eventId))];
+  const eventRows = eventIds.length > 0
+    ? await db
+        .select({ id: events.id, startDateTime: events.startDateTime, categoryName: events.categoryName })
+        .from(events)
+        .where(inArray(events.id, eventIds))
+    : [];
+  const eventMap = new Map(eventRows.map((e) => [e.id, e]));
+
   let extracted = 0;
 
   for (const video of videosNeedingTranscript) {
     const transcript = await extractTranscript(video.youtubeVideoId);
     if (!transcript) {
-      // Create a failed transcript record so we don't retry endlessly
       await db.insert(meetingTranscripts).values({
         videoId: video.id,
         eventId: video.eventId,
@@ -207,11 +329,19 @@ export async function extractPendingTranscripts(limit: number = 10): Promise<num
       continue;
     }
 
+    const evt = eventMap.get(video.eventId);
+    const priority = computePriorityScore(
+      evt?.startDateTime ?? null,
+      evt?.categoryName ?? null,
+      transcript.fullText.length,
+    );
+
     await db.insert(meetingTranscripts).values({
       videoId: video.id,
       eventId: video.eventId,
       rawTranscript: transcript.fullText,
       status: 'pending',
+      priorityScore: priority,
     });
 
     extracted++;
@@ -241,6 +371,7 @@ export async function processPendingTranscripts(limit: number = 5): Promise<numb
     .select()
     .from(meetingTranscripts)
     .where(eq(meetingTranscripts.status, 'pending'))
+    .orderBy(desc(meetingTranscripts.priorityScore), asc(meetingTranscripts.id))
     .limit(limit);
 
   let processed = 0;
@@ -272,10 +403,17 @@ export async function processPendingTranscripts(limit: number = 5): Promise<numb
 
       // Notify followers that the transcript is ready
       if (transcript.eventId) {
-        const snippet = result.summary?.executiveSummary?.slice(0, 300);
-        notifyTranscriptReady(transcript.eventId, snippet).catch((err) =>
+        notifyTranscriptReady(transcript.eventId, {
+          summary: result.summary ?? undefined,
+          topics: result.topics ?? undefined,
+        }).catch((err) =>
           console.error('Transcript notification error:', err)
         );
+
+        // Generate/overwrite card digest from the richer transcript summary
+        generateDigestFromTranscriptSummary(result.summary)
+          .then((digest) => saveDigest(transcript.eventId, digest))
+          .catch((err) => console.warn('Transcript digest generation failed:', err));
       }
 
       processed++;
@@ -336,9 +474,10 @@ export async function runTranscriptPipeline(options?: {
     errors.push(`Extraction: ${err instanceof Error ? err.message : 'Unknown error'}`);
   }
 
-  // Step 3: AI processing
+  // Step 3: AI processing (controlled by TRANSCRIPT_PROCESSING_ENABLED)
   try {
-    if (process.env.OPENROUTER_API_KEY) {
+    const processingEnabled = process.env.TRANSCRIPT_PROCESSING_ENABLED !== 'false';
+    if (processingEnabled && process.env.OPENROUTER_API_KEY) {
       transcriptsProcessed = await processPendingTranscripts(options?.processLimit ?? 5);
     }
   } catch (err) {

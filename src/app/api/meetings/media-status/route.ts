@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from 'drizzle-orm';
 import { db, meetingVideos, meetingTranscripts, events } from '@/lib/db';
+import { checkLiveStream } from '@/lib/youtube/live';
+
+export interface MediaStatusEntry {
+  hasVideo: boolean;
+  hasTranscript: boolean;
+  hasZoomLink: boolean;
+  isLive?: boolean;
+  liveVideoId?: string;
+  digest?: string;
+}
 
 export interface MediaStatusMap {
-  [eventId: string]: {
-    hasVideo: boolean;
-    hasTranscript: boolean;
-    hasZoomLink: boolean;
-  };
+  [eventId: string]: MediaStatusEntry;
 }
 
 /**
@@ -44,22 +50,47 @@ export async function GET(request: NextRequest) {
       );
     const transcriptEventIds = new Set(transcriptRows.map((r) => r.eventId));
 
-    // Zoom links for these events
-    const zoomRows = await db
-      .select({ id: events.id, zoomLink: events.zoomLink })
+    // Zoom links + digests for these events
+    const eventRows = await db
+      .select({ id: events.id, zoomLink: events.zoomLink, digest: events.digest })
       .from(events)
       .where(sql`${events.id} IN (${sql.raw(idList)})`);
     const zoomEventIds = new Set(
-      zoomRows.filter((r) => r.zoomLink && r.zoomLink !== '__none__').map((r) => r.id),
+      eventRows.filter((r) => r.zoomLink && r.zoomLink !== '__none__').map((r) => r.id),
     );
+    const digestMap = new Map(
+      eventRows.filter((r) => r.digest).map((r) => [r.id, r.digest!]),
+    );
+
+    // Check for active live stream
+    let liveEventId: number | undefined;
+    let liveVideoId: string | undefined;
+    try {
+      const liveStatus = await checkLiveStream();
+      if (liveStatus.isLive && liveStatus.eventId && eventIds.includes(liveStatus.eventId)) {
+        liveEventId = liveStatus.eventId;
+        liveVideoId = liveStatus.videoId;
+      }
+    } catch {
+      // Live check is best-effort; don't fail the whole request
+    }
 
     const result: MediaStatusMap = {};
     for (const id of eventIds) {
-      result[String(id)] = {
+      const entry: MediaStatusEntry = {
         hasVideo: videoEventIds.has(id),
         hasTranscript: transcriptEventIds.has(id),
         hasZoomLink: zoomEventIds.has(id),
       };
+      if (id === liveEventId) {
+        entry.isLive = true;
+        entry.liveVideoId = liveVideoId;
+      }
+      const digest = digestMap.get(id);
+      if (digest) {
+        entry.digest = digest;
+      }
+      result[String(id)] = entry;
     }
 
     return NextResponse.json(result, {

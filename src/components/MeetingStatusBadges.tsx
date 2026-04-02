@@ -7,6 +7,9 @@ export interface MediaFlags {
   hasVideo?: boolean;
   hasTranscript?: boolean;
   hasZoomLink?: boolean;
+  isLive?: boolean;
+  liveVideoId?: string;
+  digest?: string;
 }
 
 interface MeetingStatusBadgesProps {
@@ -51,7 +54,20 @@ export function MeetingStatusBadges({
           {fileCount}
         </span>
       )}
-      {variant === "card" && media?.hasVideo && (
+      {variant === "card" && media?.isLive && (
+        <span
+          className={`inline-flex items-center gap-1 px-2.5 ${badgePadding} text-xs font-medium rounded-full whitespace-nowrap bg-red-600 text-white`}
+          title="Live stream in progress"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+          </span>
+          <YouTubeIcon className="w-3.5 h-3.5" />
+          LIVE
+        </span>
+      )}
+      {variant === "card" && media?.hasVideo && !media?.isLive && (
         <span
           className={`inline-flex items-center gap-1 px-2.5 ${badgePadding} text-xs font-medium rounded-full whitespace-nowrap bg-red-50 text-red-600`}
           title="Video recording available"

@@ -1,17 +1,5 @@
-import { Resend } from "resend";
 import { SITE_NAME } from "@/lib/branding";
-
-let resend: Resend | null = null;
-
-function getResend(): Resend {
-  if (!resend) {
-    if (!process.env.RESEND_API_KEY) {
-      throw new Error("RESEND_API_KEY environment variable is not set");
-    }
-    resend = new Resend(process.env.RESEND_API_KEY);
-  }
-  return resend;
-}
+import { getResend, emailFrom, footerLinksHtml, footerLinksText } from "@/emails/shared";
 
 export interface SendAgendaPostedParams {
   to: string;
@@ -36,7 +24,6 @@ export async function sendAgendaPostedEmail({
 }: SendAgendaPostedParams): Promise<{ id: string | null; error: unknown }> {
   const subject = `New documents posted: ${eventName}`;
   const meetingUrl = `${appUrl}/meeting/${eventId}`;
-  const myFollowUrl = `${appUrl}/?tab=following`;
 
   const html = `
 <!DOCTYPE html>
@@ -66,9 +53,7 @@ export async function sendAgendaPostedEmail({
                 <a href="${meetingUrl}" style="display: inline-block; padding: 10px 20px; background-color: #4f46e5; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 600;">View meeting</a>
               </p>
               <p style="margin: 0; font-size: 14px;">
-                <a href="${myFollowUrl}" style="color: #2563eb; text-decoration: none;">My follows</a>
-                &nbsp;·&nbsp;
-                <a href="${appUrl}/profile" style="color: #2563eb; text-decoration: none;">Manage your alerts</a>
+                ${footerLinksHtml(appUrl)}
               </p>
             </td>
           </tr>
@@ -92,12 +77,11 @@ export async function sendAgendaPostedEmail({
     `${formatFileLabel(newFileCount)} added.`,
     "",
     `View meeting: ${meetingUrl}`,
-    `My follows: ${myFollowUrl}`,
-    `Manage your alerts: ${appUrl}/profile`,
+    footerLinksText(appUrl),
   ].join("\n");
 
   const { data, error } = await getResend().emails.send({
-    from: process.env.EMAIL_FROM || `${SITE_NAME} <noreply@resend.dev>`,
+    from: emailFrom(),
     to,
     subject,
     html,

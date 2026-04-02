@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEventById, getMeetingDetails } from '@/lib/civicclerk';
 import { generateAgendaSummaries } from '@/lib/llm/agenda-summary';
+import { generateDigestFromAgendaSummaries, saveDigest } from '@/lib/llm/digest';
 import { OpenRouterError } from '@/lib/llm/openrouter';
-import { db, agendaSummaries } from '@/lib/db';
+import { db, agendaSummaries, events } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 
 interface RouteParams {
@@ -83,6 +84,14 @@ export async function GET(
         });
       } catch (dbError) {
         console.warn('Failed to cache agenda summary in DB:', dbError);
+      }
+
+      // Generate a one-sentence digest for the meeting card (best-effort, background)
+      const existing = await db.select({ digest: events.digest }).from(events).where(eq(events.id, eventId)).limit(1);
+      if (!existing[0]?.digest) {
+        generateDigestFromAgendaSummaries(summaries)
+          .then((digest) => saveDigest(eventId, digest))
+          .catch((err) => console.warn('Digest generation failed:', err));
       }
     }
 

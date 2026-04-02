@@ -1,18 +1,5 @@
-import { Resend } from "resend";
 import { SITE_NAME } from "@/lib/branding";
-
-// Initialize Resend lazily to avoid build-time errors when API key is not available
-let resend: Resend | null = null;
-
-function getResend(): Resend {
-  if (!resend) {
-    if (!process.env.RESEND_API_KEY) {
-      throw new Error("RESEND_API_KEY environment variable is not set");
-    }
-    resend = new Resend(process.env.RESEND_API_KEY);
-  }
-  return resend;
-}
+import { getResend, emailFrom } from "@/emails/shared";
 
 interface SendMagicLinkParams {
   identifier: string; // email address
@@ -21,7 +8,7 @@ interface SendMagicLinkParams {
 
 export async function sendMagicLinkEmail({ identifier, url }: SendMagicLinkParams) {
   const { error } = await getResend().emails.send({
-    from: process.env.EMAIL_FROM || `${SITE_NAME} <noreply@resend.dev>`,
+    from: emailFrom(),
     to: identifier,
     subject: `Sign in to ${SITE_NAME}`,
     html: `

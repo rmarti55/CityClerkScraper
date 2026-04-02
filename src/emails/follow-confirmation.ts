@@ -1,17 +1,5 @@
-import { Resend } from "resend";
 import { SITE_NAME } from "@/lib/branding";
-
-let resend: Resend | null = null;
-
-function getResend(): Resend {
-  if (!resend) {
-    if (!process.env.RESEND_API_KEY) {
-      throw new Error("RESEND_API_KEY environment variable is not set");
-    }
-    resend = new Resend(process.env.RESEND_API_KEY);
-  }
-  return resend;
-}
+import { getResend, emailFrom, footerLinksHtml, footerLinksText } from "@/emails/shared";
 
 export interface SendFollowConfirmationParams {
   to: string;
@@ -37,9 +25,7 @@ export async function sendFollowConfirmationEmail({
   const whatYouGet =
     type === "category"
       ? "You'll get a daily digest of upcoming meetings in this category."
-      : "We'll send a reminder 1 hour before the meeting.";
-  const myFollowUrl = `${appUrl}/my-follows`;
-
+      : "We'll send you a reminder before the meeting starts.";
   const html = `
 <!DOCTYPE html>
 <html>
@@ -63,9 +49,7 @@ export async function sendFollowConfirmationEmail({
               <h2 style="margin: 0 0 16px; font-size: 18px; font-weight: 600; color: #111827;">You're now following ${name}</h2>
               <p style="margin: 0 0 20px; font-size: 14px; color: #6b7280;">${whatYouGet}</p>
               <p style="margin: 0; font-size: 14px;">
-                <a href="${myFollowUrl}" style="color: #2563eb; text-decoration: none;">My Follow</a>
-                &nbsp;·&nbsp;
-                <a href="${appUrl}/profile" style="color: #2563eb; text-decoration: none;">Manage your alerts</a>
+                ${footerLinksHtml(appUrl)}
               </p>
             </td>
           </tr>
@@ -86,12 +70,11 @@ export async function sendFollowConfirmationEmail({
     `You're now following ${name}.`,
     whatYouGet,
     "",
-    `My Follow: ${myFollowUrl}`,
-    `Manage your alerts: ${appUrl}/profile`,
+    footerLinksText(appUrl),
   ].join("\n");
 
   const { data, error } = await getResend().emails.send({
-    from: process.env.EMAIL_FROM || `${SITE_NAME} <noreply@resend.dev>`,
+    from: emailFrom(),
     to,
     subject,
     html,

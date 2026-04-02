@@ -1,7 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import { SettingRow } from "@/components/SettingRow";
+import {
+  MailIcon,
+  CheckCircleIcon,
+  BellIcon,
+  FileTextIcon,
+  MessageSquareIcon,
+  ChevronDownIcon,
+} from "@/components/icons";
 
 interface NotificationPreferences {
   emailDigestEnabled: string;
@@ -16,12 +25,16 @@ export default function ProfilePage() {
   const { data: session, status } = useSession();
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
   const fetchPrefs = useCallback(async () => {
+    setLoadError(false);
     const res = await fetch("/api/notifications/preferences");
     if (!res.ok) {
+      setLoadError(true);
       setPrefs(null);
       return;
     }
@@ -44,11 +57,17 @@ export default function ProfilePage() {
     }
   }, [status, fetchPrefs]);
 
+  const showToast = useCallback((type: "success" | "error", text: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ type, text });
+    toastTimer.current = setTimeout(() => setToast(null), 2000);
+  }, []);
+
   const updatePref = useCallback(
     async (updates: Partial<NotificationPreferences>) => {
       if (!prefs) return;
       setSaving(true);
-      setMessage(null);
+      setPrefs((prev) => (prev ? { ...prev, ...updates } : null));
       try {
         const res = await fetch("/api/notifications/preferences", {
           method: "PATCH",
@@ -56,21 +75,21 @@ export default function ProfilePage() {
           body: JSON.stringify(updates),
         });
         if (!res.ok) throw new Error("Failed to update");
-        setPrefs((prev) => (prev ? { ...prev, ...updates } : null));
-        setMessage({ type: "success", text: "Saved." });
+        showToast("success", "Saved");
       } catch {
-        setMessage({ type: "error", text: "Could not save. Try again." });
+        setPrefs((prev) => (prev ? { ...prev, ...Object.fromEntries(Object.keys(updates).map((k) => [k, prefs[k as keyof NotificationPreferences]])) } : null));
+        showToast("error", "Could not save. Try again.");
       } finally {
         setSaving(false);
       }
     },
-    [prefs]
+    [prefs, showToast]
   );
 
   const toggle = useCallback(
-    (key: keyof NotificationPreferences, value: "true" | "false") => {
+    (key: keyof NotificationPreferences, checked: boolean) => {
       if (key === "meetingReminderMinutesBefore") return;
-      updatePref({ [key]: value });
+      updatePref({ [key]: checked ? "true" : "false" });
     },
     [updatePref]
   );
@@ -85,10 +104,22 @@ export default function ProfilePage() {
   if (status === "loading" || loading) {
     return (
       <main className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 py-6 lg:max-w-none lg:px-12">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-200 rounded w-48" />
-            <div className="h-24 bg-gray-200 rounded" />
+        <div className="mx-auto max-w-xl px-4 py-8">
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="animate-pulse rounded-lg border border-gray-200 bg-white px-5 py-4">
+                <div className="flex items-start gap-3.5">
+                  <div className="h-5 w-5 rounded bg-gray-200" />
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="h-4 w-32 rounded bg-gray-200" />
+                      <div className="h-6 w-11 rounded-full bg-gray-200" />
+                    </div>
+                    <div className="h-3 w-56 rounded bg-gray-100" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </main>
@@ -98,10 +129,10 @@ export default function ProfilePage() {
   if (!session?.user) {
     return (
       <main className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 py-6 lg:max-w-none lg:px-12">
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Alert settings</h1>
-            <p className="text-gray-800">Sign in to manage your email and reminder preferences.</p>
+        <div className="mx-auto max-w-xl px-4 py-8">
+          <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
+            <h1 className="text-lg font-semibold text-gray-900 mb-1">Alert settings</h1>
+            <p className="text-sm text-gray-600">Sign in to manage your email and reminder preferences.</p>
           </div>
         </div>
       </main>
@@ -110,176 +141,117 @@ export default function ProfilePage() {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-6 lg:max-w-none lg:px-12">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Alert settings</h1>
-        <p className="text-gray-600 mb-8">
+      <div className="mx-auto max-w-xl px-4 py-8">
+        <p className="text-sm text-gray-600 mb-5">
           Choose how you want to be notified about followed categories and meetings.
         </p>
 
-        {message && (
-          <p
-            className={`mb-4 text-sm ${message.type === "success" ? "text-green-600" : "text-red-600"}`}
-          >
-            {message.text}
-          </p>
-        )}
-
-        {prefs && (
-          <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-200">
-            <label className="flex items-center justify-between gap-4 px-4 py-4">
-              <span className="font-medium text-gray-900">Daily digest</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={prefs.emailDigestEnabled === "true"}
-                disabled={saving}
-                onClick={() =>
-                  toggle("emailDigestEnabled", prefs.emailDigestEnabled === "true" ? "false" : "true")
-                }
-                className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 ${
-                  prefs.emailDigestEnabled === "true"
-                    ? "border-indigo-600 bg-indigo-600"
-                    : "border-gray-200 bg-gray-200"
-                }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                    prefs.emailDigestEnabled === "true" ? "translate-x-5" : "translate-x-0.5"
-                  }`}
-                />
-              </button>
-            </label>
-            <p className="px-4 pb-4 text-sm text-gray-600">
-              One email per day with upcoming meetings in your followed categories.
-            </p>
-
-            <label className="flex items-center justify-between gap-4 px-4 py-4">
-              <span className="font-medium text-gray-900">Confirmation when I follow</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={prefs.confirmationEmailEnabled === "true"}
-                disabled={saving}
-                onClick={() =>
-                  toggle(
-                    "confirmationEmailEnabled",
-                    prefs.confirmationEmailEnabled === "true" ? "false" : "true"
-                  )
-                }
-                className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 ${
-                  prefs.confirmationEmailEnabled === "true"
-                    ? "border-indigo-600 bg-indigo-600"
-                    : "border-gray-200 bg-gray-200"
-                }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                    prefs.confirmationEmailEnabled === "true" ? "translate-x-5" : "translate-x-0.5"
-                  }`}
-                />
-              </button>
-            </label>
-            <p className="px-4 pb-4 text-sm text-gray-600">
-              Send an email when you follow a category or meeting.
-            </p>
-
-            <label className="flex items-center justify-between gap-4 px-4 py-4">
-              <span className="font-medium text-gray-900">Meeting reminder</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={prefs.meetingReminderEnabled === "true"}
-                disabled={saving}
-                onClick={() =>
-                  toggle(
-                    "meetingReminderEnabled",
-                    prefs.meetingReminderEnabled === "true" ? "false" : "true"
-                  )
-                }
-                className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 ${
-                  prefs.meetingReminderEnabled === "true"
-                    ? "border-indigo-600 bg-indigo-600"
-                    : "border-gray-200 bg-gray-200"
-                }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                    prefs.meetingReminderEnabled === "true" ? "translate-x-5" : "translate-x-0.5"
-                  }`}
-                />
-              </button>
-            </label>
-            <div className="px-4 pb-4">
-              <p className="text-sm text-gray-600 mb-2">
-                Remind me before meetings I follow.
-              </p>
-              <select
-                value={prefs.meetingReminderMinutesBefore}
-                onChange={(e) => setReminderMinutes(Number(e.target.value))}
-                disabled={saving || prefs.meetingReminderEnabled !== "true"}
-                className="mt-1 block rounded-md border border-gray-300 py-2 pl-3 pr-8 text-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 disabled:opacity-50"
-              >
-                <option value={60}>1 hour before</option>
-                <option value={30}>30 minutes before</option>
-                <option value={15}>15 minutes before</option>
-              </select>
+        {/* Toast */}
+        <div
+          aria-live="polite"
+          className={`fixed bottom-6 left-1/2 z-50 -translate-x-1/2 transition-all duration-300 ${
+            toast ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0 pointer-events-none"
+          }`}
+        >
+          {toast && (
+            <div
+              className={`rounded-lg px-4 py-2.5 text-sm font-medium shadow-lg ${
+                toast.type === "success"
+                  ? "bg-gray-900 text-white"
+                  : "bg-red-600 text-white"
+              }`}
+            >
+              {toast.text}
             </div>
+          )}
+        </div>
 
-            <label className="flex items-center justify-between gap-4 px-4 py-4">
-              <span className="font-medium text-gray-900">Agenda / documents posted</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={prefs.agendaPostedEnabled === "true"}
-                disabled={saving}
-                onClick={() =>
-                  toggle("agendaPostedEnabled", prefs.agendaPostedEnabled === "true" ? "false" : "true")
-                }
-                className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 ${
-                  prefs.agendaPostedEnabled === "true"
-                    ? "border-indigo-600 bg-indigo-600"
-                    : "border-gray-200 bg-gray-200"
-                }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                    prefs.agendaPostedEnabled === "true" ? "translate-x-5" : "translate-x-0.5"
-                  }`}
-                />
-              </button>
-            </label>
-            <p className="px-4 pb-4 text-sm text-gray-600">
-              Get an email when new agendas, packets, or documents are posted to meetings in categories you follow.
+        {loadError && !prefs ? (
+          <div className="rounded-lg border border-gray-200 bg-white p-8 text-center">
+            <p className="text-sm text-gray-600 mb-3">
+              Couldn&apos;t load your preferences.
             </p>
-
-            <label className="flex items-center justify-between gap-4 px-4 py-4">
-              <span className="font-medium text-gray-900">Transcript ready</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={prefs.transcriptReadyEnabled === "true"}
-                disabled={saving}
-                onClick={() =>
-                  toggle("transcriptReadyEnabled", prefs.transcriptReadyEnabled === "true" ? "false" : "true")
-                }
-                className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 ${
-                  prefs.transcriptReadyEnabled === "true"
-                    ? "border-indigo-600 bg-indigo-600"
-                    : "border-gray-200 bg-gray-200"
-                }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                    prefs.transcriptReadyEnabled === "true" ? "translate-x-5" : "translate-x-0.5"
-                  }`}
-                />
-              </button>
-            </label>
-            <p className="px-4 pb-4 text-sm text-gray-600">
-              Get an email when an AI-generated transcript and summary become available for meetings you follow.
-            </p>
+            <button
+              onClick={() => {
+                setLoading(true);
+                fetchPrefs().finally(() => setLoading(false));
+              }}
+              className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+            >
+              Try again
+            </button>
           </div>
-        )}
+        ) : prefs ? (
+          <div className="space-y-3">
+            <SettingRow
+              id="toggle-digest"
+              icon={<MailIcon className="w-5 h-5" />}
+              title="Daily digest"
+              description="One email per day with upcoming meetings in your followed categories."
+              checked={prefs.emailDigestEnabled === "true"}
+              onChange={(checked) => toggle("emailDigestEnabled", checked)}
+              disabled={saving}
+            />
+
+            <SettingRow
+              id="toggle-confirmation"
+              icon={<CheckCircleIcon className="w-5 h-5" />}
+              title="Confirmation when I follow"
+              description="Send an email when you follow a category or meeting."
+              checked={prefs.confirmationEmailEnabled === "true"}
+              onChange={(checked) => toggle("confirmationEmailEnabled", checked)}
+              disabled={saving}
+            />
+
+            <SettingRow
+              id="toggle-reminder"
+              icon={<BellIcon className="w-5 h-5" />}
+              title="Meeting reminder"
+              description="Remind me before meetings I follow."
+              checked={prefs.meetingReminderEnabled === "true"}
+              onChange={(checked) => toggle("meetingReminderEnabled", checked)}
+              disabled={saving}
+            >
+              <div className="relative inline-block">
+                <label htmlFor="reminder-minutes" className="sr-only">
+                  Reminder lead time
+                </label>
+                <select
+                  id="reminder-minutes"
+                  value={prefs.meetingReminderMinutesBefore}
+                  onChange={(e) => setReminderMinutes(Number(e.target.value))}
+                  disabled={saving}
+                  className="appearance-none rounded-md border border-gray-300 bg-white py-1.5 pl-3 pr-8 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  <option value={60}>1 hour before</option>
+                  <option value={30}>30 minutes before</option>
+                  <option value={15}>15 minutes before</option>
+                </select>
+                <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+              </div>
+            </SettingRow>
+
+            <SettingRow
+              id="toggle-agenda"
+              icon={<FileTextIcon className="w-5 h-5" />}
+              title="Agenda / documents posted"
+              description="Get an email when new agendas, packets, or documents are posted to meetings in categories you follow."
+              checked={prefs.agendaPostedEnabled === "true"}
+              onChange={(checked) => toggle("agendaPostedEnabled", checked)}
+              disabled={saving}
+            />
+
+            <SettingRow
+              id="toggle-transcript"
+              icon={<MessageSquareIcon className="w-5 h-5" />}
+              title="Transcript ready"
+              description="Get an email when an AI-generated transcript and summary become available for meetings you follow."
+              checked={prefs.transcriptReadyEnabled === "true"}
+              onChange={(checked) => toggle("transcriptReadyEnabled", checked)}
+              disabled={saving}
+            />
+          </div>
+        ) : null}
       </div>
     </main>
   );

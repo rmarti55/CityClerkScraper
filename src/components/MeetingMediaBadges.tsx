@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import useSWR from "swr";
 import { isZoomLinkRelevant } from "@/lib/datetime";
 import { getMeetingPlatform } from "@/lib/meeting-platform";
+import { useLiveStream } from "@/hooks/useLiveStream";
 import { YouTubeIcon, DocumentIcon, VideoCameraIcon } from "./icons";
 
 interface TranscriptData {
@@ -25,11 +26,13 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 /**
  * Media availability pills for the meeting detail header.
- * Shows Video / AI Transcript / Virtual Meeting indicators with links.
+ * Shows Live / Video / AI Transcript / Virtual Meeting indicators with links.
  */
 export function MeetingMediaBadges({ eventId, startDateTime }: { eventId: number; startDateTime: string }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  const { isLive, videoId: liveVideoId } = useLiveStream(eventId, startDateTime);
 
   const { data: transcriptData } = useSWR<TranscriptData>(
     `/api/meeting/${eventId}/transcript`,
@@ -48,11 +51,24 @@ export function MeetingMediaBadges({ eventId, startDateTime }: { eventId: number
   const rawZoomLink = zoomData?.zoomLink && zoomData.zoomLink !== "none" ? zoomData.zoomLink : null;
   const zoomLink = rawZoomLink && isZoomLinkRelevant(startDateTime) ? rawZoomLink : null;
 
-  if (!mounted || (!hasVideo && !hasTranscript && !zoomLink)) return null;
+  if (!mounted || (!isLive && !hasVideo && !hasTranscript && !zoomLink)) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-2 mt-4">
-      {hasVideo && (
+      {isLive && liveVideoId && (
+        <a
+          href="#live-stream"
+          className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full bg-red-600 text-white border border-red-700 hover:bg-red-700 transition-colors"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+          </span>
+          <YouTubeIcon className="w-3.5 h-3.5" />
+          Watch Live
+        </a>
+      )}
+      {hasVideo && !isLive && (
         <a
           href={`https://www.youtube.com/watch?v=${transcriptData!.video!.youtubeVideoId}`}
           target="_blank"

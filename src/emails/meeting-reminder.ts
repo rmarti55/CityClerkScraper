@@ -1,17 +1,5 @@
-import { Resend } from "resend";
 import { SITE_NAME } from "@/lib/branding";
-
-let resend: Resend | null = null;
-
-function getResend(): Resend {
-  if (!resend) {
-    if (!process.env.RESEND_API_KEY) {
-      throw new Error("RESEND_API_KEY environment variable is not set");
-    }
-    resend = new Resend(process.env.RESEND_API_KEY);
-  }
-  return resend;
-}
+import { getResend, emailFrom, formatDate, footerLinksHtml, footerLinksText } from "@/emails/shared";
 
 export interface SendMeetingReminderParams {
   to: string;
@@ -19,19 +7,6 @@ export interface SendMeetingReminderParams {
   startDateTime: string; // ISO string
   eventId: number;
   appUrl: string;
-}
-
-function formatDate(d: string): string {
-  const date = new Date(d);
-  return date.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "America/Denver",
-  });
 }
 
 /**
@@ -46,7 +21,6 @@ export async function sendMeetingReminderEmail({
 }: SendMeetingReminderParams): Promise<{ id: string | null; error: unknown }> {
   const subject = `Reminder: ${eventName} — ${formatDate(startDateTime)}`;
   const meetingUrl = `${appUrl}/meeting/${eventId}`;
-  const myFollowUrl = `${appUrl}/my-follows`;
 
   const html = `
 <!DOCTYPE html>
@@ -74,9 +48,7 @@ export async function sendMeetingReminderEmail({
               <p style="margin: 0; font-size: 14px;">
                 <a href="${meetingUrl}" style="color: #2563eb; text-decoration: none;">View meeting</a>
                 &nbsp;·&nbsp;
-                <a href="${myFollowUrl}" style="color: #2563eb; text-decoration: none;">My Follow</a>
-                &nbsp;·&nbsp;
-                <a href="${appUrl}/profile" style="color: #2563eb; text-decoration: none;">Manage your alerts</a>
+                ${footerLinksHtml(appUrl)}
               </p>
             </td>
           </tr>
@@ -99,12 +71,11 @@ export async function sendMeetingReminderEmail({
     formatDate(startDateTime),
     "",
     `View meeting: ${meetingUrl}`,
-    `My Follow: ${myFollowUrl}`,
-    `Manage your alerts: ${appUrl}/profile`,
+    footerLinksText(appUrl),
   ].join("\n");
 
   const { data, error } = await getResend().emails.send({
-    from: process.env.EMAIL_FROM || `${SITE_NAME} <noreply@resend.dev>`,
+    from: emailFrom(),
     to,
     subject,
     html,

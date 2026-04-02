@@ -5,10 +5,11 @@
  */
 
 import { SITE_NAME } from '@/lib/branding';
+import { SMART_MODEL } from './models';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-const DEFAULT_MODEL = 'anthropic/claude-sonnet-4.6';
+const DEFAULT_MODEL = SMART_MODEL;
 
 const MAX_RETRIES = 3;
 const RETRYABLE_STATUS_CODES = new Set([402, 429, 500, 502, 503, 504]);

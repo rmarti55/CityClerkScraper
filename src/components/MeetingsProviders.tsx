@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useSyncExternalStore } from "react";
 import { SWRConfig, type Cache } from "swr";
 import { EventsProvider } from "@/context/EventsContext";
 import { CommitteeProvider } from "@/context/CommitteeContext";
@@ -16,14 +16,27 @@ function localStorageProvider(): Cache {
   return map as Cache;
 }
 
+const emptySubscribe = () => () => {};
+
+function useHydrated(): boolean {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
+}
+
 export function MeetingsProviders({ children }: { children: ReactNode }) {
+  const hydrated = useHydrated();
+
   return (
     <SWRConfig
       value={{
-        provider: typeof window !== "undefined" ? localStorageProvider : undefined,
+        provider: hydrated ? localStorageProvider : undefined,
         revalidateOnFocus: false,
         dedupingInterval: 60_000,
       }}
+      key={hydrated ? "hydrated" : "ssr"}
     >
       <EventsProvider>
         <CommitteeProvider>

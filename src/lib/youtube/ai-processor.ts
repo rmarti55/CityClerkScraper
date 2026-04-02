@@ -11,10 +11,14 @@
  */
 
 import { chatCompletion } from '@/lib/llm/openrouter';
+import { FAST_MODEL, SMART_MODEL } from '@/lib/llm/models';
+
+function stripJsonFences(text: string): string {
+  const fenced = text.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
+  return fenced ? fenced[1].trim() : text.trim();
+}
 
 const CHUNK_SIZE = 12000; // ~3000 tokens worth of text per chunk
-const FAST_MODEL = 'anthropic/claude-haiku-4.5';
-const SMART_MODEL = 'anthropic/claude-sonnet-4.6';
 
 export interface TranscriptSummary {
   executiveSummary: string;
@@ -154,7 +158,15 @@ Rules:
   );
 
   try {
-    return JSON.parse(result.content);
+    const parsed = JSON.parse(stripJsonFences(result.content));
+    // Recover from double-wrapping: model sometimes puts fenced JSON inside executiveSummary
+    if (typeof parsed.executiveSummary === 'string' && parsed.executiveSummary.includes('```')) {
+      try {
+        const inner = JSON.parse(stripJsonFences(parsed.executiveSummary));
+        if (inner.executiveSummary) return inner;
+      } catch { /* use outer parse as-is */ }
+    }
+    return parsed;
   } catch {
     return {
       executiveSummary: result.content,
@@ -188,7 +200,7 @@ Output ONLY valid JSON, no markdown fences.`,
 
   let speakers: Array<{ name: string; role: string }> = [];
   try {
-    speakers = JSON.parse(identifyResult.content);
+    speakers = JSON.parse(stripJsonFences(identifyResult.content));
   } catch {
     speakers = [];
   }
@@ -222,7 +234,7 @@ Rules:
     );
 
     try {
-      const segments: Array<{ speaker: string; text: string }> = JSON.parse(result.content);
+      const segments: Array<{ speaker: string; text: string }> = JSON.parse(stripJsonFences(result.content));
       for (const seg of segments) {
         const startOffset = charOffset;
         charOffset += seg.text.length + 1;
@@ -281,7 +293,7 @@ Rules:
   );
 
   try {
-    return JSON.parse(result.content);
+    return JSON.parse(stripJsonFences(result.content));
   } catch {
     return [];
   }
@@ -299,11 +311,11 @@ export async function processTranscript(rawText: string): Promise<{
   model: string;
 }> {
   const cleanedTranscript = await cleanTranscript(rawText);
-  const [summary, speakers, topics] = await Promise.all([
+  const [summary, topics] = await Promise.all([
     generateSummary(cleanedTranscript),
-    attributeSpeakers(cleanedTranscript),
     extractTopics(cleanedTranscript),
   ]);
+  const speakers: SpeakerSegment[] = [];
 
   return {
     cleanedTranscript,

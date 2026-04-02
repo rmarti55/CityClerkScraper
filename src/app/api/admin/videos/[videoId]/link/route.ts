@@ -40,7 +40,7 @@ export async function POST(
 
     const updated = await db
       .update(meetingVideos)
-      .set({ eventId, matchConfidence: 100, matchedAt: new Date() })
+      .set({ eventId, matchConfidence: 100, matchMethod: 'manual', matchedAt: new Date() })
       .where(eq(meetingVideos.id, videoId))
       .returning({ id: meetingVideos.id });
 
