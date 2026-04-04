@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, events } from '@/lib/db';
 import { eq, desc, count } from 'drizzle-orm';
 import { fetchEventsByCategoryFromAPI, getMeetingDetails } from '@/lib/civicclerk';
-import { upsertEvent } from '@/lib/civicclerk/cache';
+import { upsertEvent, upsertFiles } from '@/lib/civicclerk/cache';
 
 /**
  * Minimum expected events for a well-known committee.
@@ -117,9 +117,10 @@ async function backfillCategory(categoryName: string): Promise<void> {
         if (event.agendaId) {
           try {
             const meeting = await getMeetingDetails(event.agendaId);
-            if (meeting?.publishedFiles) {
+            if (meeting?.publishedFiles?.length) {
               fileCount = meeting.publishedFiles.length;
               fileNames = meeting.publishedFiles.map((f) => f.name).join(' ');
+              await upsertFiles(event.id, meeting.publishedFiles).catch(() => {});
             }
           } catch {
             // Non-fatal — keep defaults

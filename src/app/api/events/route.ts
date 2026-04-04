@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { db, events } from '@/lib/db';
 import { asc, inArray, gte, lt, and, max } from 'drizzle-orm';
 import type { CivicEvent } from '@/lib/types';
@@ -128,7 +128,13 @@ export async function GET(request: NextRequest) {
   const isRangeInPast = new Date(endDate) < new Date();
 
   try {
-    const eventsForMonth = await getEventsWithFileCounts(startDate, endDate);
+    const eventsForMonth = await getEventsWithFileCounts(startDate, endDate, {
+      onStale: (refresh) => {
+        after(async () => {
+          await refresh();
+        });
+      },
+    });
     const cacheControl = isRangeInPast
       ? 'public, s-maxage=3600, stale-while-revalidate=86400'
       : 'public, s-maxage=300, stale-while-revalidate=600';

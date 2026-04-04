@@ -74,6 +74,17 @@ export const COMMITTEES: Record<string, CommitteeConfig> = {
       'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
     ],
   },
+  'historic-design-review': {
+    slug: 'historic-design-review',
+    categoryName: 'Historic Districts Review Board',
+    displayName: 'Historic Districts Review',
+    shortName: 'HDRB',
+    description: 'Historic district design review and preservation',
+    color: 'rose',
+    iconPaths: [
+      'M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z',
+    ],
+  },
 } as const;
 
 // Get committee by slug

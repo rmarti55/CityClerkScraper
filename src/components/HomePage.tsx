@@ -14,6 +14,7 @@ import { CommitteeMeetingList } from "./CommitteeMeetingList";
 import { FollowCategoryButton } from "./FollowCategoryButton";
 import { FollowingTabContent } from "./FollowingTabContent";
 import { SavedDocsTabContent } from "./SavedDocsTabContent";
+import { CommitteeDocumentBrowser } from "./CommitteeDocumentBrowser";
 
 function ErrorState({ error }: { error: string }) {
   return (
@@ -179,6 +180,11 @@ function CommitteeTabContent({
           variant="default"
         />
       </div>
+
+      <CommitteeDocumentBrowser
+        categoryName={committee.categoryName}
+        committeeSlug={committeeSlug}
+      />
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <CommitteeMeetingList

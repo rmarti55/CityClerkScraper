@@ -14,6 +14,8 @@
 
 import { useState, useMemo } from "react";
 import useSWR from "swr";
+import { useDocumentChat } from "@/hooks/useDocumentChat";
+import { ChatMessageList } from "@/components/ChatMessageList";
 
 interface TranscriptSummary {
   executiveSummary: string;
@@ -78,7 +80,7 @@ const SPEAKER_COLORS = [
 ];
 
 export function MeetingTranscript({ eventId }: { eventId: number }) {
-  const [activeTab, setActiveTab] = useState<"summary" | "transcript" | "speakers">("summary");
+  const [activeTab, setActiveTab] = useState<"summary" | "transcript" | "speakers" | "chat">("summary");
   const [showVideo, setShowVideo] = useState(true);
   const [cardOpen, setCardOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -240,7 +242,7 @@ export function MeetingTranscript({ eventId }: { eventId: number }) {
         {isCompleted && transcript && (
           <>
             <div className="flex border-b border-gray-200">
-              {(["summary", "transcript", "speakers"] as const).map((tab) => (
+              {(["summary", "transcript", "speakers", "chat"] as const).map((tab) => (
                 <button
                   key={tab}
                   type="button"
@@ -269,6 +271,9 @@ export function MeetingTranscript({ eventId }: { eventId: number }) {
               )}
               {activeTab === "speakers" && transcript.speakers && (
                 <SpeakersTab speakers={transcript.speakers} colorMap={speakerColorMap} />
+              )}
+              {activeTab === "chat" && (
+                <ChatTab eventId={eventId} />
               )}
             </div>
           </>
@@ -394,6 +399,26 @@ function TranscriptTab({
   searchQuery: string;
   onSearchChange: (q: string) => void;
 }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (!text) return;
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownload = () => {
+    if (!text) return;
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "transcript.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const highlightedText = useMemo(() => {
     if (!searchQuery.trim() || !text) return null;
     const escaped = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -410,23 +435,54 @@ function TranscriptTab({
 
   return (
     <div>
-      {/* Search bar */}
-      <div className="mb-3 relative">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search transcript..."
-          className="w-full px-3 py-2 pl-9 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-        <svg className="absolute left-3 top-2.5 w-4 h-4 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        {matchCount > 0 && (
-          <span className="absolute right-3 top-2.5 text-xs text-gray-400">
-            {matchCount} match{matchCount !== 1 ? "es" : ""}
-          </span>
-        )}
+      <div className="mb-3 flex items-center gap-2">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Search transcript..."
+            className="w-full px-3 py-2 pl-9 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <svg className="absolute left-3 top-2.5 w-4 h-4 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          {matchCount > 0 && (
+            <span className="absolute right-3 top-2.5 text-xs text-gray-400">
+              {matchCount} match{matchCount !== 1 ? "es" : ""}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={handleCopy}
+          title={copied ? "Copied!" : "Copy transcript"}
+          className={`p-2 rounded-lg border transition-colors cursor-pointer ${
+            copied
+              ? "border-green-300 bg-green-50 text-green-600"
+              : "border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          {copied ? (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={handleDownload}
+          title="Download transcript"
+          className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+        </button>
       </div>
 
       {/* Transcript text */}
@@ -445,6 +501,41 @@ function TranscriptTab({
           text || <span className="text-gray-400 italic">No transcript text available</span>
         )}
       </div>
+    </div>
+  );
+}
+
+function ChatTab({ eventId }: { eventId: number }) {
+  const chat = useDocumentChat(`/api/meeting/${eventId}/transcript/chat`);
+
+  return (
+    <div className="flex flex-col h-96">
+      <ChatMessageList
+        messages={chat.messages}
+        loading={chat.loading}
+        error={chat.error}
+        messagesEndRef={chat.messagesEndRef}
+        emptyText="Ask a question about this meeting transcript. Answers are based only on the transcript content."
+      />
+      <form onSubmit={chat.handleSubmit} className="pt-3 border-t border-gray-200">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={chat.input}
+            onChange={(e) => chat.setInput(e.target.value)}
+            placeholder="Ask about this meeting…"
+            className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={chat.loading}
+          />
+          <button
+            type="submit"
+            disabled={chat.loading || !chat.input.trim()}
+            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Send
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

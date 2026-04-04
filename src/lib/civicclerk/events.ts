@@ -142,13 +142,98 @@ export async function getEventById(id: number): Promise<CivicEvent | null> {
 }
 
 /**
- * Get events with file counts for a date range (with optional database caching).
- * When forceRefresh is true, always fetches from the API and returns that result (then upserts to DB).
+ * Fetch events from API, enrich with file counts via getMeetingDetails, and
+ * upsert everything to the DB cache. Used by getEventsWithFileCounts for both
+ * the blocking (cold cache) and background (stale cache) paths.
+ *
+ * When existingCache is provided, skips getMeetingDetails for events whose
+ * file data is already fresh in the DB -- only fetches for new or stale entries.
+ */
+export async function refreshAndCacheEvents(
+  startDate: string,
+  endDate: string,
+  existingCache?: (typeof events.$inferSelect)[],
+): Promise<CivicEvent[]> {
+  const fetchedEvents = await fetchEventsFromAPI(startDate, endDate);
+
+  const cacheByEventId = new Map(
+    (existingCache ?? []).map(e => [e.id, e])
+  );
+
+  const batchSize = 5;
+  const eventsWithCounts: CivicEvent[] = [];
+
+  for (let i = 0; i < fetchedEvents.length; i += batchSize) {
+    const batch = fetchedEvents.slice(i, i + batchSize);
+    const batchResults = await Promise.all(
+      batch.map(async (event) => {
+        try {
+          if (!event.agendaId) {
+            return { ...event, fileCount: 0, fileNames: '' };
+          }
+
+          const cached = cacheByEventId.get(event.id);
+          const hasFiles = cached?.fileNames !== null && cached?.fileNames !== undefined;
+          if (cached && hasFiles && isCacheFresh(cached.cachedAt, cached.startDateTime, true)) {
+            return {
+              ...event,
+              fileCount: cached.fileCount ?? 0,
+              fileNames: cached.fileNames ?? '',
+            };
+          }
+
+          const meeting = await getMeetingDetails(event.agendaId);
+          const fileCount = meeting?.publishedFiles?.length || 0;
+          const fileNames = meeting?.publishedFiles?.map(f => f.name).join(' ') || '';
+          if (meeting?.items?.length) {
+            cacheAgendaItems(event.id, event.agendaId, meeting.items).catch(() => {});
+          }
+          return { ...event, fileCount, fileNames };
+        } catch {
+          const cached = cacheByEventId.get(event.id);
+          return {
+            ...event,
+            fileCount: cached?.fileCount ?? 0,
+            fileNames: cached?.fileNames ?? '',
+          };
+        }
+      })
+    );
+    eventsWithCounts.push(...batchResults);
+  }
+
+  try {
+    for (const e of eventsWithCounts) {
+      await upsertEvent(e);
+    }
+  } catch (error) {
+    console.warn('Failed to cache events:', error);
+  }
+
+  const upsertedAt = new Date().toISOString();
+  return eventsWithCounts.map(e => ({
+    ...e,
+    startDateTime: parseEventStartDateTime(e.startDateTime).toISOString(),
+    cachedAt: upsertedAt,
+  }));
+}
+
+/**
+ * Get events with file counts for a date range (with database caching).
+ *
+ * When forceRefresh is true, always fetches from the API (blocking).
+ *
+ * When stale cached data exists and onStale is provided, returns the stale
+ * data immediately and calls onStale with a refresh function the caller can
+ * schedule via Next.js after() to update the DB in the background.
  */
 export async function getEventsWithFileCounts(
   startDate: string,
   endDate: string,
-  options?: { forceRefresh?: boolean }
+  options?: {
+    forceRefresh?: boolean;
+    onStale?: (refresh: () => Promise<void>) => void;
+  }
 ): Promise<CivicEvent[]> {
   const forceRefresh = options?.forceRefresh === true;
   let cachedEvents: (typeof events.$inferSelect)[] = [];
@@ -174,15 +259,28 @@ export async function getEventsWithFileCounts(
         if (allFresh) {
           return cachedEvents.map(mapCachedEvent);
         }
+
+        if (options?.onStale) {
+          console.log(`Serving ${cachedEvents.length} stale cached events, scheduling background refresh`);
+          const snapshot = cachedEvents;
+          options.onStale(async () => {
+            try {
+              await refreshAndCacheEvents(startDate, endDate, snapshot);
+              console.log(`Background refresh complete for ${startDate} to ${endDate}`);
+            } catch (err) {
+              console.warn('Background refresh failed:', err);
+            }
+          });
+          return cachedEvents.map(mapCachedEvent);
+        }
       }
     } catch (error) {
       console.warn('Database cache unavailable, fetching from API:', error);
     }
   }
 
-  let fetchedEvents: CivicEvent[];
   try {
-    fetchedEvents = await fetchEventsFromAPI(startDate, endDate);
+    return await refreshAndCacheEvents(startDate, endDate, cachedEvents);
   } catch (apiError) {
     if (cachedEvents.length > 0) {
       console.warn('API unavailable, falling back to stale cache:', apiError);
@@ -192,47 +290,6 @@ export async function getEventsWithFileCounts(
     console.warn('API unavailable:', apiError);
     throw apiError;
   }
-
-  const batchSize = 5;
-  const eventsWithCounts: CivicEvent[] = [];
-
-  for (let i = 0; i < fetchedEvents.length; i += batchSize) {
-    const batch = fetchedEvents.slice(i, i + batchSize);
-    const batchResults = await Promise.all(
-      batch.map(async (event) => {
-        try {
-          if (!event.agendaId) {
-            return { ...event, fileCount: 0, fileNames: '' };
-          }
-          const meeting = await getMeetingDetails(event.agendaId);
-          const fileCount = meeting?.publishedFiles?.length || 0;
-          const fileNames = meeting?.publishedFiles?.map(f => f.name).join(' ') || '';
-          if (meeting?.items?.length) {
-            cacheAgendaItems(event.id, event.agendaId, meeting.items).catch(() => {});
-          }
-          return { ...event, fileCount, fileNames };
-        } catch {
-          return { ...event, fileCount: 0, fileNames: '' };
-        }
-      })
-    );
-    eventsWithCounts.push(...batchResults);
-  }
-
-  try {
-    for (const e of eventsWithCounts) {
-      await upsertEvent(e);
-    }
-  } catch (error) {
-    console.warn('Failed to cache events:', error);
-  }
-
-  const upsertedAt = new Date().toISOString();
-  return eventsWithCounts.map(e => ({
-    ...e,
-    startDateTime: parseEventStartDateTime(e.startDateTime).toISOString(),
-    cachedAt: upsertedAt,
-  }));
 }
 
 /**
